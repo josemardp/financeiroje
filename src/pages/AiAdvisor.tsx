@@ -1,16 +1,378 @@
+import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { getFinancialContext } from "@/services/aiAdvisor/contextCollector";
+import { parseAiResponse } from "@/services/aiAdvisor/responseParser";
+import type { AiResponseBlock } from "@/services/aiAdvisor/types";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { Bot } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { Bot, Send, Loader2, AlertTriangle, Lightbulb, CheckCircle, HelpCircle, TrendingUp, Info } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-advisor`;
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  blocks?: AiResponseBlock[];
+  timestamp: string;
+}
 
 export default function AiAdvisor() {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+
+  // Load existing conversations
+  const { data: conversations } = useQuery({
+    queryKey: ["ai-conversations"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("ai_conversations")
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  // Load messages for selected conversation
+  useEffect(() => {
+    if (!conversationId) return;
+    supabase
+      .from("ai_messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("created_at")
+      .then(({ data }) => {
+        if (data) {
+          setMessages(data.map((m: any) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            blocks: m.role === "assistant" ? parseAiResponse(m.content).blocks : undefined,
+            timestamp: m.created_at,
+          })));
+        }
+      });
+  }, [conversationId]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim() || !user || isStreaming) return;
+    const userText = input.trim();
+    setInput("");
+
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: userText,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setIsStreaming(true);
+
+    try {
+      // Collect financial context
+      const context = await getFinancialContext(user.id);
+
+      // Create conversation if needed
+      let convId = conversationId;
+      if (!convId) {
+        const { data: conv } = await supabase
+          .from("ai_conversations")
+          .insert({ user_id: user.id, titulo: userText.substring(0, 60) })
+          .select("id")
+          .single();
+        if (conv) {
+          convId = conv.id;
+          setConversationId(convId);
+        }
+      }
+
+      // Save user message
+      if (convId) {
+        await supabase.from("ai_messages").insert({
+          conversation_id: convId,
+          user_id: user.id,
+          role: "user" as const,
+          content: userText,
+          contexto_enviado: context as any,
+        });
+      }
+
+      // Stream AI response
+      const chatMessages = [...messages, userMsg].map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ messages: chatMessages, context }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `Erro ${resp.status}`);
+      }
+
+      if (!resp.body) throw new Error("Sem resposta do servidor");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantText = "";
+      let textBuffer = "";
+
+      const assistantId = crypto.randomUUID();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantText += content;
+              const blocks = parseAiResponse(assistantText).blocks;
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === "assistant" && last.id === assistantId) {
+                  return prev.map((m, i) => i === prev.length - 1
+                    ? { ...m, content: assistantText, blocks }
+                    : m
+                  );
+                }
+                return [...prev, {
+                  id: assistantId,
+                  role: "assistant",
+                  content: assistantText,
+                  blocks,
+                  timestamp: new Date().toISOString(),
+                }];
+              });
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Save assistant message
+      if (convId && assistantText) {
+        await supabase.from("ai_messages").insert({
+          conversation_id: convId,
+          user_id: user.id,
+          role: "assistant" as const,
+          content: assistantText,
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["ai-conversations"] });
+    } catch (err: any) {
+      toast.error("Erro ao consultar IA", { description: err.message });
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  const startNewConversation = () => {
+    setConversationId(null);
+    setMessages([]);
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <PageHeader title="IA Conselheira" description="Assistente financeiro com protocolo zero-alucinação" />
-      <EmptyState
-        icon={Bot}
-        title="Conselheiro financeiro com IA"
-        description="Faça perguntas sobre suas finanças. A IA responde com base nos seus dados reais — nunca inventa."
-      />
+    <div className="flex flex-col h-[calc(100vh-7rem)] animate-fade-in">
+      <PageHeader title="IA Conselheira" description="Protocolo zero-alucinação — interpreta, nunca calcula">
+        <Button variant="outline" size="sm" onClick={startNewConversation}>Nova conversa</Button>
+      </PageHeader>
+
+      {/* Conversation history sidebar */}
+      {conversations && conversations.length > 0 && !conversationId && messages.length === 0 && (
+        <div className="mb-4 space-y-2">
+          <p className="text-sm text-muted-foreground">Conversas recentes:</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {conversations.slice(0, 4).map((c: any) => (
+              <Card key={c.id} className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => setConversationId(c.id)}>
+                <CardContent className="p-3">
+                  <p className="text-sm font-medium truncate">{c.titulo || "Conversa"}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(c.updated_at).toLocaleDateString("pt-BR")}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <Bot className="h-12 w-12 text-muted-foreground/30 mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Como posso ajudar?</h3>
+            <p className="text-sm text-muted-foreground max-w-md mb-6">
+              Faço análises baseadas nos seus dados reais. Nunca invento números.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 max-w-lg">
+              {[
+                "Como estão minhas finanças este mês?",
+                "Qual minha maior despesa?",
+                "Tenho alguma dívida preocupante?",
+                "Como posso economizar mais?",
+              ].map((q) => (
+                <Button key={q} variant="outline" size="sm" className="text-left h-auto py-2 px-3"
+                  onClick={() => { setInput(q); }}>
+                  <span className="text-xs">{q}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[85%] ${msg.role === "user"
+              ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3"
+              : "space-y-3"
+            }`}>
+              {msg.role === "user" ? (
+                <p className="text-sm">{msg.content}</p>
+              ) : msg.blocks && msg.blocks.length > 0 ? (
+                <>
+                  {msg.blocks.map((block, i) => (
+                    <ResponseBlock key={i} block={block} />
+                  ))}
+                  <p className="text-[10px] text-muted-foreground italic mt-2">
+                    Valores calculados pela engine determinística. A IA interpreta, não calcula.
+                  </p>
+                </>
+              ) : (
+                <Card>
+                  <CardContent className="p-4 prose prose-sm max-w-none dark:prose-invert">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
+          <div className="flex justify-start">
+            <Card><CardContent className="p-4 flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Analisando seus dados...</span>
+            </CardContent></Card>
+          </div>
+        )}
+
+        <div ref={scrollRef} />
+      </div>
+
+      {/* Input area */}
+      <div className="border-t border-border pt-4">
+        <div className="flex gap-2">
+          <Textarea
+            placeholder="Pergunte sobre suas finanças..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            rows={1}
+            className="resize-none min-h-[44px]"
+            disabled={isStreaming}
+          />
+          <Button onClick={handleSend} disabled={isStreaming || !input.trim()} size="icon" className="shrink-0 h-11 w-11">
+            {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function ResponseBlock({ block }: { block: AiResponseBlock }) {
+  const iconMap: Record<string, React.ReactNode> = {
+    fact: <CheckCircle className="h-4 w-4 text-[hsl(var(--status-confirmed))]" />,
+    alert: <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />,
+    suggestion: <Lightbulb className="h-4 w-4 text-[hsl(var(--info))]" />,
+    projection: <TrendingUp className="h-4 w-4 text-[hsl(var(--status-estimated))]" />,
+    question: <HelpCircle className="h-4 w-4 text-muted-foreground" />,
+  };
+
+  const badgeVariant: Record<string, string> = {
+    fact: "data-badge-confirmed",
+    alert: "data-badge-suggested",
+    suggestion: "data-badge-incomplete",
+    projection: "data-badge-estimated",
+    question: "",
+  };
+
+  const typeLabels: Record<string, string> = {
+    fact: "FATO",
+    alert: "ALERTA",
+    suggestion: "SUGESTÃO",
+    projection: "PROJEÇÃO",
+    question: "PERGUNTA",
+  };
+
+  return (
+    <Card className="border-l-4" style={{
+      borderLeftColor: block.type === "fact" ? "hsl(var(--status-confirmed))"
+        : block.type === "alert" ? "hsl(var(--warning))"
+        : block.type === "projection" ? "hsl(var(--status-estimated))"
+        : block.type === "suggestion" ? "hsl(var(--info))"
+        : "hsl(var(--border))"
+    }}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-2">
+          {iconMap[block.type] || <Info className="h-4 w-4" />}
+          <Badge variant="outline" className={`text-[10px] ${badgeVariant[block.type] || ""}`}>
+            {typeLabels[block.type] || block.type.toUpperCase()}
+          </Badge>
+          {block.title && <span className="text-sm font-medium">{block.title}</span>}
+        </div>
+        <div className="prose prose-sm max-w-none dark:prose-invert">
+          <ReactMarkdown>{block.content}</ReactMarkdown>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
