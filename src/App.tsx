@@ -20,6 +20,8 @@ import Alerts from "./pages/Alerts";
 import Documents from "./pages/Documents";
 import FamilyValues from "./pages/FamilyValues";
 import SettingsPage from "./pages/Settings";
+import SmartCapture from "./pages/SmartCapture";
+import MonthlyClosing from "./pages/MonthlyClosing";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -62,6 +64,8 @@ function AppRoutes() {
         <Route path="/alertas" element={<Alerts />} />
         <Route path="/documentos" element={<Documents />} />
         <Route path="/valores" element={<FamilyValues />} />
+        <Route path="/captura" element={<SmartCapture />} />
+        <Route path="/fechamento" element={<MonthlyClosing />} />
         <Route path="/configuracoes" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />

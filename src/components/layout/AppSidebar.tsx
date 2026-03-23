@@ -17,6 +17,8 @@ import {
   PiggyBank,
   CalendarDays,
   TrendingUp,
+  Zap,
+  Lock,
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,8 +50,10 @@ const financeNav = [
 
 const toolsNav = [
   { title: "IA Conselheira", icon: Bot, href: "/ia" },
+  { title: "Captura Inteligente", icon: Zap, href: "/captura" },
   { title: "Score Financeiro", icon: BarChart3, href: "/score" },
   { title: "Alertas", icon: Bell, href: "/alertas" },
+  { title: "Fechamento Mensal", icon: Lock, href: "/fechamento" },
   { title: "Documentos / IR", icon: FileText, href: "/documentos" },
   { title: "Valores Familiares", icon: Heart, href: "/valores" },
 ];
