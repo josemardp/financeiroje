@@ -72,9 +72,11 @@ export default function Dashboard() {
   });
 
   // ENGINE: all math happens here, not inline
+  // HARDENING: KPIs oficiais usam SOMENTE transações confirmed
   const summary = rawTransactions ? calculateMonthlySummary(rawTransactions) : null;
-  const confirmedOnly = rawTransactions?.filter((t) => t.data_status === "confirmed") || [];
-  const summaryConfirmed = confirmedOnly.length > 0 ? calculateMonthlySummary(confirmedOnly) : null;
+  const officialTransactions = rawTransactions ? filterOfficialTransactions(rawTransactions) : [];
+  const summaryConfirmed = officialTransactions.length > 0 ? calculateMonthlySummary(officialTransactions) : null;
+  const pendingTransactions = rawTransactions ? filterPendingTransactions(rawTransactions) : [];
   const recentTransactions = rawTransactions?.slice(0, 8) || [];
 
   const isLoading = !rawTransactions;
