@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { calculateMonthlySummary } from "@/services/financeEngine";
+import { calculateMonthlySummary, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
 import type { TransactionRaw } from "@/services/financeEngine/types";
 import {
   DollarSign,
