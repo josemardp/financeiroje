@@ -2,7 +2,43 @@
  * FinanceAI — Engine Determinística
  * Tipos centralizados para todas as funções puras de cálculo financeiro.
  * Separação clara: raw DB data → calculated outputs.
+ *
+ * ═══════════════════════════════════════════════════════════════════
+ * REGRA CENTRAL DE ESTADOS DO DADO (PRD v3 §5)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ *  confirmed    → Cálculo OFICIAL. Dado validado pelo usuário.
+ *  estimated    → Apenas PROJEÇÃO. Usado em previsões, nunca em KPIs oficiais.
+ *  suggested    → PENDENTE de validação. Exibido separadamente na UI.
+ *  incomplete   → Dado com campos faltantes. Não entra em cálculos oficiais.
+ *  inconsistent → Dado com conflito detectado. Não entra em cálculos oficiais.
+ *  missing      → Placeholder de ausência. Nunca entra em cálculos.
+ *
+ *  REGRA: Funções da engine que calculam valores OFICIAIS (KPIs, score,
+ *  orçamento realizado) devem considerar APENAS data_status === "confirmed".
+ *  Funções de PROJEÇÃO (forecast) podem incluir "estimated".
+ *  "suggested" NUNCA entra em cálculos; é exibido à parte para validação.
+ * ═══════════════════════════════════════════════════════════════════
  */
+
+/** Status que contam para cálculos oficiais (KPIs, score, orçamento realizado) */
+export const OFFICIAL_STATUSES: ReadonlySet<string> = new Set(["confirmed"]);
+
+/** Status aceitos em projeções (forecast) */
+export const PROJECTION_STATUSES: ReadonlySet<string> = new Set(["confirmed", "estimated"]);
+
+/** Status pendentes de validação humana — exibidos à parte, nunca calculados */
+export const PENDING_STATUSES: ReadonlySet<string> = new Set(["suggested", "incomplete", "inconsistent", "missing"]);
+
+/** Filtra transações para cálculos oficiais */
+export function filterOfficialTransactions(txns: TransactionRaw[]): TransactionRaw[] {
+  return txns.filter((t) => OFFICIAL_STATUSES.has(t.data_status || "confirmed"));
+}
+
+/** Filtra transações pendentes de validação */
+export function filterPendingTransactions(txns: TransactionRaw[]): TransactionRaw[] {
+  return txns.filter((t) => t.data_status != null && PENDING_STATUSES.has(t.data_status));
+}
 
 // ─── Raw DB Input Types ──────────────────────────────────────────
 
