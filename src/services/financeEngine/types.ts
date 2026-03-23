@@ -1,0 +1,226 @@
+/**
+ * FinanceAI — Engine Determinística
+ * Tipos centralizados para todas as funções puras de cálculo financeiro.
+ * Separação clara: raw DB data → calculated outputs.
+ */
+
+// ─── Raw DB Input Types ──────────────────────────────────────────
+
+export interface TransactionRaw {
+  id: string;
+  valor: number;
+  tipo: "income" | "expense";
+  data: string;
+  descricao: string | null;
+  categoria_id: string | null;
+  categoria_nome?: string | null;
+  categoria_icone?: string | null;
+  scope: "private" | "family" | "business" | null;
+  data_status: string | null;
+  source_type: string | null;
+  confidence: string | null;
+  e_mei: boolean | null;
+}
+
+export interface BudgetRaw {
+  id: string;
+  categoria_id: string | null;
+  categoria_nome?: string | null;
+  categoria_icone?: string | null;
+  valor_planejado: number;
+  mes: number;
+  ano: number;
+  scope: "private" | "family" | "business" | null;
+}
+
+export interface RecurringRaw {
+  id: string;
+  descricao: string;
+  valor: number;
+  tipo: "income" | "expense";
+  frequencia: string | null;
+  dia_mes: number | null;
+  ativa: boolean | null;
+  categoria_id: string | null;
+  scope: "private" | "family" | "business" | null;
+}
+
+export interface LoanRaw {
+  id: string;
+  nome: string;
+  valor_original: number;
+  saldo_devedor: number | null;
+  taxa_juros_mensal: number | null;
+  cet_anual: number | null;
+  parcelas_total: number | null;
+  parcelas_restantes: number | null;
+  valor_parcela: number | null;
+  metodo_amortizacao: "price" | "sac" | null;
+  tipo: string | null;
+  credor: string | null;
+  data_inicio: string | null;
+  ativo: boolean | null;
+}
+
+export interface InstallmentRaw {
+  id: string;
+  emprestimo_id: string;
+  numero: number;
+  valor: number;
+  data_vencimento: string;
+  data_pagamento: string | null;
+  status: string | null;
+}
+
+export interface ExtraAmortizationRaw {
+  id: string;
+  emprestimo_id: string;
+  valor: number;
+  data: string;
+  economia_juros_calculada: number | null;
+}
+
+export interface GoalRaw {
+  id: string;
+  nome: string;
+  valor_alvo: number;
+  valor_atual: number | null;
+  prazo: string | null;
+  prioridade: "alta" | "media" | "baixa" | null;
+  ativo: boolean | null;
+}
+
+export interface GoalContributionRaw {
+  id: string;
+  goal_id: string;
+  valor: number;
+  data: string;
+}
+
+// ─── Calculated Output Types ─────────────────────────────────────
+
+export interface MonthlySummary {
+  totalIncome: number;
+  totalExpense: number;
+  balance: number;
+  savingsRate: number;
+  expenseByCategory: CategoryAmount[];
+  incomeByCategory: CategoryAmount[];
+  transactionCount: number;
+  confirmedCount: number;
+  suggestedCount: number;
+}
+
+export interface CategoryAmount {
+  categoryId: string | null;
+  categoryName: string;
+  categoryIcon: string;
+  total: number;
+  count: number;
+  percentage: number;
+}
+
+export type BudgetStatus = "ok" | "warning" | "exceeded";
+
+export interface BudgetDeviationItem {
+  categoryId: string | null;
+  categoryName: string;
+  categoryIcon: string;
+  planned: number;
+  actual: number;
+  deviationAbsolute: number;
+  deviationPercent: number;
+  status: BudgetStatus;
+}
+
+export interface BudgetDeviationResult {
+  items: BudgetDeviationItem[];
+  totalPlanned: number;
+  totalActual: number;
+  totalDeviationAbsolute: number;
+  totalDeviationPercent: number;
+  overallStatus: BudgetStatus;
+}
+
+export interface HealthScoreInput {
+  totalIncome: number;
+  totalExpense: number;
+  totalDebt: number;
+  emergencyReserve: number;
+  budgetDeviation: number; // 0-100, how much over budget
+  overdueInstallments: number;
+  totalInstallments: number;
+  monthsWithData: number;
+  totalMonthsPossible: number;
+}
+
+export interface HealthScoreResult {
+  scoreGeral: number; // 0-100
+  comprometimentoRenda: number; // 0-100
+  reservaEmergencia: number; // 0-100
+  controleOrcamento: number; // 0-100
+  adimplencia: number; // 0-100
+  regularidade: number; // 0-100
+  recommendations: HealthRecommendation[];
+}
+
+export interface HealthRecommendation {
+  component: string;
+  score: number;
+  message: string;
+  severity: "critical" | "warning" | "info" | "ok";
+}
+
+export interface ForecastHorizon {
+  days: number;
+  label: string;
+  projectedBalance: number;
+  totalInflows: number;
+  totalOutflows: number;
+  confidenceLevel: "alta" | "media" | "baixa";
+}
+
+export interface CashflowForecastResult {
+  currentBalance: number;
+  horizons: ForecastHorizon[];
+  assumptions: string[];
+  warnings: string[];
+}
+
+export interface CashflowForecastInput {
+  currentBalance: number;
+  recurringTransactions: RecurringRaw[];
+  recentTransactions: TransactionRaw[];
+  upcomingInstallments: InstallmentRaw[];
+}
+
+export interface GoalProgressResult {
+  goalId: string;
+  goalName: string;
+  progressPercent: number;
+  remainingAmount: number;
+  projectedCompletionDate: string | null;
+  monthlyContributionNeeded: number | null;
+  isOnTrack: boolean;
+  totalContributed: number;
+}
+
+export interface LoanIndicatorResult {
+  loanId: string;
+  loanName: string;
+  saldoAtual: number;
+  parcelasRestantes: number;
+  custoEstimadoRestante: number;
+  totalJaPago: number;
+  totalAPagar: number;
+  impactoAmortizacaoExtra: number;
+  taxaMensal: number;
+  cetAnual: number;
+}
+
+export interface LoanSummary {
+  loans: LoanIndicatorResult[];
+  totalSaldoDevedor: number;
+  totalCustoRestante: number;
+  totalParcelas: number;
+}
