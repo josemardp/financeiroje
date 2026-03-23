@@ -163,7 +163,10 @@ export interface BudgetDeviationItem {
   categoryName: string;
   categoryIcon: string;
   planned: number;
+  /** Valor realizado OFICIAL (somente confirmed) */
   actual: number;
+  /** Valor sugerido pendente de validação (somente suggested/incomplete) */
+  suggestedActual: number;
   deviationAbsolute: number;
   deviationPercent: number;
   status: BudgetStatus;
