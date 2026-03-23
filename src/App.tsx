@@ -64,6 +64,8 @@ function AppRoutes() {
         <Route path="/alertas" element={<Alerts />} />
         <Route path="/documentos" element={<Documents />} />
         <Route path="/valores" element={<FamilyValues />} />
+        <Route path="/captura" element={<SmartCapture />} />
+        <Route path="/fechamento" element={<MonthlyClosing />} />
         <Route path="/configuracoes" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
