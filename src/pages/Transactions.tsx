@@ -1,0 +1,263 @@
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { DataStatusBadge } from "@/components/shared/DataStatusBadge";
+import { ScopeBadge } from "@/components/shared/ScopeBadge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { TRANSACTION_TYPE_LABELS } from "@/lib/constants";
+import { toast } from "sonner";
+import { Plus, ArrowLeftRight, Search, Filter, Trash2, Pencil, Loader2 } from "lucide-react";
+
+export default function Transactions() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterScope, setFilterScope] = useState<string>("all");
+
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("categories").select("*").order("nome");
+      return data || [];
+    },
+  });
+
+  const { data: transactions, isLoading } = useQuery({
+    queryKey: ["transactions", filterType, filterScope, search],
+    queryFn: async () => {
+      let query = supabase
+        .from("transactions")
+        .select("*, categories(nome, icone, cor)")
+        .order("data", { ascending: false })
+        .limit(100);
+
+      if (filterType !== "all") query = query.eq("tipo", filterType as "income" | "expense");
+      if (filterScope !== "all") query = query.eq("scope", filterScope as "private" | "family" | "business");
+      if (search) query = query.ilike("descricao", `%${search}%`);
+
+      const { data } = await query;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      toast.success("Transação excluída");
+    },
+    onError: () => toast.error("Erro ao excluir transação"),
+  });
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader title="Transações" description="Gerencie receitas e despesas">
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button><Plus className="h-4 w-4 mr-1" /> Nova transação</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Nova Transação</DialogTitle>
+            </DialogHeader>
+            <TransactionForm
+              categories={categories || []}
+              onSuccess={() => {
+                setIsOpen(false);
+                queryClient.invalidateQueries({ queryKey: ["transactions"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      </PageHeader>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar transações..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="income">Receitas</SelectItem>
+            <SelectItem value="expense">Despesas</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterScope} onValueChange={setFilterScope}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Escopo" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="private">Pessoal</SelectItem>
+            <SelectItem value="family">Família</SelectItem>
+            <SelectItem value="business">Negócio</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+      ) : !transactions || transactions.length === 0 ? (
+        <EmptyState icon={ArrowLeftRight} title="Sem transações" description="Registre sua primeira transação para começar o controle financeiro.">
+          <Button onClick={() => setIsOpen(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar</Button>
+        </EmptyState>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {transactions.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span className="text-xl shrink-0">{t.categories?.icone || "📋"}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{t.descricao || t.categories?.nome || "Sem descrição"}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">{formatDate(t.data)}</span>
+                        <DataStatusBadge status={t.data_status} showLabel={false} />
+                        <ScopeBadge scope={t.scope} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-sm font-mono font-bold ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
+                      {t.tipo === "income" ? "+" : "-"}{formatCurrency(Number(t.valor))}
+                    </span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteMutation.mutate(t.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function TransactionForm({ categories, onSuccess }: { categories: any[]; onSuccess: () => void }) {
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    valor: "",
+    tipo: "expense" as string,
+    categoria_id: "",
+    descricao: "",
+    data: new Date().toISOString().split("T")[0],
+    scope: "private" as string,
+    e_mei: false,
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !form.valor || Number(form.valor) <= 0) {
+      toast.error("Preencha o valor corretamente");
+      return;
+    }
+    setIsSubmitting(true);
+    const { error } = await supabase.from("transactions").insert({
+      user_id: user.id,
+      valor: Number(form.valor),
+      tipo: form.tipo as any,
+      categoria_id: form.categoria_id || null,
+      descricao: form.descricao,
+      data: form.data,
+      scope: form.scope as any,
+      e_mei: form.e_mei,
+      data_status: "confirmed" as any,
+      source_type: "manual" as any,
+      confidence: "alta" as any,
+      created_by: user.id,
+    });
+    if (error) {
+      toast.error("Erro ao salvar", { description: error.message });
+    } else {
+      toast.success("Transação registrada!");
+      onSuccess();
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Valor (R$)</Label>
+          <Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor}
+            onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="expense">Despesa</SelectItem>
+              <SelectItem value="income">Receita</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Categoria</Label>
+        <Select value={form.categoria_id} onValueChange={(v) => setForm((f) => ({ ...f, categoria_id: v }))}>
+          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+          <SelectContent>
+            {categories.map((c: any) => (
+              <SelectItem key={c.id} value={c.id}>{c.icone} {c.nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Descrição</Label>
+        <Textarea placeholder="Ex: Mercado, Salário PM, Netflix..." value={form.descricao}
+          onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={2} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Data</Label>
+          <Input type="date" value={form.data} onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label>Escopo</Label>
+          <Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="private">Pessoal</SelectItem>
+              <SelectItem value="family">Família</SelectItem>
+              <SelectItem value="business">Negócio/MEI</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        Salvar transação
+      </Button>
+    </form>
+  );
+}
