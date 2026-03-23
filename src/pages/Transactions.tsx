@@ -43,8 +43,8 @@ export default function Transactions() {
         .order("data", { ascending: false })
         .limit(100);
 
-      if (filterType !== "all") query = query.eq("tipo", filterType);
-      if (filterScope !== "all") query = query.eq("scope", filterScope);
+      if (filterType !== "all") query = query.eq("tipo", filterType as "income" | "expense");
+      if (filterScope !== "all") query = query.eq("scope", filterScope as "private" | "family" | "business");
       if (search) query = query.ilike("descricao", `%${search}%`);
 
       const { data } = await query;
