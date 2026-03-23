@@ -3,6 +3,13 @@ import type { TransactionRaw, MonthlySummary, CategoryAmount } from "./types";
 /**
  * Calcula o resumo financeiro mensal a partir de transações brutas.
  * Função PURA — sem efeitos colaterais, sem dependência de React/Supabase.
+ *
+ * REGRA DE HARDENING (PRD v3 §5):
+ *  Esta função processa TODAS as transações recebidas. O CHAMADOR é responsável
+ *  por pré-filtrar conforme o contexto:
+ *    - Para KPIs oficiais: passar apenas filterOfficialTransactions(txns)
+ *    - Para visão completa: passar todas e usar confirmedCount/suggestedCount
+ *  A função reporta contagens por status para transparência.
  */
 export function calculateMonthlySummary(transactions: TransactionRaw[]): MonthlySummary {
   if (!transactions || transactions.length === 0) {

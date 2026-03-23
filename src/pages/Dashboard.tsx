@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { calculateMonthlySummary } from "@/services/financeEngine";
+import { calculateMonthlySummary, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
 import type { TransactionRaw } from "@/services/financeEngine/types";
 import {
   DollarSign,
@@ -72,9 +72,11 @@ export default function Dashboard() {
   });
 
   // ENGINE: all math happens here, not inline
+  // HARDENING: KPIs oficiais usam SOMENTE transações confirmed
   const summary = rawTransactions ? calculateMonthlySummary(rawTransactions) : null;
-  const confirmedOnly = rawTransactions?.filter((t) => t.data_status === "confirmed") || [];
-  const summaryConfirmed = confirmedOnly.length > 0 ? calculateMonthlySummary(confirmedOnly) : null;
+  const officialTransactions = rawTransactions ? filterOfficialTransactions(rawTransactions) : [];
+  const summaryConfirmed = officialTransactions.length > 0 ? calculateMonthlySummary(officialTransactions) : null;
+  const pendingTransactions = rawTransactions ? filterPendingTransactions(rawTransactions) : [];
   const recentTransactions = rawTransactions?.slice(0, 8) || [];
 
   const isLoading = !rawTransactions;
