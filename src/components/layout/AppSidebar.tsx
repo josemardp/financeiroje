@@ -17,6 +17,8 @@ import {
   PiggyBank,
   CalendarDays,
   TrendingUp,
+  Zap,
+  Lock,
 } from "lucide-react";
 import {
   Sidebar,
