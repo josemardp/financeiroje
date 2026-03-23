@@ -69,34 +69,92 @@ function projectRecurrences(recurrences: RecurringRaw[], days: number): { inflow
   return { inflows, outflows };
 }
 
+/**
+ * Estima quantas vezes uma recorrência ocorre em `days` dias a partir de `from`.
+ *
+ * HARDENING: reescrito para corrigir bugs em bordas de calendário.
+ * - monthly: itera mês a mês verificando se dia_mes cai no intervalo
+ * - biweekly: usa divisão exata por 14
+ * - yearly/semiannual/quarterly: conta datas reais no intervalo
+ */
 function estimateOccurrences(r: RecurringRaw, days: number, from: Date): number {
   const freq = r.frequencia || "monthly";
+
+  const endDate = new Date(from);
+  endDate.setDate(endDate.getDate() + days);
+
+  // For monthly with dia_mes, count actual calendar occurrences
+  if (freq === "monthly" && r.dia_mes) {
+    return countMonthlyOccurrences(r.dia_mes, from, endDate);
+  }
+
+  // For quarterly/semiannual/yearly with dia_mes, count by stepping months
+  if (r.dia_mes && (freq === "quarterly" || freq === "semiannual" || freq === "yearly")) {
+    const stepMonths = freq === "quarterly" ? 3 : freq === "semiannual" ? 6 : 12;
+    return countPeriodicMonthlyOccurrences(r.dia_mes, stepMonths, from, endDate);
+  }
+
+  // For simple period-based frequencies, use division
   const periodDays: Record<string, number> = {
     daily: 1,
     weekly: 7,
     biweekly: 14,
     monthly: 30,
-    quarterly: 90,
-    semiannual: 180,
+    quarterly: 91,
+    semiannual: 182,
     yearly: 365,
   };
-
   const period = periodDays[freq] || 30;
-
-  if (freq === "monthly" && r.dia_mes) {
-    // Count how many times dia_mes falls within `days` from `from`
-    let count = 0;
-    const d = new Date(from);
-    for (let i = 0; i < days; i++) {
-      d.setDate(d.getDate() + (i === 0 ? 0 : 1));
-      if (d.getDate() === r.dia_mes) count++;
-      if (i === 0) d.setDate(d.getDate() + 1); // advance for first iteration
-    }
-    // Fallback: at least estimate by division
-    return count || Math.max(0, Math.floor(days / period));
-  }
-
   return Math.max(0, Math.floor(days / period));
+}
+
+/** Conta quantas vezes o dia `dayOfMonth` cai entre from e endDate (exclusive) */
+function countMonthlyOccurrences(dayOfMonth: number, from: Date, endDate: Date): number {
+  let count = 0;
+  // Start from the month of `from`
+  let year = from.getFullYear();
+  let month = from.getMonth();
+
+  // Check up to (days/28 + 2) months to be safe
+  const maxIterations = Math.ceil((endDate.getTime() - from.getTime()) / (28 * 86400000)) + 2;
+
+  for (let i = 0; i < maxIterations; i++) {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const effectiveDay = Math.min(dayOfMonth, daysInMonth);
+    const candidate = new Date(year, month, effectiveDay);
+
+    if (candidate > from && candidate <= endDate) {
+      count++;
+    }
+    if (candidate > endDate) break;
+
+    month++;
+    if (month > 11) { month = 0; year++; }
+  }
+  return count;
+}
+
+/** Conta ocorrências para frequências que pulam N meses (quarterly, semiannual, yearly) */
+function countPeriodicMonthlyOccurrences(dayOfMonth: number, stepMonths: number, from: Date, endDate: Date): number {
+  let count = 0;
+  let year = from.getFullYear();
+  let month = from.getMonth();
+  const maxIterations = Math.ceil((endDate.getTime() - from.getTime()) / (28 * stepMonths * 86400000)) + 2;
+
+  for (let i = 0; i < maxIterations; i++) {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const effectiveDay = Math.min(dayOfMonth, daysInMonth);
+    const candidate = new Date(year, month, effectiveDay);
+
+    if (candidate > from && candidate <= endDate) {
+      count++;
+    }
+    if (candidate > endDate) break;
+
+    month += stepMonths;
+    while (month > 11) { month -= 12; year++; }
+  }
+  return count;
 }
 
 function projectInstallments(installments: InstallmentRaw[], days: number): number {
