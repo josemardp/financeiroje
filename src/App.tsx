@@ -20,6 +20,8 @@ import Alerts from "./pages/Alerts";
 import Documents from "./pages/Documents";
 import FamilyValues from "./pages/FamilyValues";
 import SettingsPage from "./pages/Settings";
+import SmartCapture from "./pages/SmartCapture";
+import MonthlyClosing from "./pages/MonthlyClosing";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
