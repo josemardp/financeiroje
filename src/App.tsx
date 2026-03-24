@@ -29,6 +29,7 @@ const SmartCapture = lazy(() => import("./pages/SmartCapture"));
 const MonthlyClosing = lazy(() => import("./pages/MonthlyClosing"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const Reports = lazy(() => import("./pages/Reports"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -55,6 +56,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
+      <Route path="/reset-password" element={<Suspense fallback={<LazyFallback />}><ResetPassword /></Suspense>} />
       <Route
         element={
           <ProtectedRoute>
