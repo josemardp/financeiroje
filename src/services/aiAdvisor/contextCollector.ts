@@ -288,8 +288,8 @@ export async function getFinancialContext(
     preferenciasUsuario: userPrefs,
     metadados: {
       dataColeta: now.toISOString(),
-      versaoEngine: "4.1-hardened",
-      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmadas.",
+      versaoEngine: "4.2-final",
+      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmed + null (default oficial).",
     },
   };
 }
