@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getFinancialContext } from "@/services/aiAdvisor/contextCollector";
 import { parseAiResponse } from "@/services/aiAdvisor/responseParser";
+import { buildSystemPrompt } from "@/services/aiAdvisor/systemPrompt";
 import type { AiResponseBlock } from "@/services/aiAdvisor/types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -113,10 +114,17 @@ export default function AiAdvisor() {
         });
       }
 
-      const chatMessages = [...messages, userMsg].map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
+      // Build system prompt with real context
+      const systemPrompt = buildSystemPrompt(context);
+      
+      const chatMessages = [
+        { role: "system", content: systemPrompt },
+        ...messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+        { role: "user", content: userText },
+      ];
 
       // Use real user session token for auth
       const resp = await fetch(CHAT_URL, {
@@ -125,7 +133,7 @@ export default function AiAdvisor() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ messages: chatMessages, context, model: currentModel }),
+        body: JSON.stringify({ messages: chatMessages.map(m => ({ role: m.role, content: m.content })), context, model: currentModel }),
       });
 
       if (!resp.ok) {
