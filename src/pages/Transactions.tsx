@@ -63,7 +63,9 @@ export default function Transactions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
       toast.success("Transação excluída");
     },
     onError: () => toast.error("Erro ao excluir transação"),
@@ -134,7 +136,9 @@ export default function Transactions() {
               onSuccess={() => {
                 setIsOpen(false);
                 queryClient.invalidateQueries({ queryKey: ["transactions"] });
-                queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
               }}
             />
           </DialogContent>
@@ -197,15 +201,17 @@ export default function Transactions() {
                 <DialogHeader>
                   <DialogTitle>Editar Transação</DialogTitle>
                 </DialogHeader>
-                <EditTransactionForm
-                  transaction={transactions.find((t: any) => t.id === editingId)}
-                  categories={categories || []}
-                  onSuccess={() => {
-                    setEditingId(null);
-                    queryClient.invalidateQueries({ queryKey: ["transactions"] });
-                    queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-                  }}
-                />
+            <EditTransactionForm
+              transaction={transactions.find((t: any) => t.id === editingId)}
+              categories={categories || []}
+              onSuccess={() => {
+                setEditingId(null);
+                queryClient.invalidateQueries({ queryKey: ["transactions"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
+              }}
+            />
               </DialogContent>
             </Dialog>
           )}
@@ -250,6 +256,10 @@ export default function Transactions() {
                           onClick={() => markIncompleteMutation.mutate(t.id)} title="Marcar como incompleta">
                           ?
                         </Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-red-600"
+                          onClick={() => markInconsistentMutation.mutate(t.id)} title="Marcar como inconsistente">
+                          !
+                        </Button>
                       </>
                     )}
                     {t.data_status === "incomplete" && (
@@ -261,6 +271,10 @@ export default function Transactions() {
                         <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
                           onClick={() => confirmMutation.mutate(t.id)} title="Confirmar" disabled={!validateMinimumFields(t)}>
                           ✓
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-red-600"
+                          onClick={() => markInconsistentMutation.mutate(t.id)} title="Marcar como inconsistente">
+                          !
                         </Button>
                       </>
                     )}
