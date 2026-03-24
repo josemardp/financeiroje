@@ -50,19 +50,25 @@ export default function Documents() {
 
   const deleteMutation = useMutation({
     mutationFn: async (doc: DocumentRow) => {
+      // Delete DB record first — this is the source of truth
+      const { error: dbError } = await supabase.from("documents").delete().eq("id", doc.id);
+      if (dbError) throw dbError;
+
+      // Then remove storage — orphan file is less critical than broken reference
       if (doc.file_url) {
-        // file_url stores the storage path (private bucket — no public URLs)
         const storagePath = doc.file_url.startsWith("http")
           ? `${user!.id}/${doc.file_url.split("/").pop()}`
           : doc.file_url;
-        await supabase.storage.from("documents").remove([storagePath]);
+        // Fire and forget — storage cleanup failure doesn't block the operation
+        supabase.storage.from("documents").remove([storagePath]).catch(() => {});
       }
-      const { error } = await supabase.from("documents").delete().eq("id", doc.id);
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success("Documento removido");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao remover documento", { description: err.message });
     },
   });
 
