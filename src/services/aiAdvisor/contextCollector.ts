@@ -66,6 +66,19 @@ export interface FinancialContext {
     coberturaMeses: number | null;
     statusMeta: "abaixo" | "ok" | "acima";
   } | null;
+  padroesPorCategoria: Array<{
+    categoria: string;
+    totalGasto: number;
+    percentualDasDespesas: number;
+    statusOrcamento: "dentro" | "acima";
+    desvio?: number;
+  }>;
+  impactoEmMetas: Array<{
+    metaNome: string;
+    velocidadeAtual: number;
+    diasParaConcluir?: number;
+    emRisco: boolean;
+  }>;
   preferenciasUsuario: Record<string, unknown>;
   metadados: {
     dataColeta: string;
@@ -282,6 +295,43 @@ export async function getFinancialContext(
     totalQualityIssues < 5 ? "medio" : 
     "alto";
 
+  // Padrões por categoria (análise de concentração de gastos)
+  const padroesPorCategoria = officialTxns.length > 0
+    ? Object.entries(
+        officialTxns.reduce((acc, t) => {
+          const cat = t.categoria_nome || "Sem categoria";
+          if (!acc[cat]) acc[cat] = { total: 0, count: 0 };
+          if (t.tipo === "expense") acc[cat].total += t.valor;
+          acc[cat].count += 1;
+          return acc;
+        }, {} as Record<string, { total: number; count: number }>)
+      ).map(([categoria, data]) => {
+        const budgetItem = budgets.find(b => b.categoria_nome === categoria);
+        const totalExpenses = resumoConfirmado?.totalExpense || 1;
+        return {
+          categoria,
+          totalGasto: data.total,
+          percentualDasDespesas: (data.total / totalExpenses) * 100,
+          statusOrcamento: budgetItem && data.total > budgetItem.valor_planejado ? "acima" : "dentro",
+          desvio: budgetItem ? ((data.total - budgetItem.valor_planejado) / budgetItem.valor_planejado) * 100 : undefined,
+        };
+      })
+      .sort((a, b) => b.totalGasto - a.totalGasto)
+    : [];
+
+  // Impacto em metas (velocidade de progresso)
+  const impactoEmMetas = metas.map(m => {
+    const diasNoMes = 30;
+    const diasPassados = new Date().getDate();
+    const progressoEsperado = (diasPassados / diasNoMes) * 100;
+    const velocidadeAtual = m.progressPercent;
+    const emRisco = velocidadeAtual < (progressoEsperado * 0.8);
+    const diasParaConcluir = velocidadeAtual > 0 
+      ? Math.round((100 - m.progressPercent) / (m.progressPercent / diasPassados))
+      : undefined;
+    return { metaNome: m.nome, velocidadeAtual, diasParaConcluir, emRisco };
+  });
+
   return {
     periodo: { mes, ano },
     escopo: scope,
@@ -311,6 +361,8 @@ export async function getFinancialContext(
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes, inconsistentes, impactoNaPrecisao },
     contas: accountsList,
+    padroesPorCategoria,
+    impactoEmMetas,
     reservaEmergencia: reserveConfigured ? {
       valor: reserveValue,
       metaMeses: reserveMonthsTarget,
