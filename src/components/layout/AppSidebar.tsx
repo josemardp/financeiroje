@@ -58,6 +58,7 @@ const toolsNav = [
   { title: "Alertas", icon: Bell, href: "/alertas" },
   { title: "Fechamento Mensal", icon: Lock, href: "/fechamento" },
   { title: "Documentos / IR", icon: FileText, href: "/documentos" },
+  { title: "Relatórios", icon: FileSpreadsheet, href: "/relatorios" },
   { title: "Valores Familiares", icon: Heart, href: "/valores" },
 ];
 
