@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
@@ -55,12 +56,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/auth" element={<Auth />} />
-      <Route path="/reset-password" element={<Suspense fallback={<LazyFallback />}><ResetPassword /></Suspense>} />
+      <Route path="/auth" element={<ErrorBoundary><Auth /></ErrorBoundary>} />
+      <Route path="/reset-password" element={<ErrorBoundary><Suspense fallback={<LazyFallback />}><ResetPassword /></Suspense></ErrorBoundary>} />
       <Route
         element={
           <ProtectedRoute>
-            <AppLayout />
+            <ErrorBoundary>
+              <AppLayout />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       >
