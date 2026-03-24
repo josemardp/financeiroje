@@ -14,6 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, FileText, Loader2, Trash2, Upload, Download } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
+
+type DocumentRow = Database["public"]["Tables"]["documents"]["Row"];
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   contracheque: "Contracheque",
@@ -37,7 +40,7 @@ export default function Documents() {
     queryKey: ["documents", filterType, filterYear],
     queryFn: async () => {
       let query = supabase.from("documents").select("*").order("created_at", { ascending: false });
-      if (filterType !== "all") query = query.eq("document_type", filterType as any);
+      if (filterType !== "all") query = query.eq("document_type", filterType as Database["public"]["Enums"]["document_type"]);
       if (filterYear !== "all") query = query.eq("ano_fiscal", Number(filterYear));
       const { data } = await query;
       return data || [];
@@ -46,7 +49,7 @@ export default function Documents() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (doc: any) => {
+    mutationFn: async (doc: DocumentRow) => {
       if (doc.file_url) {
         // file_url stores the storage path (private bucket — no public URLs)
         const storagePath = doc.file_url.startsWith("http")
@@ -64,7 +67,7 @@ export default function Documents() {
   });
 
   /** Open a signed URL for private document viewing (5 min expiry) */
-  const handleViewDocument = async (doc: any) => {
+  const handleViewDocument = async (doc: DocumentRow) => {
     if (!doc.file_url) return;
     const storagePath = doc.file_url.startsWith("http")
       ? `${user!.id}/${doc.file_url.split("/").pop()}`
@@ -124,7 +127,7 @@ export default function Documents() {
       ) : (
         <Card>
           <CardContent className="p-0 divide-y divide-border">
-            {documents.map((doc: any) => (
+            {documents.map((doc: DocumentRow) => (
               <div key={doc.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -179,28 +182,43 @@ function DocumentForm({ onSuccess }: { onSuccess: () => void }) {
     if (!user || !file) { toast.error("Selecione um arquivo"); return; }
     setSubmitting(true);
 
-    // Upload to private bucket — store the storage path, NOT a public URL
     const filePath = `${user.id}/${Date.now()}_${file.name}`;
-    const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, file);
-    if (uploadError) {
-      toast.error("Erro no upload", { description: uploadError.message });
+
+    try {
+      // 1. Upload to private bucket
+      const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, file);
+      if (uploadError) {
+        toast.error("Erro no upload", { description: uploadError.message });
+        setSubmitting(false);
+        return;
+      }
+
+      // 2. Insert DB record — rollback storage if this fails
+      const { error } = await supabase.from("documents").insert({
+        user_id: user.id,
+        file_name: file.name,
+        file_url: filePath,
+        document_type: form.document_type as Database["public"]["Enums"]["document_type"],
+        ano_fiscal: Number(form.ano_fiscal) || null,
+        holder: form.holder || null,
+        category: form.category || null,
+      });
+
+      if (error) {
+        // Rollback: remove orphan file
+        await supabase.storage.from("documents").remove([filePath]);
+        toast.error("Erro ao salvar documento", { description: error.message });
+      } else {
+        toast.success("Documento salvo!");
+        onSuccess();
+      }
+    } catch (err) {
+      // Rollback on unexpected error
+      await supabase.storage.from("documents").remove([filePath]).catch(() => {});
+      toast.error("Erro inesperado ao salvar documento");
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    const { error } = await supabase.from("documents").insert({
-      user_id: user.id,
-      file_name: file.name,
-      file_url: filePath, // storage path — accessed via signed URL only
-      document_type: form.document_type as any,
-      ano_fiscal: Number(form.ano_fiscal) || null,
-      holder: form.holder || null,
-      category: form.category || null,
-    });
-
-    if (error) toast.error("Erro ao salvar documento");
-    else { toast.success("Documento salvo!"); onSuccess(); }
-    setSubmitting(false);
   };
 
   return (

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,25 +8,33 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import Transactions from "./pages/Transactions";
-import Budget from "./pages/Budget";
-import Recurring from "./pages/Recurring";
-import Loans from "./pages/Loans";
-import Goals from "./pages/Goals";
-import Subscriptions from "./pages/Subscriptions";
-import Forecast from "./pages/Forecast";
-import AiAdvisor from "./pages/AiAdvisor";
-import HealthScore from "./pages/HealthScore";
-import Alerts from "./pages/Alerts";
-import Documents from "./pages/Documents";
-import FamilyValues from "./pages/FamilyValues";
-import SettingsPage from "./pages/Settings";
-import SmartCapture from "./pages/SmartCapture";
-import MonthlyClosing from "./pages/MonthlyClosing";
-import Accounts from "./pages/Accounts";
-import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+
+// Lazy-loaded pages to reduce initial bundle
+const Transactions = lazy(() => import("./pages/Transactions"));
+const Budget = lazy(() => import("./pages/Budget"));
+const Recurring = lazy(() => import("./pages/Recurring"));
+const Loans = lazy(() => import("./pages/Loans"));
+const Goals = lazy(() => import("./pages/Goals"));
+const Subscriptions = lazy(() => import("./pages/Subscriptions"));
+const Forecast = lazy(() => import("./pages/Forecast"));
+const AiAdvisor = lazy(() => import("./pages/AiAdvisor"));
+const HealthScore = lazy(() => import("./pages/HealthScore"));
+const Alerts = lazy(() => import("./pages/Alerts"));
+const Documents = lazy(() => import("./pages/Documents"));
+const FamilyValues = lazy(() => import("./pages/FamilyValues"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
+const SmartCapture = lazy(() => import("./pages/SmartCapture"));
+const MonthlyClosing = lazy(() => import("./pages/MonthlyClosing"));
+const Accounts = lazy(() => import("./pages/Accounts"));
+const Reports = lazy(() => import("./pages/Reports"));
+
+const LazyFallback = () => (
+  <div className="flex min-h-[40vh] items-center justify-center">
+    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -54,23 +63,23 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<Dashboard />} />
-        <Route path="/transacoes" element={<Transactions />} />
-        <Route path="/orcamento" element={<Budget />} />
-        <Route path="/recorrencias" element={<Recurring />} />
-        <Route path="/contas" element={<Accounts />} />
-        <Route path="/dividas" element={<Loans />} />
-        <Route path="/metas" element={<Goals />} />
-        <Route path="/assinaturas" element={<Subscriptions />} />
-        <Route path="/previsao" element={<Forecast />} />
-        <Route path="/ia" element={<AiAdvisor />} />
-        <Route path="/score" element={<HealthScore />} />
-        <Route path="/alertas" element={<Alerts />} />
-        <Route path="/documentos" element={<Documents />} />
-        <Route path="/valores" element={<FamilyValues />} />
-        <Route path="/captura" element={<SmartCapture />} />
-        <Route path="/fechamento" element={<MonthlyClosing />} />
-        <Route path="/relatorios" element={<Reports />} />
-        <Route path="/configuracoes" element={<SettingsPage />} />
+        <Route path="/transacoes" element={<Suspense fallback={<LazyFallback />}><Transactions /></Suspense>} />
+        <Route path="/orcamento" element={<Suspense fallback={<LazyFallback />}><Budget /></Suspense>} />
+        <Route path="/recorrencias" element={<Suspense fallback={<LazyFallback />}><Recurring /></Suspense>} />
+        <Route path="/contas" element={<Suspense fallback={<LazyFallback />}><Accounts /></Suspense>} />
+        <Route path="/dividas" element={<Suspense fallback={<LazyFallback />}><Loans /></Suspense>} />
+        <Route path="/metas" element={<Suspense fallback={<LazyFallback />}><Goals /></Suspense>} />
+        <Route path="/assinaturas" element={<Suspense fallback={<LazyFallback />}><Subscriptions /></Suspense>} />
+        <Route path="/previsao" element={<Suspense fallback={<LazyFallback />}><Forecast /></Suspense>} />
+        <Route path="/ia" element={<Suspense fallback={<LazyFallback />}><AiAdvisor /></Suspense>} />
+        <Route path="/score" element={<Suspense fallback={<LazyFallback />}><HealthScore /></Suspense>} />
+        <Route path="/alertas" element={<Suspense fallback={<LazyFallback />}><Alerts /></Suspense>} />
+        <Route path="/documentos" element={<Suspense fallback={<LazyFallback />}><Documents /></Suspense>} />
+        <Route path="/valores" element={<Suspense fallback={<LazyFallback />}><FamilyValues /></Suspense>} />
+        <Route path="/captura" element={<Suspense fallback={<LazyFallback />}><SmartCapture /></Suspense>} />
+        <Route path="/fechamento" element={<Suspense fallback={<LazyFallback />}><MonthlyClosing /></Suspense>} />
+        <Route path="/relatorios" element={<Suspense fallback={<LazyFallback />}><Reports /></Suspense>} />
+        <Route path="/configuracoes" element={<Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
