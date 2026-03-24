@@ -19,6 +19,8 @@ import {
   TrendingUp,
   Zap,
   Lock,
+  Landmark,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   Sidebar,
