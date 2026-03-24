@@ -49,7 +49,7 @@ export default function Documents() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (doc: any) => {
+    mutationFn: async (doc: DocumentRow) => {
       if (doc.file_url) {
         // file_url stores the storage path (private bucket — no public URLs)
         const storagePath = doc.file_url.startsWith("http")
