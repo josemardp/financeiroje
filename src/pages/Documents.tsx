@@ -179,28 +179,43 @@ function DocumentForm({ onSuccess }: { onSuccess: () => void }) {
     if (!user || !file) { toast.error("Selecione um arquivo"); return; }
     setSubmitting(true);
 
-    // Upload to private bucket — store the storage path, NOT a public URL
     const filePath = `${user.id}/${Date.now()}_${file.name}`;
-    const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, file);
-    if (uploadError) {
-      toast.error("Erro no upload", { description: uploadError.message });
+
+    try {
+      // 1. Upload to private bucket
+      const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, file);
+      if (uploadError) {
+        toast.error("Erro no upload", { description: uploadError.message });
+        setSubmitting(false);
+        return;
+      }
+
+      // 2. Insert DB record — rollback storage if this fails
+      const { error } = await supabase.from("documents").insert({
+        user_id: user.id,
+        file_name: file.name,
+        file_url: filePath,
+        document_type: form.document_type as Database["public"]["Enums"]["document_type"],
+        ano_fiscal: Number(form.ano_fiscal) || null,
+        holder: form.holder || null,
+        category: form.category || null,
+      });
+
+      if (error) {
+        // Rollback: remove orphan file
+        await supabase.storage.from("documents").remove([filePath]);
+        toast.error("Erro ao salvar documento", { description: error.message });
+      } else {
+        toast.success("Documento salvo!");
+        onSuccess();
+      }
+    } catch (err) {
+      // Rollback on unexpected error
+      await supabase.storage.from("documents").remove([filePath]).catch(() => {});
+      toast.error("Erro inesperado ao salvar documento");
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    const { error } = await supabase.from("documents").insert({
-      user_id: user.id,
-      file_name: file.name,
-      file_url: filePath, // storage path — accessed via signed URL only
-      document_type: form.document_type as any,
-      ano_fiscal: Number(form.ano_fiscal) || null,
-      holder: form.holder || null,
-      category: form.category || null,
-    });
-
-    if (error) toast.error("Erro ao salvar documento");
-    else { toast.success("Documento salvo!"); onSuccess(); }
-    setSubmitting(false);
   };
 
   return (
