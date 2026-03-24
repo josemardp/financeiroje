@@ -69,17 +69,27 @@ export default function Transactions() {
     onError: () => toast.error("Erro ao excluir transação"),
   });
 
+  const validateMinimumFields = (transaction: any): boolean => {
+    return !!transaction.valor && Number(transaction.valor) > 0 && !!transaction.tipo && !!transaction.data;
+  };
+
   const confirmMutation = useMutation({
     mutationFn: async (id: string) => {
+      const txn = transactions?.find((t: any) => t.id === id);
+      if (!validateMinimumFields(txn)) {
+        throw new Error("Campos obrigatórios faltando: valor, tipo e data");
+      }
       const { error } = await supabase.from("transactions").update({ data_status: "confirmed" }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
       toast.success("Transação confirmada");
     },
-    onError: () => toast.error("Erro ao confirmar transação"),
+    onError: (err: any) => toast.error("Erro ao confirmar", { description: err.message }),
   });
 
   const markIncompleteMutation = useMutation({
@@ -89,9 +99,23 @@ export default function Transactions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
       toast.success("Marcada como incompleta");
     },
     onError: () => toast.error("Erro ao marcar como incompleta"),
+  });
+
+  const markInconsistentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").update({ data_status: "inconsistent" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+      toast.success("Marcada como inconsistente");
+    },
+    onError: () => toast.error("Erro ao marcar como inconsistente"),
   });
 
   return (
@@ -212,14 +236,42 @@ export default function Transactions() {
                     <span className={`text-sm font-mono font-bold ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
                       {t.tipo === "income" ? "+" : "-"}{formatCurrency(Number(t.valor))}
                     </span>
-                    {t.data_status !== "confirmed" && (
+                    {t.data_status === "suggested" && (
                       <>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
                           onClick={() => setEditingId(t.id)} title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
-                          onClick={() => confirmMutation.mutate(t.id)} title="Confirmar">
+                          onClick={() => confirmMutation.mutate(t.id)} title="Confirmar" disabled={!validateMinimumFields(t)}>
+                          ✓
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-amber-600"
+                          onClick={() => markIncompleteMutation.mutate(t.id)} title="Marcar como incompleta">
+                          ?
+                        </Button>
+                      </>
+                    )}
+                    {t.data_status === "incomplete" && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => setEditingId(t.id)} title="Completar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
+                          onClick={() => confirmMutation.mutate(t.id)} title="Confirmar" disabled={!validateMinimumFields(t)}>
+                          ✓
+                        </Button>
+                      </>
+                    )}
+                    {t.data_status === "inconsistent" && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => setEditingId(t.id)} title="Corrigir">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
+                          onClick={() => confirmMutation.mutate(t.id)} title="Confirmar" disabled={!validateMinimumFields(t)}>
                           ✓
                         </Button>
                       </>
@@ -243,6 +295,7 @@ export default function Transactions() {
 function EditTransactionForm({ transaction, categories, onSuccess }: { transaction: any; categories: any[]; onSuccess: () => void }) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shouldConfirm, setShouldConfirm] = useState(false);
   const [form, setForm] = useState({
     valor: transaction?.valor || "",
     tipo: transaction?.tipo || "expense",
@@ -252,25 +305,33 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
     scope: transaction?.scope || "private",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const validateMinimumFields = (): boolean => {
+    return !!form.valor && Number(form.valor) > 0 && !!form.tipo && !!form.data;
+  };
+
+  const handleSubmit = async (e: React.FormEvent, confirmAfter: boolean = false) => {
     e.preventDefault();
-    if (!user || !form.valor || Number(form.valor) <= 0 || !form.tipo || !form.data) {
+    if (!user || !validateMinimumFields()) {
       toast.error("Preencha os campos obrigatórios: valor, tipo e data");
       return;
     }
     setIsSubmitting(true);
-    const { error } = await supabase.from("transactions").update({
+    const updateData: any = {
       valor: Number(form.valor),
       tipo: form.tipo as any,
       categoria_id: form.categoria_id || null,
       descricao: form.descricao,
       data: form.data,
       scope: form.scope as any,
-    }).eq("id", transaction.id);
+    };
+    if (confirmAfter) {
+      updateData.data_status = "confirmed";
+    }
+    const { error } = await supabase.from("transactions").update(updateData).eq("id", transaction.id);
     if (error) {
       toast.error("Erro ao atualizar", { description: error.message });
     } else {
-      toast.success("Transação atualizada!");
+      toast.success(confirmAfter ? "Transação atualizada e confirmada!" : "Transação atualizada!");
       onSuccess();
     }
     setIsSubmitting(false);
@@ -328,10 +389,18 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
           </Select>
         </div>
       </div>
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-        Atualizar transação
-      </Button>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" className="flex-1" disabled={isSubmitting}
+          onClick={(e) => handleSubmit(e as any, false)}>
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          Atualizar
+        </Button>
+        <Button type="button" className="flex-1" disabled={isSubmitting || !validateMinimumFields()}
+          onClick={(e) => handleSubmit(e as any, true)}>
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          Atualizar e Confirmar
+        </Button>
+      </div>
     </form>
   );
 }
