@@ -60,9 +60,11 @@ export default function Dashboard() {
   const { data: accountBalances } = useQuery({
     queryKey: ["dashboard-account-balances", user?.id],
     queryFn: async () => {
+      // PHASE 4.2: Align with engine rule — confirmed + null = official
       const { data: txns } = await supabase
-        .from("transactions").select("account_id, tipo, valor")
-        .eq("data_status", "confirmed").not("account_id", "is", null);
+        .from("transactions").select("account_id, tipo, valor, data_status")
+        .not("account_id", "is", null)
+        .or("data_status.eq.confirmed,data_status.is.null");
       const map: Record<string, number> = {};
       (txns || []).forEach((t: any) => {
         const id = t.account_id;

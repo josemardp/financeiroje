@@ -108,11 +108,11 @@ export async function getFinancialContext(
     supabase.from("family_values").select("descricao"),
     supabase.from("accounts").select("*").eq("ativa", true),
     supabase.from("profiles").select("preferences").eq("user_id", userId).single(),
-    // Fetch ALL confirmed txns with account_id for real account balance
+    // PHASE 4.2: Align with engine — confirmed + null = official
     supabase.from("transactions")
-      .select("account_id, tipo, valor")
-      .eq("data_status", "confirmed")
-      .not("account_id", "is", null),
+      .select("account_id, tipo, valor, data_status")
+      .not("account_id", "is", null)
+      .or("data_status.eq.confirmed,data_status.is.null"),
   ]);
 
   // Map raw data
@@ -288,8 +288,8 @@ export async function getFinancialContext(
     preferenciasUsuario: userPrefs,
     metadados: {
       dataColeta: now.toISOString(),
-      versaoEngine: "4.1-hardened",
-      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmadas.",
+      versaoEngine: "4.2-final",
+      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmed + null (default oficial).",
     },
   };
 }
