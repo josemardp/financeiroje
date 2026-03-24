@@ -63,23 +63,23 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<Dashboard />} />
-        <Route path="/transacoes" element={<Transactions />} />
-        <Route path="/orcamento" element={<Budget />} />
-        <Route path="/recorrencias" element={<Recurring />} />
-        <Route path="/contas" element={<Accounts />} />
-        <Route path="/dividas" element={<Loans />} />
-        <Route path="/metas" element={<Goals />} />
-        <Route path="/assinaturas" element={<Subscriptions />} />
-        <Route path="/previsao" element={<Forecast />} />
-        <Route path="/ia" element={<AiAdvisor />} />
-        <Route path="/score" element={<HealthScore />} />
-        <Route path="/alertas" element={<Alerts />} />
-        <Route path="/documentos" element={<Documents />} />
-        <Route path="/valores" element={<FamilyValues />} />
-        <Route path="/captura" element={<SmartCapture />} />
-        <Route path="/fechamento" element={<MonthlyClosing />} />
-        <Route path="/relatorios" element={<Reports />} />
-        <Route path="/configuracoes" element={<SettingsPage />} />
+        <Route path="/transacoes" element={<Suspense fallback={<LazyFallback />}><Transactions /></Suspense>} />
+        <Route path="/orcamento" element={<Suspense fallback={<LazyFallback />}><Budget /></Suspense>} />
+        <Route path="/recorrencias" element={<Suspense fallback={<LazyFallback />}><Recurring /></Suspense>} />
+        <Route path="/contas" element={<Suspense fallback={<LazyFallback />}><Accounts /></Suspense>} />
+        <Route path="/dividas" element={<Suspense fallback={<LazyFallback />}><Loans /></Suspense>} />
+        <Route path="/metas" element={<Suspense fallback={<LazyFallback />}><Goals /></Suspense>} />
+        <Route path="/assinaturas" element={<Suspense fallback={<LazyFallback />}><Subscriptions /></Suspense>} />
+        <Route path="/previsao" element={<Suspense fallback={<LazyFallback />}><Forecast /></Suspense>} />
+        <Route path="/ia" element={<Suspense fallback={<LazyFallback />}><AiAdvisor /></Suspense>} />
+        <Route path="/score" element={<Suspense fallback={<LazyFallback />}><HealthScore /></Suspense>} />
+        <Route path="/alertas" element={<Suspense fallback={<LazyFallback />}><Alerts /></Suspense>} />
+        <Route path="/documentos" element={<Suspense fallback={<LazyFallback />}><Documents /></Suspense>} />
+        <Route path="/valores" element={<Suspense fallback={<LazyFallback />}><FamilyValues /></Suspense>} />
+        <Route path="/captura" element={<Suspense fallback={<LazyFallback />}><SmartCapture /></Suspense>} />
+        <Route path="/fechamento" element={<Suspense fallback={<LazyFallback />}><MonthlyClosing /></Suspense>} />
+        <Route path="/relatorios" element={<Suspense fallback={<LazyFallback />}><Reports /></Suspense>} />
+        <Route path="/configuracoes" element={<Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
