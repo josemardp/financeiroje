@@ -146,6 +146,7 @@ describe("calculateHealthScore", () => {
   it("returns perfect score for ideal financials", () => {
     const input: HealthScoreInput = {
       totalIncome: 10000, totalExpense: 4000, totalDebt: 0, emergencyReserve: 30000,
+      emergencyReserveConfigured: true, budgetConfigured: true,
       budgetDeviation: 0, overdueInstallments: 0, totalInstallments: 5,
       monthsWithData: 12, totalMonthsPossible: 12,
     };
@@ -156,6 +157,7 @@ describe("calculateHealthScore", () => {
   it("returns low score for bad financials", () => {
     const input: HealthScoreInput = {
       totalIncome: 5000, totalExpense: 5500, totalDebt: 50000, emergencyReserve: 0,
+      emergencyReserveConfigured: true, budgetConfigured: true,
       budgetDeviation: 60, overdueInstallments: 3, totalInstallments: 5,
       monthsWithData: 1, totalMonthsPossible: 12,
     };
@@ -173,7 +175,7 @@ describe("calculateCashflowForecast", () => {
       currentBalance: 5000, recurringTransactions: [], recentTransactions: [], upcomingInstallments: [],
     };
     const result = calculateCashflowForecast(input);
-    expect(result.currentBalance).toBe(5000);
+    expect(result.currentMonthlyBalance).toBe(5000);
     expect(result.horizons).toHaveLength(3);
     expect(result.horizons[0].projectedBalance).toBe(5000);
   });

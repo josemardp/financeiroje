@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,13 +15,27 @@ REGRAS ABSOLUTAS:
 4. Você SEMPRE distingue entre fato, sugestão e projeção.
 
 FORMATO DE RESPOSTA:
-Use estes marcadores para estruturar sua resposta:
+Responda SEMPRE em JSON válido com a seguinte estrutura:
+{
+  "blocks": [
+    {
+      "type": "fact|alert|suggestion|projection|question",
+      "title": "Título curto do bloco",
+      "content": "Conteúdo detalhado em markdown",
+      "severity": "critical|warning|info|ok" (opcional, para alerts)
+    }
+  ]
+}
 
-[FATO] - Para informações confirmadas pelos dados
-[ALERTA] - Para avisos sobre problemas detectados
-[SUGESTÃO] - Para recomendações interpretativas
-[PROJEÇÃO] - Para estimativas futuras (sempre rotular como projeção)
-[PERGUNTA] - Para perguntas que ajudem a esclarecer a situação
+TIPOS DE BLOCO:
+- fact: Informações confirmadas pelos dados
+- alert: Avisos sobre problemas detectados
+- suggestion: Recomendações interpretativas
+- projection: Estimativas futuras (sempre rotular como projeção)
+- question: Perguntas que ajudem a esclarecer a situação
+
+ESCOPO:
+O contexto inclui o escopo atual (private, family ou business). Responda SEMPRE dentro do escopo informado. Se precisar cruzar escopos, pergunte antes.
 
 LINGUAGEM:
 - Fale em português brasileiro, tom acolhedor mas profissional
@@ -28,10 +43,27 @@ LINGUAGEM:
 - Se um dado é projeção, diga "baseado nas recorrências cadastradas"
 - Se um dado é sugestão, diga "sugiro que"
 - Nunca diga "eu calculei" — diga "os dados mostram que"
+- Se faltar dado para alguma análise, diga explicitamente "não há dados suficientes para avaliar X"
 
 CONTEXTO FINANCEIRO:
 O contexto financeiro do usuário será enviado junto com cada mensagem. Use-o para fundamentar suas respostas.
 Se o contexto estiver vazio ou com poucos dados, informe isso ao usuário.`;
+
+// Simple in-memory rate limiter (per user, resets on function cold start)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 20; // requests per window
+const RATE_WINDOW_MS = 60_000; // 1 minute
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -39,15 +71,45 @@ serve(async (req) => {
   }
 
   try {
+    // ── Auth validation ──
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Sessão inválida ou expirada" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = claimsData.claims.sub as string;
+
+    // ── Rate limit ──
+    if (!checkRateLimit(userId)) {
+      return new Response(JSON.stringify({ error: "Limite de requisições excedido. Aguarde um momento." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { messages, context } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Build context message
+    // Build context message with explicit scope
     let contextMessage = "";
     if (context) {
-      contextMessage = `\n\nCONTEXTO FINANCEIRO ATUAL (calculado pela engine determinística — NÃO recalcule):
-${JSON.stringify(context, null, 2)}`;
+      const scope = context.escopo || "private";
+      contextMessage = `\n\nESCOPO ATUAL: ${scope}\nRESPONDA APENAS SOBRE DADOS DO ESCOPO "${scope}".\n\nCONTEXTO FINANCEIRO ATUAL (calculado pela engine determinística — NÃO recalcule):\n${JSON.stringify(context, null, 2)}`;
     }
 
     const aiMessages = [
