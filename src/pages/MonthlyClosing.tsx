@@ -117,7 +117,7 @@ export default function MonthlyClosing() {
         tipo: t.tipo,
       }));
 
-      const payload = {
+      const payload: any = {
         user_id: user.id,
         mes: selectedMonth,
         ano: selectedYear,
@@ -127,7 +127,7 @@ export default function MonthlyClosing() {
         saldo: monthData.summary.balance,
         fechado_em: new Date().toISOString(),
         fechado_por: user.id,
-        pendencias: {
+        pendencias: JSON.parse(JSON.stringify({
           transacoes: pendenciasSnapshot,
           orcamento: budgetSnapshot,
           score: scoreSnapshot,
@@ -136,7 +136,7 @@ export default function MonthlyClosing() {
             sugeridosPendentes: monthData.pending.filter(t => t.data_status === "suggested").length,
             incompletosPendentes: monthData.pending.filter(t => t.data_status === "incomplete").length,
           },
-        },
+        })),
         resumo: `Mês ${formatMonthYear(selectedMonth, selectedYear)} — Receitas: ${formatCurrency(monthData.summary.totalIncome)}, Despesas: ${formatCurrency(monthData.summary.totalExpense)}, Saldo: ${formatCurrency(monthData.summary.balance)}. Score: ${scoreSnapshot.scoreGeral !== null ? scoreSnapshot.scoreGeral.toFixed(0) : 'N/A'}. ${monthData.pending.length} pendência(s).`,
       };
 
