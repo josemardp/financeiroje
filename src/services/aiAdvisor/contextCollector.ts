@@ -326,10 +326,8 @@ export async function getFinancialContext(
     const progressoEsperado = (diasPassados / diasNoMes) * 100;
     const velocidadeAtual = m.progressPercent;
     const emRisco = velocidadeAtual < (progressoEsperado * 0.8);
-    const diasParaConcluir = velocidadeAtual > 0 
-      ? Math.round((100 - m.progressPercent) / (m.progressPercent / diasPassados))
-      : undefined;
-    return { metaNome: m.goalName, velocidadeAtual, diasParaConcluir, emRisco };
+    // Removido: diasParaConcluir (cálculo frágil sem histórico suficiente)
+    return { metaNome: m.goalName, velocidadeAtual, emRisco };
   });
 
   return {
