@@ -231,6 +231,29 @@ export default function AiAdvisor() {
               </button>
             ))}
           </div>
+          {/* Model selector */}
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            <button
+              onClick={() => setCurrentModel("google/gemini-3-flash-preview")}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                currentModel === "google/gemini-3-flash-preview"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              Gemini
+            </button>
+            <button
+              onClick={() => setCurrentModel("openai/gpt-5-mini")}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                currentModel === "openai/gpt-5-mini"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              GPT-5 Mini
+            </button>
+          </div>
           <Button variant="outline" size="sm" onClick={startNewConversation}>Nova conversa</Button>
         </div>
       </PageHeader>
