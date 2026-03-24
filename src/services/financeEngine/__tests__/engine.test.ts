@@ -157,6 +157,7 @@ describe("calculateHealthScore", () => {
   it("returns low score for bad financials", () => {
     const input: HealthScoreInput = {
       totalIncome: 5000, totalExpense: 5500, totalDebt: 50000, emergencyReserve: 0,
+      emergencyReserveConfigured: true, budgetConfigured: true,
       budgetDeviation: 60, overdueInstallments: 3, totalInstallments: 5,
       monthsWithData: 1, totalMonthsPossible: 12,
     };
