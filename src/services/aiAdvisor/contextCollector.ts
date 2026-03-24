@@ -42,19 +42,21 @@ export interface FinancialContext {
   escopo: string;
   resumoMensal: MonthlySummary | null;
   resumoConfirmado: MonthlySummary | null;
-  pendencias: { count: number; valorTotal: number };
+  pendencias: { count: number; valorTotal: number; tipos: { suggested: number; incomplete: number; inconsistent: number } };
   orcamento: BudgetDeviationResult | null;
   dividas: LoanSummary | null;
   metas: GoalProgressResult[];
   previsaoCaixa: CashflowForecastResult | null;
   scoreFinanceiro: HealthScoreResult | null;
   recorrenciasAtivas: number;
-  alertasAtivos: number;
+  alertasAtivos: { total: number; critical: number; warning: number; info: number };
   valoresFamiliares: string[];
   qualidadeDados: {
     semCategoria: number;
     sugeridosPendentes: number;
     incompletosPendentes: number;
+    inconsistentes: number;
+    impactoNaPrecisao: "baixo" | "medio" | "alto";
   };
   contas: { nome: string; tipo: string; saldo_inicial: number; saldo_atual: number }[];
   reservaEmergencia: {
@@ -62,12 +64,14 @@ export interface FinancialContext {
     metaMeses: number;
     despesaMensalRef: number;
     coberturaMeses: number | null;
+    statusMeta: "abaixo" | "ok" | "acima";
   } | null;
   preferenciasUsuario: Record<string, unknown>;
   metadados: {
     dataColeta: string;
     versaoEngine: string;
     nota: string;
+    avisoAlucinacao: string;
   };
 }
 
@@ -271,6 +275,12 @@ export async function getFinancialContext(
   const semCategoria = rawTransactions.filter((t) => !t.categoria_id).length;
   const sugeridosPendentes = pendingTxns.filter((t) => t.data_status === "suggested").length;
   const incompletosPendentes = pendingTxns.filter((t) => t.data_status === "incomplete").length;
+  const inconsistentes = pendingTxns.filter((t) => t.data_status === "inconsistent").length;
+  const totalQualityIssues = semCategoria + sugeridosPendentes + incompletosPendentes + inconsistentes;
+  const impactoNaPrecisao: "baixo" | "medio" | "alto" = 
+    totalQualityIssues === 0 ? "baixo" : 
+    totalQualityIssues < 5 ? "medio" : 
+    "alto";
 
   return {
     periodo: { mes, ano },
@@ -280,6 +290,11 @@ export async function getFinancialContext(
     pendencias: {
       count: pendingTxns.length,
       valorTotal: pendingTxns.reduce((s, t) => s + t.valor, 0),
+      tipos: {
+        suggested: sugeridosPendentes,
+        incomplete: incompletosPendentes,
+        inconsistent: inconsistentes,
+      },
     },
     orcamento,
     dividas,
@@ -287,21 +302,28 @@ export async function getFinancialContext(
     previsaoCaixa,
     scoreFinanceiro,
     recorrenciasAtivas: recurrings.length,
-    alertasAtivos: alertResult.data?.length || 0,
+    alertasAtivos: {
+      total: alertResult.data?.length || 0,
+      critical: 0,
+      warning: 0,
+      info: 0,
+    },
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
-    qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes },
+    qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes, inconsistentes, impactoNaPrecisao },
     contas: accountsList,
     reservaEmergencia: reserveConfigured ? {
       valor: reserveValue,
       metaMeses: reserveMonthsTarget,
       despesaMensalRef,
       coberturaMeses: despesaMensalRef > 0 ? Math.round((reserveValue / despesaMensalRef) * 10) / 10 : null,
+      statusMeta: !despesaMensalRef ? "ok" : reserveValue < (despesaMensalRef * reserveMonthsTarget) ? "abaixo" : "acima",
     } : null,
     preferenciasUsuario: userPrefs,
     metadados: {
       dataColeta: now.toISOString(),
       versaoEngine: "4.2-final",
       nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmed + null (default oficial).",
+      avisoAlucinacao: `PROTOCOLO ZERO-ALUCINAÇÃO: Esta IA foi treinada para NUNCA inventar dados. Se um valor não estiver neste contexto, ela não o criará. Se a qualidade dos dados for '${impactoNaPrecisao}', ela alertará o usuário. Sempre ancore as respostas nos números reais acima.`,
     },
   };
 }
