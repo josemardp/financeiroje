@@ -68,6 +68,9 @@ function LoginForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean; s
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [sendingReset, setSendingReset] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +81,41 @@ function LoginForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean; s
     }
     setIsSubmitting(false);
   };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSendingReset(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      toast.error("Erro ao enviar email", { description: "Verifique o endereço e tente novamente." });
+    } else {
+      toast.success("Email enviado!", { description: "Verifique sua caixa de entrada para redefinir a senha." });
+      setForgotMode(false);
+    }
+    setSendingReset(false);
+  };
+
+  if (forgotMode) {
+    return (
+      <form onSubmit={handleForgotPassword}>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="forgot-email">Email da conta</Label>
+            <Input id="forgot-email" type="email" placeholder="seu@email.com" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required />
+          </div>
+          <Button type="submit" className="w-full" disabled={sendingReset}>
+            {sendingReset ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Enviar link de recuperação
+          </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => setForgotMode(false)}>
+            Voltar para login
+          </Button>
+        </CardContent>
+      </form>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit}>
@@ -94,6 +132,13 @@ function LoginForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean; s
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
           Entrar
         </Button>
+        <button
+          type="button"
+          className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+          onClick={() => { setForgotMode(true); setForgotEmail(email); }}
+        >
+          Esqueci minha senha
+        </button>
       </CardContent>
     </form>
   );

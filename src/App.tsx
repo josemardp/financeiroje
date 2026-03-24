@@ -56,6 +56,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
+      <Route path="/reset-password" element={<Suspense fallback={<LazyFallback />}><ResetPassword /></Suspense>} />
       <Route
         element={
           <ProtectedRoute>
