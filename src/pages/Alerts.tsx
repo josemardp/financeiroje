@@ -11,12 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Bell, Check, AlertTriangle, Info, Sparkles, Loader2, RefreshCw } from "lucide-react";
+import { Bell, Check, AlertTriangle, Info, Sparkles, Loader2, RefreshCw, ExternalLink, ShieldCheck, TrendingUp, Target, Wallet, Landmark } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { ALERT_LEVEL_LABELS } from "@/lib/constants";
 
 export default function Alerts() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch saved alerts
   const { data: savedAlerts, isLoading } = useQuery({
@@ -40,16 +42,25 @@ export default function Alerts() {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
 
-      const [txRes, budRes, recRes, loanRes, instRes, amortRes] = await Promise.all([
+      const [txRes, budRes, recRes, loanRes, instRes, amortRes, profRes] = await Promise.all([
         supabase.from("transactions").select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)").gte("data", startOfMonth).lte("data", endOfMonth),
         supabase.from("budgets").select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)").eq("mes", now.getMonth() + 1).eq("ano", now.getFullYear()),
         supabase.from("recurring_transactions").select("*").eq("ativa", true),
         supabase.from("loans").select("*").eq("ativo", true),
         supabase.from("loan_installments").select("*"),
         supabase.from("extra_amortizations").select("*"),
+        supabase.from("profiles").select("preferences").eq("id", user.id).single(),
       ]);
 
-      return { transactions: txRes.data || [], budgets: budRes.data || [], recurrings: recRes.data || [], loans: loanRes.data || [], installments: instRes.data || [], amortizations: amortRes.data || [] };
+      return { 
+        transactions: txRes.data || [], 
+        budgets: budRes.data || [], 
+        recurrings: recRes.data || [], 
+        loans: loanRes.data || [], 
+        installments: instRes.data || [], 
+        amortizations: amortRes.data || [],
+        profile: profRes.data
+      };
     },
     enabled: !!user,
   });
@@ -119,6 +130,9 @@ export default function Alerts() {
     })));
 
     const suggestedCount = rawTxns.filter(t => t.data_status === "suggested").length;
+    const incompleteCount = rawTxns.filter(t => t.data_status === "incomplete").length;
+    const inconsistentCount = rawTxns.filter(t => t.data_status === "inconsistent").length;
+    const noCategoryCount = rawTxns.filter(t => !t.categoria_id).length;
 
     // Map installments with loan names
     const loanNameMap = new Map(loans.map(l => [l.id, l.nome]));
@@ -128,6 +142,8 @@ export default function Alerts() {
       data_vencimento: i.data_vencimento,
       status: i.status,
     }));
+
+    const prefs = (financialData.profile?.preferences || {}) as any;
 
     return generateAlerts({
       totalIncome: summary?.totalIncome || 0,
@@ -143,10 +159,15 @@ export default function Alerts() {
       })),
       installments: mappedInstallments,
       suggestedCount,
+      incompleteCount,
+      inconsistentCount,
+      noCategoryCount,
       savingsRate: summary?.savingsRate || 0,
       projectedBalance7d: forecast?.horizons[0]?.projectedBalance ?? null,
       projectedBalance30d: forecast?.horizons[1]?.projectedBalance ?? null,
-      emergencyReserve: 0,
+      emergencyReserveConfigured: !!prefs.reserva_emergencia_valor || !!prefs.reserva_emergencia_meses_meta,
+      emergencyReserve: prefs.reserva_emergencia_valor || 0,
+      emergencyReserveGoal: prefs.reserva_emergencia_valor_meta || 0,
       monthlyExpense: summary?.totalExpense || 0,
     });
   })();
@@ -154,9 +175,35 @@ export default function Alerts() {
   const iconForLevel = (nivel: string) => {
     switch (nivel) {
       case "critical": return <AlertTriangle className="h-4 w-4 text-destructive" />;
-      case "warning": return <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />;
-      case "opportunity": return <Sparkles className="h-4 w-4 text-[hsl(var(--info))]" />;
+      case "warning": return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+      case "opportunity": return <Sparkles className="h-4 w-4 text-blue-500" />;
       default: return <Info className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const iconForType = (tipo: string) => {
+    switch (tipo) {
+      case "qualidade": return <ShieldCheck className="h-4 w-4 text-purple-500" />;
+      case "fluxo_caixa": return <TrendingUp className="h-4 w-4 text-green-500" />;
+      case "orcamento_estourado": return <Target className="h-4 w-4 text-red-500" />;
+      case "reserva": return <Wallet className="h-4 w-4 text-blue-500" />;
+      case "vencimento_proximo":
+      case "parcela_vencida":
+      case "juros_altos": return <Landmark className="h-4 w-4 text-orange-500" />;
+      default: return <Bell className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getActionForType = (tipo: string) => {
+    switch (tipo) {
+      case "qualidade": return { label: "Revisar Transações", path: "/transactions" };
+      case "orcamento_estourado": return { label: "Ver Orçamento", path: "/budget" };
+      case "reserva": return { label: "Ver Metas", path: "/goals" };
+      case "vencimento_proximo":
+      case "parcela_vencida":
+      case "juros_altos": return { label: "Ver Dívidas", path: "/loans" };
+      case "fluxo_caixa": return { label: "Ver Dashboard", path: "/" };
+      default: return null;
     }
   };
 
@@ -173,20 +220,32 @@ export default function Alerts() {
           <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <RefreshCw className="h-3 w-3" /> Alertas em tempo real ({generatedAlerts.length})
           </h3>
-          {generatedAlerts.map((alert, i) => (
-            <Card key={`gen-${i}`}>
-              <CardContent className="p-4 flex items-start gap-3">
-                {iconForLevel(alert.nivel)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-medium">{alert.titulo}</p>
-                    <Badge variant="outline" className="text-[10px]">{ALERT_LEVEL_LABELS[alert.nivel] || alert.nivel}</Badge>
+          {generatedAlerts.map((alert, i) => {
+            const action = getActionForType(alert.tipo);
+            return (
+              <Card key={`gen-${i}`} className="border-l-4" style={{ borderLeftColor: alert.nivel === 'critical' ? 'red' : alert.nivel === 'warning' ? 'orange' : 'blue' }}>
+                <CardContent className="p-4 flex items-start gap-3">
+                  <div className="mt-0.5">
+                    {iconForType(alert.tipo)}
                   </div>
-                  <p className="text-xs text-muted-foreground">{alert.mensagem}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold">{alert.titulo}</p>
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
+                        {ALERT_LEVEL_LABELS[alert.nivel] || alert.nivel}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{alert.mensagem}</p>
+                    {action && (
+                      <Button variant="link" size="sm" className="h-auto p-0 mt-2 text-xs font-medium" onClick={() => navigate(action.path)}>
+                        {action.label} <ExternalLink className="h-3 w-3 ml-1" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

@@ -38,6 +38,9 @@ export interface AlertEngineInput {
     status: string | null;
   }>;
   suggestedCount: number;
+  incompleteCount: number;
+  inconsistentCount: number;
+  noCategoryCount: number;
   savingsRate: number;
   projectedBalance7d: number | null;
   projectedBalance30d: number | null;
@@ -45,6 +48,7 @@ export interface AlertEngineInput {
   emergencyReserveConfigured?: boolean;
   emergencyReserve: number;
   monthlyExpense: number;
+  emergencyReserveGoal?: number;
 }
 
 export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
@@ -108,38 +112,84 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
     });
   }
 
-  // 4. Suggested pendentes
+  // 4. Qualidade de Dados: Suggested pendentes
   if (input.suggestedCount > 0) {
     alerts.push({
-      tipo: "suggested_pendentes",
-      titulo: `${input.suggestedCount} transação(ões) pendente(s)`,
-      mensagem: `Existem ${input.suggestedCount} transação(ões) sugerida(s) aguardando confirmação.`,
+      tipo: "qualidade",
+      titulo: "Transações sugeridas",
+      mensagem: `Você tem ${input.suggestedCount} transação(ões) sugerida(s) que ainda não entram nos cálculos oficiais.`,
       nivel: "info",
       dados: { count: input.suggestedCount },
+    });
+  }
+
+  // 4b. Qualidade de Dados: Incompletas
+  if (input.incompleteCount > 0) {
+    alerts.push({
+      tipo: "qualidade",
+      titulo: "Transações incompletas",
+      mensagem: `Há ${input.incompleteCount} transação(ões) incompletas precisando de revisão para integridade dos relatórios.`,
+      nivel: "warning",
+      dados: { count: input.incompleteCount },
+    });
+  }
+
+  // 4c. Qualidade de Dados: Inconsistentes
+  if (input.inconsistentCount > 0) {
+    alerts.push({
+      tipo: "qualidade",
+      titulo: "Transações inconsistentes",
+      mensagem: `Há ${input.inconsistentCount} transação(ões) inconsistentes aguardando correção manual.`,
+      nivel: "critical",
+      dados: { count: input.inconsistentCount },
+    });
+  }
+
+  // 4d. Qualidade de Dados: Sem categoria
+  if (input.noCategoryCount > 0) {
+    alerts.push({
+      tipo: "qualidade",
+      titulo: "Transações sem categoria",
+      mensagem: `${input.noCategoryCount} transação(ões) estão sem categoria definida, o que afeta o controle de orçamentos.`,
+      nivel: "warning",
+      dados: { count: input.noCategoryCount },
     });
   }
 
   // 5. Taxa de economia baixa (only if income exists)
   if (input.totalIncome > 0 && input.savingsRate < 10) {
     alerts.push({
-      tipo: "economia_baixa",
+      tipo: "fluxo_caixa",
       titulo: "Taxa de economia baixa",
-      mensagem: `Sua taxa de economia é de ${input.savingsRate.toFixed(1)}%. O ideal é acima de 20%.`,
+      mensagem: `Sua taxa de economia é de ${input.savingsRate.toFixed(1)}%. O ideal é acima de 20% para uma saúde financeira robusta.`,
       nivel: input.savingsRate < 0 ? "critical" : "warning",
       dados: { savingsRate: input.savingsRate },
+    });
+  }
+
+  // 5b. Saldo líquido negativo no mês
+  if (input.totalIncome > 0 && input.balance < 0) {
+    alerts.push({
+      tipo: "fluxo_caixa",
+      titulo: "Saldo mensal negativo",
+      mensagem: `Suas despesas confirmadas superam suas receitas neste mês em R$ ${Math.abs(input.balance).toFixed(2)}.`,
+      nivel: "critical",
+      dados: { balance: input.balance },
     });
   }
 
   // 6. Reserva de emergência — ONLY if explicitly configured
   if (input.emergencyReserveConfigured && input.monthlyExpense > 0) {
     const mesesReserva = input.emergencyReserve / input.monthlyExpense;
-    if (mesesReserva < 1) {
+    const goal = input.emergencyReserveGoal || (input.monthlyExpense * 6);
+    
+    if (input.emergencyReserve < goal) {
       alerts.push({
-        tipo: "reserva_insuficiente",
-        titulo: "Reserva de emergência insuficiente",
-        mensagem: `Sua reserva cobre apenas ${mesesReserva.toFixed(1)} mês(es) de despesas. O ideal são 6 meses.`,
-        nivel: mesesReserva < 0.5 ? "critical" : "warning",
-        dados: { mesesReserva, reserva: input.emergencyReserve, despesaMensal: input.monthlyExpense },
+        tipo: "reserva",
+        titulo: "Reserva abaixo da meta",
+        mensagem: `Sua reserva atual (R$ ${input.emergencyReserve.toFixed(2)}) está abaixo da meta configurada de R$ ${goal.toFixed(2)}.`,
+        nivel: mesesReserva < 1 ? "critical" : "warning",
+        dados: { mesesReserva, reserva: input.emergencyReserve, meta: goal },
       });
     }
   }
