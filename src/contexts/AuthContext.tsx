@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -31,14 +31,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const profileRequestRef = useRef(0);
+
+  const clearLocalAuthState = () => {
+    profileRequestRef.current += 1;
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+  };
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+    const requestId = ++profileRequestRef.current;
+
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
-      .single();
-    if (data) setProfile(data as Profile);
+      .maybeSingle();
+
+    if (requestId !== profileRequestRef.current) return;
+
+    if (error || !data) {
+      setProfile(null);
+      return;
+    }
+
+    setProfile(data as Profile);
   };
 
   const refreshProfile = async () => {
@@ -46,32 +64,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // First restore session from storage
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+    let isActive = true;
+
+    const applySession = (nextSession: Session | null) => {
+      if (!isActive) return;
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      if (nextSession?.user) {
+        void fetchProfile(nextSession.user.id);
+      } else {
+        profileRequestRef.current += 1;
+        setProfile(null);
       }
+
       setLoading(false);
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      applySession(nextSession);
     });
 
-    // Then listen for subsequent auth changes (sign in/out)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          // Fire-and-forget profile fetch — no async in callback
-          fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-        }
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: restoredSession } }) => {
+        applySession(restoredSession);
+      })
+      .catch(() => {
+        if (!isActive) return;
+        clearLocalAuthState();
         setLoading(false);
-      }
-    );
+      });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isActive = false;
+      profileRequestRef.current += 1;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -92,10 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    // Always clear local state, even if server signOut fails (e.g. session already expired)
-    setUser(null);
-    setSession(null);
-    setProfile(null);
+    clearLocalAuthState();
+
     try {
       await supabase.auth.signOut();
     } catch {
