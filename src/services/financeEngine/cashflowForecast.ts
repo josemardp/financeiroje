@@ -46,7 +46,9 @@ export function calculateCashflowForecast(input: CashflowForecastInput): Cashflo
     };
   });
 
-  return { currentBalance: round2(currentBalance), horizons, assumptions, warnings };
+  assumptions.push("O 'saldo líquido do mês' é receitas menos despesas confirmadas do mês corrente. Não é saldo bancário real.");
+
+  return { currentMonthlyBalance: round2(currentBalance), horizons, assumptions, warnings };
 }
 
 function projectRecurrences(recurrences: RecurringRaw[], days: number): { inflows: number; outflows: number } {
