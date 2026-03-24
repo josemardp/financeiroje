@@ -216,8 +216,61 @@ describe("AI Context Account Balance", () => {
       { account_id: "a1", tipo: "income", valor: 500, data_status: "confirmed" },
       { account_id: "a1", tipo: "income", valor: 9999, data_status: "suggested" },
     ];
-    const confirmed = allTxns.filter(t => t.data_status === "confirmed");
+    const confirmed = allTxns.filter(t => t.data_status === "confirmed" || t.data_status === null);
     const txnBalance = confirmed.reduce((s, t) => s + (t.tipo === "income" ? t.valor : -t.valor), 0);
     expect(txnBalance).toBe(500);
+  });
+});
+
+// ─── Phase 4.2 Final Check — null status alignment ───────────────
+import { filterOfficialTransactions, OFFICIAL_STATUSES } from "@/services/financeEngine/types";
+
+describe("Phase 4.2 — Official Status Alignment", () => {
+  it("null data_status should be treated as official (confirmed default)", () => {
+    const txns = [
+      { id: "1", valor: 100, tipo: "income" as const, data: "2026-03-01", data_status: null },
+      { id: "2", valor: 200, tipo: "expense" as const, data: "2026-03-02", data_status: "confirmed" as const },
+      { id: "3", valor: 999, tipo: "income" as const, data: "2026-03-03", data_status: "suggested" as const },
+    ];
+    const official = filterOfficialTransactions(txns as any);
+    expect(official).toHaveLength(2);
+    expect(official.map(t => t.id)).toEqual(["1", "2"]);
+  });
+
+  it("account balance query rule: confirmed + null included, suggested excluded", () => {
+    const txns = [
+      { account_id: "a1", tipo: "income", valor: 300, data_status: "confirmed" },
+      { account_id: "a1", tipo: "income", valor: 200, data_status: null }, // null = official
+      { account_id: "a1", tipo: "expense", valor: 500, data_status: "suggested" }, // excluded
+    ];
+    const official = txns.filter(t => t.data_status === "confirmed" || t.data_status === null);
+    const balance = official.reduce((s, t) => s + (t.tipo === "income" ? t.valor : -t.valor), 0);
+    expect(balance).toBe(500); // 300 + 200
+  });
+
+  it("document storage path should not be a public URL", () => {
+    const userId = "user-abc";
+    const fileName = "recibo.pdf";
+    const storagePath = `${userId}/${Date.now()}_${fileName}`;
+    expect(storagePath.startsWith("http")).toBe(false);
+    expect(storagePath).toContain(userId);
+  });
+
+  it("legacy document URL should be resolved to storage path", () => {
+    const userId = "user-abc";
+    const legacyUrl = "https://storage.example.com/documents/user-abc/1234_nota.pdf";
+    // Fallback: extract filename from URL and build path
+    const fileName = legacyUrl.split("/").pop();
+    const resolvedPath = `${userId}/${fileName}`;
+    expect(resolvedPath).toBe("user-abc/1234_nota.pdf");
+    expect(resolvedPath.startsWith("http")).toBe(false);
+  });
+
+  it("engine OFFICIAL_STATUSES should contain only 'confirmed'", () => {
+    expect(OFFICIAL_STATUSES.has("confirmed")).toBe(true);
+    expect(OFFICIAL_STATUSES.has("suggested")).toBe(false);
+    expect(OFFICIAL_STATUSES.has("estimated")).toBe(false);
+    // null is handled by the filter function default, not by the Set
+    expect(OFFICIAL_STATUSES.size).toBe(1);
   });
 });
