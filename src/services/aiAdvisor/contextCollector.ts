@@ -75,9 +75,12 @@ export interface FinancialContext {
   }>;
   impactoEmMetas: Array<{
     metaNome: string;
-    velocidadeAtual: number;
-    diasParaConcluir?: number;
-    emRisco: boolean;
+    progressoAtual: number;
+    ritmo: "inicial" | "em andamento" | "avançado";
+    acumulado: number;
+    faltante: number;
+    isNew: boolean;
+    hasProgress: boolean;
   }>;
   preferenciasUsuario: Record<string, unknown>;
   metadados: {
