@@ -14,6 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, FileText, Loader2, Trash2, Upload, Download } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
+
+type DocumentRow = Database["public"]["Tables"]["documents"]["Row"];
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   contracheque: "Contracheque",
