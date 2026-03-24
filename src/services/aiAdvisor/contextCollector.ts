@@ -202,13 +202,20 @@ export async function getFinancialContext(
 
   const hasBudget = budgets.length > 0;
 
+  // User preferences & reserve
+  const userPrefs = (profileResult.data?.preferences || {}) as Record<string, any>;
+  const reserveValue = Number(userPrefs.reserva_emergencia_valor || 0);
+  const reserveMonthsTarget = Number(userPrefs.reserva_emergencia_meses_meta || 6);
+  const rendaMensal = Number(userPrefs.renda_principal || 0);
+  const reserveConfigured = reserveValue > 0 || rendaMensal > 0;
+
   const scoreFinanceiro = resumoConfirmado
     ? calculateHealthScore({
         totalIncome: resumoConfirmado.totalIncome,
         totalExpense: resumoConfirmado.totalExpense,
         totalDebt: dividas?.totalSaldoDevedor || 0,
-        emergencyReserve: 0,
-        emergencyReserveConfigured: false, // TODO: user preference
+        emergencyReserve: reserveValue,
+        emergencyReserveConfigured: reserveConfigured,
         budgetConfigured: hasBudget,
         budgetDeviation: orcamento ? Math.max(0, orcamento.totalDeviationPercent) : 0,
         overdueInstallments,
@@ -217,6 +224,11 @@ export async function getFinancialContext(
         totalMonthsPossible: 1,
       })
     : null;
+
+  // Accounts
+  const accountsList = (accountsResult.data || []).map((a: any) => ({
+    nome: a.nome, tipo: a.tipo, saldo: Number(a.saldo_inicial),
+  }));
 
   // Data quality quick scan
   const semCategoria = rawTransactions.filter((t) => !t.categoria_id).length;
@@ -241,9 +253,17 @@ export async function getFinancialContext(
     alertasAtivos: alertResult.data?.length || 0,
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes },
+    contas: accountsList,
+    reservaEmergencia: reserveConfigured ? {
+      valor: reserveValue,
+      metaMeses: reserveMonthsTarget,
+      rendaMensal,
+      coberturaMeses: rendaMensal > 0 ? Math.round((reserveValue / rendaMensal) * 10) / 10 : null,
+    } : null,
+    preferenciasUsuario: userPrefs,
     metadados: {
       dataColeta: now.toISOString(),
-      versaoEngine: "3.0-deterministic",
+      versaoEngine: "4.0-deterministic",
       nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular.",
     },
   };
