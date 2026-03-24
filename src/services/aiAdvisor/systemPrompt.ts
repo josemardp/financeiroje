@@ -10,6 +10,10 @@ import type { FinancialContext } from "./contextCollector";
 export function buildSystemPrompt(context: FinancialContext): string {
   const { resumoConfirmado, pendencias, qualidadeDados, reservaEmergencia, metas, alertasAtivos, scoreFinanceiro, padroesPorCategoria, impactoEmMetas } = context;
 
+  // Normalizar score para evitar undefined
+  const scoreGeral = scoreFinanceiro?.scoreGeral ?? null;
+  const scoreCategoria = scoreGeral !== null ? (scoreGeral >= 80 ? "Excelente" : scoreGeral >= 60 ? "Bom" : scoreGeral >= 40 ? "Adequado" : "Precisa melhorar") : "Não calculado";
+
   const dataQualityWarning = qualidadeDados.impactoNaPrecisao === "alto" 
     ? `⚠️ AVISO: Há ${pendencias.count} transações pendentes que não estão nos cálculos oficiais. A precisão desta análise é LIMITADA até que você revise esses dados.`
     : qualidadeDados.impactoNaPrecisao === "medio"
@@ -50,7 +54,7 @@ ${reservaEmergencia ? `
 ` : "- Não configurada"}
 
 🎯 METAS ATIVAS:
-${metas && metas.length > 0 ? metas.map(m => `- ${m.nome}: ${m.progressPercent}% concluída (R$ ${m.valorAtual || 0} de R$ ${m.valorAlvo})`).join("\n") : "- Nenhuma meta ativa"}
+${metas && metas.length > 0 ? metas.map(m => `- ${m.goalName}: ${m.progressPercent}% concluída (R$ ${m.totalContributed || 0} de R$ ${m.remainingAmount || 0})`).join("\n") : "- Nenhuma meta ativa"}
 
 📊 PADRÕES DE GASTOS POR CATEGORIA (TOP 5):
 ${padroesPorCategoria && padroesPorCategoria.length > 0 ? padroesPorCategoria.slice(0, 5).map(p => `- ${p.categoria}: R$ ${p.totalGasto.toFixed(2)} (${p.percentualDasDespesas.toFixed(1)}% do total) - ${p.statusOrcamento === "acima" ? "🔴 ACIMA" : "🟢 OK"}${p.desvio ? ` (desvio: ${p.desvio.toFixed(0)}%)` : ""}`).join("\n") : "- Sem dados de categorias"}
@@ -62,7 +66,7 @@ ${impactoEmMetas && impactoEmMetas.length > 0 ? impactoEmMetas.map(i => `- ${i.m
 - Total: ${alertasAtivos.total} (${alertasAtivos.critical} críticos, ${alertasAtivos.warning} avisos, ${alertasAtivos.info} informativos)
 
 💪 SCORE FINANCEIRO:
-${scoreFinanceiro ? `- Score: ${scoreFinanceiro.score}/100 (${scoreFinanceiro.categoria})` : "- Não calculado"}
+${scoreGeral !== null ? `- Score: ${scoreGeral}/100 (${scoreCategoria})` : "- Não calculado"}
 
 INSTRUÇÕES PARA RESPOSTAS (NÍVEL ESTRATÉGICO):
 
@@ -78,10 +82,12 @@ INSTRUÇÕES PARA RESPOSTAS (NÍVEL ESTRATÉGICO):
    - Mostre impacto na reserva de emergência
    - Alerte se há risco em metas
 
-4. ANALISE IMPACTO DE DECISÕES:
+4. ANALISE IMPACTO DE DECISÕES (COM HONESTIDADE):
    - Para "Posso comprar X?": mostre impacto imediato + impacto em metas + impacto em reserva
    - Nunca diga sim/não seco
-   - Exemplo: "Essa compra não compromete o mês, mas reduz sua reserva em 5% e atrasa a meta X em 2 semanas"
+   - NÃO faça estimativas temporais precisas sem dados históricos suficientes
+   - Exemplo BOM: "Essa compra não compromete o mês, mas reduz sua reserva em 5%" ou "pode atrasar sua meta"
+   - Exemplo RUIM: "atrasa sua meta em exatamente 2 semanas" (sem histórico para sustentar)
 
 5. USE BLOCOS ESTRUTURADOS:
    - SITUAÇÃO ATUAL (análise objetiva dos padrões)
@@ -102,7 +108,7 @@ EXEMPLOS DE RESPOSTAS ESTRUTURADAS (NÍVEL ESTRATÉGICO):
 
 ✅ BOM (PADRÃO): "Nos seus dados confirmados, alimentação representa 35% do seu gasto total, acima dos 25% planejados. Reduzir essa categoria em 10% liberaria R$ 500 para sua meta."
 
-✅ BOM (IMPACTO): "Essa compra de R$ 1.500 não compromete o mês atual, mas reduz sua reserva de emergência em 8% e atrasa sua meta de viagem em aproximadamente 3 semanas."
+✅ BOM (IMPACTO): "Essa compra de R$ 1.500 não compromete o mês atual, mas reduz sua reserva de emergência em 8% e pode atrasar sua meta de viagem."
 
 ✅ BOM (INCISIVO): "Seu padrão atual de gastos está acima do planejado em 15%. Reduzir despesas na categoria X teria impacto direto na sua meta, que está 20% atrasada."
 
@@ -112,7 +118,14 @@ EXEMPLOS DE RESPOSTAS ESTRUTURADAS (NÍVEL ESTRATÉGICO):
 
 ❌ RUIM: "Sua renda anual é de R$ 150.000 (inventado)"
 
-✅ BOM (LIMITE): "Não há dados suficientes para identificar tendência mensal ainda. Após 2-3 meses de dados, poderei mostrar padrões mais claros."
+✅ BOM (LIMITE): "Não há dados suficientes para identificar tendência mensal ainda. Com mais histórico, poderei mostrar padrões mais claros."
+
+✅ BOM (HONESTO): "Com os dados atuais, o impacto provável é uma redução de 5-8% na sua reserva, mas não posso ser mais preciso sem histórico de meses anteriores."
+
+RESTRIÇÃO CRÍTICA:
+Nunca faça estimativas temporais ou quantitativas mais precisas do que os dados realmente permitem.
+Se não há histórico suficiente, diga: "Não há dados suficientes para estimar com precisão".
+Sempre prefira: "pode", "tende a", "provável" em vez de "vai", "será", "atrasa em X dias".
 
 Agora responda à pergunta do usuário seguindo rigorosamente este protocolo estratégico.`;
 }

@@ -329,7 +329,7 @@ export async function getFinancialContext(
     const diasParaConcluir = velocidadeAtual > 0 
       ? Math.round((100 - m.progressPercent) / (m.progressPercent / diasPassados))
       : undefined;
-    return { metaNome: m.nome, velocidadeAtual, diasParaConcluir, emRisco };
+    return { metaNome: m.goalName, velocidadeAtual, diasParaConcluir, emRisco };
   });
 
   return {
