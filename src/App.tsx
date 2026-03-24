@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,25 +8,33 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import Transactions from "./pages/Transactions";
-import Budget from "./pages/Budget";
-import Recurring from "./pages/Recurring";
-import Loans from "./pages/Loans";
-import Goals from "./pages/Goals";
-import Subscriptions from "./pages/Subscriptions";
-import Forecast from "./pages/Forecast";
-import AiAdvisor from "./pages/AiAdvisor";
-import HealthScore from "./pages/HealthScore";
-import Alerts from "./pages/Alerts";
-import Documents from "./pages/Documents";
-import FamilyValues from "./pages/FamilyValues";
-import SettingsPage from "./pages/Settings";
-import SmartCapture from "./pages/SmartCapture";
-import MonthlyClosing from "./pages/MonthlyClosing";
-import Accounts from "./pages/Accounts";
-import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+
+// Lazy-loaded pages to reduce initial bundle
+const Transactions = lazy(() => import("./pages/Transactions"));
+const Budget = lazy(() => import("./pages/Budget"));
+const Recurring = lazy(() => import("./pages/Recurring"));
+const Loans = lazy(() => import("./pages/Loans"));
+const Goals = lazy(() => import("./pages/Goals"));
+const Subscriptions = lazy(() => import("./pages/Subscriptions"));
+const Forecast = lazy(() => import("./pages/Forecast"));
+const AiAdvisor = lazy(() => import("./pages/AiAdvisor"));
+const HealthScore = lazy(() => import("./pages/HealthScore"));
+const Alerts = lazy(() => import("./pages/Alerts"));
+const Documents = lazy(() => import("./pages/Documents"));
+const FamilyValues = lazy(() => import("./pages/FamilyValues"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
+const SmartCapture = lazy(() => import("./pages/SmartCapture"));
+const MonthlyClosing = lazy(() => import("./pages/MonthlyClosing"));
+const Accounts = lazy(() => import("./pages/Accounts"));
+const Reports = lazy(() => import("./pages/Reports"));
+
+const LazyFallback = () => (
+  <div className="flex min-h-[40vh] items-center justify-center">
+    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  </div>
+);
 
 const queryClient = new QueryClient();
 
