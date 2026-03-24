@@ -67,7 +67,7 @@ export default function Documents() {
   });
 
   /** Open a signed URL for private document viewing (5 min expiry) */
-  const handleViewDocument = async (doc: any) => {
+  const handleViewDocument = async (doc: DocumentRow) => {
     if (!doc.file_url) return;
     const storagePath = doc.file_url.startsWith("http")
       ? `${user!.id}/${doc.file_url.split("/").pop()}`
