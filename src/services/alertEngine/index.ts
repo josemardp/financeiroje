@@ -55,6 +55,30 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
   const alerts: GeneratedAlert[] = [];
   const today = new Date();
 
+  // Helper para ordenar e consolidar alertas
+  const priorityOrder = (nivel: string) => {
+    switch (nivel) {
+      case "critical": return 0;
+      case "warning": return 1;
+      case "info": return 2;
+      case "opportunity": return 3;
+      default: return 4;
+    }
+  };
+
+  const typeOrder = (tipo: string) => {
+    switch (tipo) {
+      case "qualidade": return 0;
+      case "fluxo_caixa": return 1;
+      case "orcamento_estourado": return 2;
+      case "reserva": return 3;
+      case "parcela_vencida":
+      case "vencimento_proximo": return 4;
+      case "juros_altos": return 5;
+      default: return 6;
+    }
+  };
+
   // 1. Parcelas vencendo nos próximos 7 dias
   for (const inst of input.installments) {
     if (inst.status === "pago") continue;
@@ -80,15 +104,25 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
     }
   }
 
-  // 2. Orçamento estourado
-  for (const item of input.budgetItems) {
-    if (item.status === "exceeded") {
+  // 2. Orçamento estourado (consolidado)
+  const exceededBudgets = input.budgetItems.filter(item => item.status === "exceeded");
+  if (exceededBudgets.length > 0) {
+    if (exceededBudgets.length === 1) {
+      const item = exceededBudgets[0];
       alerts.push({
         tipo: "orcamento_estourado",
         titulo: `Orçamento estourado: ${item.categoryName}`,
         mensagem: `Categoria "${item.categoryName}" ultrapassou o limite em ${item.deviationPercent.toFixed(0)}%.`,
         nivel: "warning",
         dados: { categoria: item.categoryName, planejado: item.planned, realizado: item.actual },
+      });
+    } else {
+      alerts.push({
+        tipo: "orcamento_estourado",
+        titulo: `${exceededBudgets.length} categorias com orçamento estourado`,
+        mensagem: `${exceededBudgets.map(i => i.categoryName).join(", ")} ultrapassaram seus limites. Revise seus gastos.`,
+        nivel: "warning",
+        dados: { categorias: exceededBudgets.map(i => ({ nome: i.categoryName, desvio: i.deviationPercent })) },
       });
     }
   }
@@ -206,6 +240,13 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
       });
     }
   }
+
+  // Ordenar alertas: primeiro por severidade, depois por tipo
+  alerts.sort((a, b) => {
+    const severityDiff = priorityOrder(a.nivel) - priorityOrder(b.nivel);
+    if (severityDiff !== 0) return severityDiff;
+    return typeOrder(a.tipo) - typeOrder(b.tipo);
+  });
 
   return alerts;
 }

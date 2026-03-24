@@ -196,15 +196,22 @@ export default function Alerts() {
 
   const getActionForType = (tipo: string) => {
     switch (tipo) {
-      case "qualidade": return { label: "Revisar Transações", path: "/transactions" };
-      case "orcamento_estourado": return { label: "Ver Orçamento", path: "/budget" };
-      case "reserva": return { label: "Ver Metas", path: "/goals" };
+      case "qualidade": return { label: "Revisar", path: "/transactions" };
+      case "orcamento_estourado": return { label: "Ajustar", path: "/budget" };
+      case "reserva": return { label: "Configurar", path: "/goals" };
       case "vencimento_proximo":
       case "parcela_vencida":
-      case "juros_altos": return { label: "Ver Dívidas", path: "/loans" };
-      case "fluxo_caixa": return { label: "Ver Dashboard", path: "/" };
+      case "juros_altos": return { label: "Gerenciar", path: "/loans" };
+      case "fluxo_caixa": return { label: "Ver", path: "/" };
       default: return null;
     }
+  };
+
+  const getImpactIndicator = (tipo: string, nivel: string) => {
+    if (nivel === "critical") return "Alto impacto";
+    if (tipo === "qualidade") return "Afeta relatórios";
+    if (tipo === "fluxo_caixa") return "Importante";
+    return null;
   };
 
   const unread = (savedAlerts || []).filter((a: any) => !a.lido);
@@ -236,11 +243,18 @@ export default function Alerts() {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">{alert.mensagem}</p>
-                    {action && (
-                      <Button variant="link" size="sm" className="h-auto p-0 mt-2 text-xs font-medium" onClick={() => navigate(action.path)}>
-                        {action.label} <ExternalLink className="h-3 w-3 ml-1" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-3 mt-2">
+                      {getImpactIndicator(alert.tipo, alert.nivel) && (
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          • {getImpactIndicator(alert.tipo, alert.nivel)}
+                        </span>
+                      )}
+                      {action && (
+                        <Button variant="link" size="sm" className="h-auto p-0 text-xs font-medium" onClick={() => navigate(action.path)}>
+                          {action.label} <ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
