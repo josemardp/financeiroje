@@ -78,56 +78,28 @@ export async function getFinancialContext(
 
   // Fetch all data in parallel
   const [
-    txResult,
-    budgetResult,
-    recurringResult,
-    loanResult,
-    installmentResult,
-    amortResult,
-    goalResult,
-    contribResult,
-    alertResult,
-    valuesResult,
+    txResult, budgetResult, recurringResult, loanResult,
+    installmentResult, amortResult, goalResult, contribResult,
+    alertResult, valuesResult, accountsResult, profileResult,
   ] = await Promise.all([
-    supabase
-      .from("transactions")
+    supabase.from("transactions")
       .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
-      .gte("data", startOfMonth)
-      .lte("data", endOfMonth),
-    supabase
-      .from("budgets")
+      .gte("data", startOfMonth).lte("data", endOfMonth),
+    supabase.from("budgets")
       .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
-      .eq("mes", mes)
-      .eq("ano", ano),
-    supabase
-      .from("recurring_transactions")
+      .eq("mes", mes).eq("ano", ano),
+    supabase.from("recurring_transactions")
       .select("id, descricao, valor, tipo, frequencia, dia_mes, ativa, categoria_id, scope")
       .eq("ativa", true),
-    supabase
-      .from("loans")
-      .select("*")
-      .eq("ativo", true),
-    supabase
-      .from("loan_installments")
-      .select("*")
-      .gte("data_vencimento", startOfMonth),
-    supabase
-      .from("extra_amortizations")
-      .select("*"),
-    supabase
-      .from("goals")
-      .select("*")
-      .eq("ativo", true),
-    supabase
-      .from("goal_contributions")
-      .select("*"),
-    supabase
-      .from("alerts")
-      .select("id")
-      .eq("lido", false),
-    supabase
-      .from("family_values")
-      .select("descricao"),
+    supabase.from("loans").select("*").eq("ativo", true),
+    supabase.from("loan_installments").select("*").gte("data_vencimento", startOfMonth),
+    supabase.from("extra_amortizations").select("*"),
+    supabase.from("goals").select("*").eq("ativo", true),
+    supabase.from("goal_contributions").select("*"),
+    supabase.from("alerts").select("id").eq("lido", false),
+    supabase.from("family_values").select("descricao"),
+    supabase.from("accounts").select("*").eq("ativa", true),
+    supabase.from("profiles").select("preferences").eq("user_id", userId).single(),
   ]);
 
   // Map raw data
