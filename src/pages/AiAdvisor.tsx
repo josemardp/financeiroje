@@ -125,7 +125,7 @@ export default function AiAdvisor() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ messages: chatMessages, context }),
+        body: JSON.stringify({ messages: chatMessages, context, model: currentModel }),
       });
 
       if (!resp.ok) {
