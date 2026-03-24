@@ -54,6 +54,9 @@ export interface FinancialContext {
     sugeridosPendentes: number;
     incompletosPendentes: number;
   };
+  contas: { nome: string; tipo: string; saldo: number }[];
+  reservaEmergencia: { valor: number; metaMeses: number; rendaMensal: number; coberturaMeses: number | null } | null;
+  preferenciasUsuario: Record<string, unknown>;
   metadados: {
     dataColeta: string;
     versaoEngine: string;
@@ -75,56 +78,28 @@ export async function getFinancialContext(
 
   // Fetch all data in parallel
   const [
-    txResult,
-    budgetResult,
-    recurringResult,
-    loanResult,
-    installmentResult,
-    amortResult,
-    goalResult,
-    contribResult,
-    alertResult,
-    valuesResult,
+    txResult, budgetResult, recurringResult, loanResult,
+    installmentResult, amortResult, goalResult, contribResult,
+    alertResult, valuesResult, accountsResult, profileResult,
   ] = await Promise.all([
-    supabase
-      .from("transactions")
+    supabase.from("transactions")
       .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
-      .gte("data", startOfMonth)
-      .lte("data", endOfMonth),
-    supabase
-      .from("budgets")
+      .gte("data", startOfMonth).lte("data", endOfMonth),
+    supabase.from("budgets")
       .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
-      .eq("mes", mes)
-      .eq("ano", ano),
-    supabase
-      .from("recurring_transactions")
+      .eq("mes", mes).eq("ano", ano),
+    supabase.from("recurring_transactions")
       .select("id, descricao, valor, tipo, frequencia, dia_mes, ativa, categoria_id, scope")
       .eq("ativa", true),
-    supabase
-      .from("loans")
-      .select("*")
-      .eq("ativo", true),
-    supabase
-      .from("loan_installments")
-      .select("*")
-      .gte("data_vencimento", startOfMonth),
-    supabase
-      .from("extra_amortizations")
-      .select("*"),
-    supabase
-      .from("goals")
-      .select("*")
-      .eq("ativo", true),
-    supabase
-      .from("goal_contributions")
-      .select("*"),
-    supabase
-      .from("alerts")
-      .select("id")
-      .eq("lido", false),
-    supabase
-      .from("family_values")
-      .select("descricao"),
+    supabase.from("loans").select("*").eq("ativo", true),
+    supabase.from("loan_installments").select("*").gte("data_vencimento", startOfMonth),
+    supabase.from("extra_amortizations").select("*"),
+    supabase.from("goals").select("*").eq("ativo", true),
+    supabase.from("goal_contributions").select("*"),
+    supabase.from("alerts").select("id").eq("lido", false),
+    supabase.from("family_values").select("descricao"),
+    supabase.from("accounts").select("*").eq("ativa", true),
+    supabase.from("profiles").select("preferences").eq("user_id", userId).single(),
   ]);
 
   // Map raw data
@@ -227,13 +202,20 @@ export async function getFinancialContext(
 
   const hasBudget = budgets.length > 0;
 
+  // User preferences & reserve
+  const userPrefs = (profileResult.data?.preferences || {}) as Record<string, any>;
+  const reserveValue = Number(userPrefs.reserva_emergencia_valor || 0);
+  const reserveMonthsTarget = Number(userPrefs.reserva_emergencia_meses_meta || 6);
+  const rendaMensal = Number(userPrefs.renda_principal || 0);
+  const reserveConfigured = reserveValue > 0 || rendaMensal > 0;
+
   const scoreFinanceiro = resumoConfirmado
     ? calculateHealthScore({
         totalIncome: resumoConfirmado.totalIncome,
         totalExpense: resumoConfirmado.totalExpense,
         totalDebt: dividas?.totalSaldoDevedor || 0,
-        emergencyReserve: 0,
-        emergencyReserveConfigured: false, // TODO: user preference
+        emergencyReserve: reserveValue,
+        emergencyReserveConfigured: reserveConfigured,
         budgetConfigured: hasBudget,
         budgetDeviation: orcamento ? Math.max(0, orcamento.totalDeviationPercent) : 0,
         overdueInstallments,
@@ -242,6 +224,11 @@ export async function getFinancialContext(
         totalMonthsPossible: 1,
       })
     : null;
+
+  // Accounts
+  const accountsList = (accountsResult.data || []).map((a: any) => ({
+    nome: a.nome, tipo: a.tipo, saldo: Number(a.saldo_inicial),
+  }));
 
   // Data quality quick scan
   const semCategoria = rawTransactions.filter((t) => !t.categoria_id).length;
@@ -266,9 +253,17 @@ export async function getFinancialContext(
     alertasAtivos: alertResult.data?.length || 0,
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes },
+    contas: accountsList,
+    reservaEmergencia: reserveConfigured ? {
+      valor: reserveValue,
+      metaMeses: reserveMonthsTarget,
+      rendaMensal,
+      coberturaMeses: rendaMensal > 0 ? Math.round((reserveValue / rendaMensal) * 10) / 10 : null,
+    } : null,
+    preferenciasUsuario: userPrefs,
     metadados: {
       dataColeta: now.toISOString(),
-      versaoEngine: "3.0-deterministic",
+      versaoEngine: "4.0-deterministic",
       nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular.",
     },
   };

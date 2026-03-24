@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          ativa: boolean | null
+          cor: string | null
+          created_at: string
+          icone: string | null
+          id: string
+          nome: string
+          saldo_inicial: number
+          scope: Database["public"]["Enums"]["scope_type"] | null
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativa?: boolean | null
+          cor?: string | null
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nome: string
+          saldo_inicial?: number
+          scope?: Database["public"]["Enums"]["scope_type"] | null
+          tipo?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativa?: boolean | null
+          cor?: string | null
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nome?: string
+          saldo_inicial?: number
+          scope?: Database["public"]["Enums"]["scope_type"] | null
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_conversations: {
         Row: {
           contexto: string | null
@@ -881,6 +923,7 @@ export type Database = {
       }
       transactions: {
         Row: {
+          account_id: string | null
           categoria_id: string | null
           competencia: string | null
           comprovante_url: string | null
@@ -904,6 +947,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          account_id?: string | null
           categoria_id?: string | null
           competencia?: string | null
           comprovante_url?: string | null
@@ -927,6 +971,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          account_id?: string | null
           categoria_id?: string | null
           competencia?: string | null
           comprovante_url?: string | null
@@ -950,6 +995,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_categoria_id_fkey"
             columns: ["categoria_id"]

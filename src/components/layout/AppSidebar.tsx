@@ -19,6 +19,8 @@ import {
   TrendingUp,
   Zap,
   Lock,
+  Landmark,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -37,6 +39,7 @@ import { Button } from "@/components/ui/button";
 const mainNav = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
   { title: "Transações", icon: ArrowLeftRight, href: "/transacoes" },
+  { title: "Contas", icon: Landmark, href: "/contas" },
   { title: "Orçamento", icon: PiggyBank, href: "/orcamento" },
   { title: "Recorrências", icon: CalendarDays, href: "/recorrencias" },
 ];
@@ -55,6 +58,7 @@ const toolsNav = [
   { title: "Alertas", icon: Bell, href: "/alertas" },
   { title: "Fechamento Mensal", icon: Lock, href: "/fechamento" },
   { title: "Documentos / IR", icon: FileText, href: "/documentos" },
+  { title: "Relatórios", icon: FileSpreadsheet, href: "/relatorios" },
   { title: "Valores Familiares", icon: Heart, href: "/valores" },
 ];
 
