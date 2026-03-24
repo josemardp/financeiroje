@@ -18,6 +18,7 @@ export default function Reports() {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
+  const [onlyOfficial, setOnlyOfficial] = useState(true);
 
   const { data: rawTransactions, isLoading } = useQuery({
     queryKey: ["report-transactions", month, year],
@@ -57,8 +58,15 @@ export default function Reports() {
     if (!rawTransactions || rawTransactions.length === 0) {
       toast.error("Sem dados para exportar"); return;
     }
+    
+    const toExport = onlyOfficial ? filterOfficialTransactions(rawTransactions) : rawTransactions;
+    
+    if (toExport.length === 0) {
+      toast.error("Sem dados para exportar com o filtro selecionado"); return;
+    }
+
     const headers = ["Data", "Tipo", "Valor", "Descrição", "Categoria", "Escopo", "Status"];
-    const rows = rawTransactions.map(t => [
+    const rows = toExport.map(t => [
       t.data, t.tipo === "income" ? "Receita" : "Despesa", t.valor.toFixed(2),
       t.descricao || "", t.categoria_nome || "", SCOPE_LABELS[t.scope || "private"] || "",
       t.data_status || "confirmed",
@@ -84,19 +92,34 @@ export default function Reports() {
         </Button>
       </PageHeader>
 
-      <div className="flex gap-3">
-        <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
-          <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {months.map(m => <SelectItem key={m} value={String(m)}>{formatMonthYear(m, year).split(" ")[0]}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
-          <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {[now.getFullYear(), now.getFullYear() - 1].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex gap-3">
+          <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {months.map(m => <SelectItem key={m} value={String(m)}>{formatMonthYear(m, year).split(" ")[0]}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
+            <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[now.getFullYear(), now.getFullYear() - 1].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="onlyOfficial"
+            checked={onlyOfficial}
+            onChange={(e) => setOnlyOfficial(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <label htmlFor="onlyOfficial" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Apenas dados confirmados no CSV
+          </label>
+        </div>
       </div>
 
       {isLoading ? (
