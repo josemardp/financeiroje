@@ -146,6 +146,7 @@ describe("calculateHealthScore", () => {
   it("returns perfect score for ideal financials", () => {
     const input: HealthScoreInput = {
       totalIncome: 10000, totalExpense: 4000, totalDebt: 0, emergencyReserve: 30000,
+      emergencyReserveConfigured: true, budgetConfigured: true,
       budgetDeviation: 0, overdueInstallments: 0, totalInstallments: 5,
       monthsWithData: 12, totalMonthsPossible: 12,
     };
