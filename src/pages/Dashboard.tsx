@@ -126,7 +126,7 @@ export default function Dashboard() {
         <Button asChild><Link to="/transacoes"><Plus className="h-4 w-4 mr-1" /> Nova transação</Link></Button>
       </PageHeader>
 
-      {/* KPIs — confirmed data */}
+      {/* KPIs — confirmed data only */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard title="Receitas" value={formatCurrency(summaryConfirmed?.totalIncome || 0)} icon={TrendingUp} variant="success" />
         <KpiCard title="Despesas" value={formatCurrency(summaryConfirmed?.totalExpense || 0)} icon={TrendingDown} variant="destructive" />
@@ -158,10 +158,16 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold font-mono">{formatCurrency(reserveValue)}</p>
-              {prefs.renda_principal > 0 && (
+              {/* HARDENING: Coverage uses monthly EXPENSE, not income */}
+              {summaryConfirmed && summaryConfirmed.totalExpense > 0 ? (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Cobertura: {(reserveValue / prefs.renda_principal).toFixed(1)} meses
+                  Cobertura: {(reserveValue / summaryConfirmed.totalExpense).toFixed(1)} meses de despesa
                   {prefs.reserva_emergencia_meses_meta && ` / meta: ${prefs.reserva_emergencia_meses_meta} meses`}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sem despesas confirmadas para calcular cobertura
+                  {prefs.reserva_emergencia_meses_meta && ` — meta: ${prefs.reserva_emergencia_meses_meta} meses`}
                 </p>
               )}
             </CardContent>
@@ -261,13 +267,13 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Expense by category */}
-      {summary && summary.expenseByCategory.length > 0 && (
+      {/* Expense by category — HARDENING: uses confirmed-only data */}
+      {summaryConfirmed && summaryConfirmed.expenseByCategory.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Despesas por Categoria</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Despesas por Categoria (dados oficiais)</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {summary.expenseByCategory.slice(0, 6).map((cat) => (
+              {summaryConfirmed.expenseByCategory.slice(0, 6).map((cat) => (
                 <div key={cat.categoryId || "none"} className="flex items-center gap-3">
                   <span className="text-lg shrink-0">{cat.categoryIcon}</span>
                   <div className="flex-1 min-w-0">

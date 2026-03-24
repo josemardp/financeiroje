@@ -6,6 +6,8 @@
  * 
  * REGRA: A IA nunca faz cálculo. Ela recebe outputs da engine.
  * REGRA: Dados separados por status (confirmado vs sugerido vs projeção).
+ * REGRA: Reserva usa DESPESA mensal para cobertura, não renda.
+ * REGRA: Saldo das contas = saldo_inicial + transações confirmadas.
  */
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -54,8 +56,13 @@ export interface FinancialContext {
     sugeridosPendentes: number;
     incompletosPendentes: number;
   };
-  contas: { nome: string; tipo: string; saldo: number }[];
-  reservaEmergencia: { valor: number; metaMeses: number; rendaMensal: number; coberturaMeses: number | null } | null;
+  contas: { nome: string; tipo: string; saldo_inicial: number; saldo_atual: number }[];
+  reservaEmergencia: {
+    valor: number;
+    metaMeses: number;
+    despesaMensalRef: number;
+    coberturaMeses: number | null;
+  } | null;
   preferenciasUsuario: Record<string, unknown>;
   metadados: {
     dataColeta: string;
@@ -81,6 +88,7 @@ export async function getFinancialContext(
     txResult, budgetResult, recurringResult, loanResult,
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
+    accountTxResult,
   ] = await Promise.all([
     supabase.from("transactions")
       .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
@@ -100,6 +108,11 @@ export async function getFinancialContext(
     supabase.from("family_values").select("descricao"),
     supabase.from("accounts").select("*").eq("ativa", true),
     supabase.from("profiles").select("preferences").eq("user_id", userId).single(),
+    // Fetch ALL confirmed txns with account_id for real account balance
+    supabase.from("transactions")
+      .select("account_id, tipo, valor")
+      .eq("data_status", "confirmed")
+      .not("account_id", "is", null),
   ]);
 
   // Map raw data
@@ -206,8 +219,10 @@ export async function getFinancialContext(
   const userPrefs = (profileResult.data?.preferences || {}) as Record<string, any>;
   const reserveValue = Number(userPrefs.reserva_emergencia_valor || 0);
   const reserveMonthsTarget = Number(userPrefs.reserva_emergencia_meses_meta || 6);
-  const rendaMensal = Number(userPrefs.renda_principal || 0);
-  const reserveConfigured = reserveValue > 0 || rendaMensal > 0;
+  const reserveConfigured = reserveValue > 0;
+
+  // HARDENING: Reserve coverage uses EXPENSE, not income
+  const despesaMensalRef = resumoConfirmado?.totalExpense || 0;
 
   const scoreFinanceiro = resumoConfirmado
     ? calculateHealthScore({
@@ -225,9 +240,19 @@ export async function getFinancialContext(
       })
     : null;
 
-  // Accounts
+  // Accounts — real balance = saldo_inicial + confirmed transactions
+  const accountTxnMap: Record<string, number> = {};
+  (accountTxResult.data || []).forEach((t: any) => {
+    const id = t.account_id;
+    if (!accountTxnMap[id]) accountTxnMap[id] = 0;
+    accountTxnMap[id] += t.tipo === "income" ? Number(t.valor) : -Number(t.valor);
+  });
+
   const accountsList = (accountsResult.data || []).map((a: any) => ({
-    nome: a.nome, tipo: a.tipo, saldo: Number(a.saldo_inicial),
+    nome: a.nome,
+    tipo: a.tipo,
+    saldo_inicial: Number(a.saldo_inicial),
+    saldo_atual: Number(a.saldo_inicial) + (accountTxnMap[a.id] || 0),
   }));
 
   // Data quality quick scan
@@ -257,14 +282,14 @@ export async function getFinancialContext(
     reservaEmergencia: reserveConfigured ? {
       valor: reserveValue,
       metaMeses: reserveMonthsTarget,
-      rendaMensal,
-      coberturaMeses: rendaMensal > 0 ? Math.round((reserveValue / rendaMensal) * 10) / 10 : null,
+      despesaMensalRef,
+      coberturaMeses: despesaMensalRef > 0 ? Math.round((reserveValue / despesaMensalRef) * 10) / 10 : null,
     } : null,
     preferenciasUsuario: userPrefs,
     metadados: {
       dataColeta: now.toISOString(),
-      versaoEngine: "4.0-deterministic",
-      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular.",
+      versaoEngine: "4.1-hardened",
+      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmadas.",
     },
   };
 }

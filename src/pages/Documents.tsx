@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, FileText, Loader2, Trash2, Upload, Search, Filter } from "lucide-react";
+import { Plus, FileText, Loader2, Trash2, Upload, Download } from "lucide-react";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   contracheque: "Contracheque",
@@ -48,8 +48,11 @@ export default function Documents() {
   const deleteMutation = useMutation({
     mutationFn: async (doc: any) => {
       if (doc.file_url) {
-        const path = doc.file_url.split("/").pop();
-        if (path) await supabase.storage.from("documents").remove([`${user!.id}/${path}`]);
+        // file_url stores the storage path (private bucket — no public URLs)
+        const storagePath = doc.file_url.startsWith("http")
+          ? `${user!.id}/${doc.file_url.split("/").pop()}`
+          : doc.file_url;
+        await supabase.storage.from("documents").remove([storagePath]);
       }
       const { error } = await supabase.from("documents").delete().eq("id", doc.id);
       if (error) throw error;
@@ -59,6 +62,22 @@ export default function Documents() {
       toast.success("Documento removido");
     },
   });
+
+  /** Open a signed URL for private document viewing (5 min expiry) */
+  const handleViewDocument = async (doc: any) => {
+    if (!doc.file_url) return;
+    const storagePath = doc.file_url.startsWith("http")
+      ? `${user!.id}/${doc.file_url.split("/").pop()}`
+      : doc.file_url;
+    const { data, error } = await supabase.storage
+      .from("documents")
+      .createSignedUrl(storagePath, 300);
+    if (data?.signedUrl) {
+      window.open(data.signedUrl, "_blank");
+    } else {
+      toast.error("Erro ao gerar link seguro", { description: error?.message });
+    }
+  };
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -123,6 +142,13 @@ export default function Documents() {
                   <Badge variant={doc.linked_entity_id ? "default" : "secondary"} className="text-[10px]">
                     {doc.linked_entity_id ? "Vinculado" : "Sem vínculo"}
                   </Badge>
+                  {doc.file_url && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      title="Visualizar documento (link seguro temporário)"
+                      onClick={() => handleViewDocument(doc)}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={() => deleteMutation.mutate(doc)}>
                     <Trash2 className="h-4 w-4" />
@@ -153,7 +179,7 @@ function DocumentForm({ onSuccess }: { onSuccess: () => void }) {
     if (!user || !file) { toast.error("Selecione um arquivo"); return; }
     setSubmitting(true);
 
-    let fileUrl: string | null = null;
+    // Upload to private bucket — store the storage path, NOT a public URL
     const filePath = `${user.id}/${Date.now()}_${file.name}`;
     const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, file);
     if (uploadError) {
@@ -161,13 +187,11 @@ function DocumentForm({ onSuccess }: { onSuccess: () => void }) {
       setSubmitting(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(filePath);
-    fileUrl = urlData.publicUrl;
 
     const { error } = await supabase.from("documents").insert({
       user_id: user.id,
       file_name: file.name,
-      file_url: fileUrl,
+      file_url: filePath, // storage path — accessed via signed URL only
       document_type: form.document_type as any,
       ano_fiscal: Number(form.ano_fiscal) || null,
       holder: form.holder || null,
