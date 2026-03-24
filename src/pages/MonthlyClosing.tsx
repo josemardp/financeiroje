@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { Lock, Unlock, AlertTriangle, CheckCircle, Loader2, FileText } from "lucide-react";
 
 export default function MonthlyClosing() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -93,14 +93,17 @@ export default function MonthlyClosing() {
         overallStatus: monthData.budget.overallStatus,
       } : null;
 
-      // Calculate score snapshot
+      // Calculate score snapshot with real user preferences
+      const prefs = (profile?.preferences || {}) as any;
+      const emergencyReserveValue = prefs.reserva_emergencia_valor || 0;
+      const emergencyReserveConfigured = emergencyReserveValue > 0 || !!prefs.reserva_emergencia_meses_meta;
       const overdueInstallments = 0; // simplified for closing
       const scoreSnapshot = calculateHealthScore({
         totalIncome: monthData.summary.totalIncome,
         totalExpense: monthData.summary.totalExpense,
         totalDebt: 0,
-        emergencyReserve: 0,
-        emergencyReserveConfigured: false,
+        emergencyReserve: emergencyReserveValue,
+        emergencyReserveConfigured,
         budgetConfigured: !!monthData.budget,
         budgetDeviation: monthData.budget ? Math.max(0, monthData.budget.totalDeviationPercent) : 0,
         overdueInstallments,
