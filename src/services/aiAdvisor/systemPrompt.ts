@@ -54,13 +54,13 @@ ${reservaEmergencia ? `
 ` : "- Não configurada"}
 
 🎯 METAS ATIVAS:
-${metas && metas.length > 0 ? metas.map(m => `- ${m.goalName}: ${m.progressPercent}% concluída (R$ ${m.totalContributed || 0} de R$ ${m.remainingAmount || 0})`).join("\n") : "- Nenhuma meta ativa"}
+${metas && metas.length > 0 ? metas.map(m => `- ${m.goalName}: ${m.progressPercent}% concluída (R$ ${m.totalContributed || 0} acumulados, faltam R$ ${m.remainingAmount || 0})`).join("\n") : "- Nenhuma meta ativa"}
 
 📊 PADRÕES DE GASTOS POR CATEGORIA (TOP 5):
 ${padroesPorCategoria && padroesPorCategoria.length > 0 ? padroesPorCategoria.slice(0, 5).map(p => `- ${p.categoria}: R$ ${p.totalGasto.toFixed(2)} (${p.percentualDasDespesas.toFixed(1)}% do total) - ${p.statusOrcamento === "acima" ? "🔴 ACIMA" : "🟢 OK"}${p.desvio ? ` (desvio: ${p.desvio.toFixed(0)}%)` : ""}`).join("\n") : "- Sem dados de categorias"}
 
 ⚡ VELOCIDADE DE PROGRESSO NAS METAS:
-${impactoEmMetas && impactoEmMetas.length > 0 ? impactoEmMetas.map(i => `- ${i.metaNome}: ${i.velocidadeAtual.toFixed(0)}% (${i.emRisco ? "🔴 EM RISCO" : "🟢 OK"}${i.diasParaConcluir ? `, ~${i.diasParaConcluir} dias` : ""})`).join("\n") : "- Sem metas em progresso"}
+${impactoEmMetas && impactoEmMetas.length > 0 ? impactoEmMetas.map(i => `- ${i.metaNome}: ${i.velocidadeAtual.toFixed(0)}% (${i.emRisco ? "🔴 EM RISCO - ritmo abaixo do esperado" : "🟢 OK - ritmo adequado"})`).join("\n") : "- Sem metas em progresso"}
 
 ⚠️ ALERTAS ATIVOS:
 - Total: ${alertasAtivos.total} (${alertasAtivos.critical} críticos, ${alertasAtivos.warning} avisos, ${alertasAtivos.info} informativos)
