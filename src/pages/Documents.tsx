@@ -37,7 +37,7 @@ export default function Documents() {
     queryKey: ["documents", filterType, filterYear],
     queryFn: async () => {
       let query = supabase.from("documents").select("*").order("created_at", { ascending: false });
-      if (filterType !== "all") query = query.eq("document_type", filterType);
+      if (filterType !== "all") query = query.eq("document_type", filterType as any);
       if (filterYear !== "all") query = query.eq("ano_fiscal", Number(filterYear));
       const { data } = await query;
       return data || [];
