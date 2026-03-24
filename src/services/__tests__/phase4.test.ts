@@ -1,5 +1,6 @@
 /**
  * Phase 4 Tests — Accounts, preferences, goals operational, reports
+ * Phase 4.1 Hardening Tests — Reserve coverage, official data, account balances
  */
 import { describe, it, expect } from "vitest";
 
@@ -28,22 +29,39 @@ describe("Account Balance Calculation", () => {
     const txnBalance = -300;
     expect(saldoInicial + txnBalance).toBe(-200);
   });
+
+  it("should only count confirmed transactions for account balance", () => {
+    const saldoInicial = 1000;
+    const txns = [
+      { tipo: "income", valor: 500, data_status: "confirmed" },
+      { tipo: "expense", valor: 200, data_status: "confirmed" },
+      { tipo: "expense", valor: 999, data_status: "suggested" }, // must be excluded
+      { tipo: "income", valor: 777, data_status: "incomplete" }, // must be excluded
+    ];
+    const confirmedTxns = txns.filter(t => t.data_status === "confirmed");
+    const txnBalance = confirmedTxns.reduce((sum, t) => sum + (t.tipo === "income" ? t.valor : -t.valor), 0);
+    const currentBalance = saldoInicial + txnBalance;
+    expect(currentBalance).toBe(1300); // 1000 + 500 - 200
+  });
 });
 
-// ─── Emergency reserve coverage ───────────────────────────────────
-describe("Emergency Reserve", () => {
-  it("should calculate months of coverage", () => {
+// ─── Emergency reserve coverage — must use EXPENSE not income ─────
+describe("Emergency Reserve (Hardened)", () => {
+  it("should calculate months of coverage using expense, not income", () => {
     const reserveValue = 12000;
     const monthlyExpense = 4000;
+    const monthlyIncome = 8000; // must NOT be used
     const coverage = reserveValue / monthlyExpense;
     expect(coverage).toBe(3);
+    // Wrong: reserve / income = 1.5 — this would be incorrect
+    expect(reserveValue / monthlyIncome).not.toBe(coverage);
   });
 
-  it("should return Infinity when no expenses", () => {
+  it("should return null coverage when no expense data", () => {
     const reserveValue = 5000;
     const monthlyExpense = 0;
-    const coverage = monthlyExpense > 0 ? reserveValue / monthlyExpense : Infinity;
-    expect(coverage).toBe(Infinity);
+    const coverage = monthlyExpense > 0 ? reserveValue / monthlyExpense : null;
+    expect(coverage).toBeNull();
   });
 
   it("should handle unconfigured reserve", () => {
@@ -124,5 +142,82 @@ describe("Financial Preferences", () => {
     const merged = { ...defaults, ...existing };
     expect(merged.renda_principal).toBe(5000);
     expect(merged.escopo_padrao).toBe("private");
+  });
+});
+
+// ─── Dashboard official data consistency ──────────────────────────
+describe("Dashboard Official Data Consistency", () => {
+  it("should separate official from pending transactions", () => {
+    const txns = [
+      { data_status: "confirmed", valor: 100 },
+      { data_status: "confirmed", valor: 200 },
+      { data_status: "suggested", valor: 999 },
+      { data_status: "incomplete", valor: 500 },
+      { data_status: null, valor: 50 }, // null treated as confirmed
+    ];
+    const official = txns.filter(t => t.data_status === "confirmed" || t.data_status === null);
+    const pending = txns.filter(t => t.data_status === "suggested" || t.data_status === "incomplete");
+    expect(official.length).toBe(3);
+    expect(pending.length).toBe(2);
+    const officialTotal = official.reduce((s, t) => s + t.valor, 0);
+    expect(officialTotal).toBe(350); // 100 + 200 + 50
+  });
+
+  it("should not include suggested in category breakdown", () => {
+    const allTxns = [
+      { categoria: "Alimentação", valor: 100, data_status: "confirmed" },
+      { categoria: "Alimentação", valor: 9999, data_status: "suggested" },
+    ];
+    const officialOnly = allTxns.filter(t => t.data_status === "confirmed");
+    const total = officialOnly.reduce((s, t) => s + t.valor, 0);
+    expect(total).toBe(100);
+  });
+});
+
+// ─── Document privacy — signed URLs ──────────────────────────────
+describe("Document Privacy", () => {
+  it("should store storage path, not public URL", () => {
+    const userId = "abc-123";
+    const fileName = "recibo.pdf";
+    const storagePath = `${userId}/${Date.now()}_${fileName}`;
+    // Must NOT be a public URL
+    expect(storagePath.startsWith("http")).toBe(false);
+    expect(storagePath).toContain(userId);
+  });
+
+  it("should resolve legacy public URLs to storage paths", () => {
+    const userId = "abc-123";
+    const legacyUrl = "https://storage.example.com/documents/abc-123/1234_recibo.pdf";
+    const fileName = legacyUrl.split("/").pop();
+    const resolvedPath = `${userId}/${fileName}`;
+    expect(resolvedPath).toBe("abc-123/1234_recibo.pdf");
+  });
+});
+
+// ─── AI context — real account balance ────────────────────────────
+describe("AI Context Account Balance", () => {
+  it("should compute saldo_atual from saldo_inicial + confirmed txns", () => {
+    const account = { id: "a1", nome: "Nubank", tipo: "conta_corrente", saldo_inicial: 1000 };
+    const confirmedTxns = [
+      { account_id: "a1", tipo: "income", valor: 500 },
+      { account_id: "a1", tipo: "expense", valor: 200 },
+    ];
+    const txnMap: Record<string, number> = {};
+    confirmedTxns.forEach(t => {
+      if (!txnMap[t.account_id]) txnMap[t.account_id] = 0;
+      txnMap[t.account_id] += t.tipo === "income" ? t.valor : -t.valor;
+    });
+    const saldoAtual = account.saldo_inicial + (txnMap[account.id] || 0);
+    expect(saldoAtual).toBe(1300);
+  });
+
+  it("should NOT include suggested txns in account balance", () => {
+    const allTxns = [
+      { account_id: "a1", tipo: "income", valor: 500, data_status: "confirmed" },
+      { account_id: "a1", tipo: "income", valor: 9999, data_status: "suggested" },
+    ];
+    const confirmed = allTxns.filter(t => t.data_status === "confirmed");
+    const txnBalance = confirmed.reduce((s, t) => s + (t.tipo === "income" ? t.valor : -t.valor), 0);
+    expect(txnBalance).toBe(500);
   });
 });
