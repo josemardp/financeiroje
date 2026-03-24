@@ -54,6 +54,9 @@ export interface FinancialContext {
     sugeridosPendentes: number;
     incompletosPendentes: number;
   };
+  contas: { nome: string; tipo: string; saldo: number }[];
+  reservaEmergencia: { valor: number; metaMeses: number; rendaMensal: number; coberturaMeses: number | null } | null;
+  preferenciasUsuario: Record<string, unknown>;
   metadados: {
     dataColeta: string;
     versaoEngine: string;
