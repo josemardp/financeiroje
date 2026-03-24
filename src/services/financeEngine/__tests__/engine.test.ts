@@ -175,7 +175,7 @@ describe("calculateCashflowForecast", () => {
       currentBalance: 5000, recurringTransactions: [], recentTransactions: [], upcomingInstallments: [],
     };
     const result = calculateCashflowForecast(input);
-    expect(result.currentBalance).toBe(5000);
+    expect(result.currentMonthlyBalance).toBe(5000);
     expect(result.horizons).toHaveLength(3);
     expect(result.horizons[0].projectedBalance).toBe(5000);
   });

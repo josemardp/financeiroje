@@ -84,10 +84,11 @@ export default function Forecast() {
 
       {/* Current balance */}
       <KpiCard
-        title="Saldo Atual (confirmado)"
-        value={formatCurrency(forecast?.currentBalance || 0)}
+        title="Saldo Líquido do Mês (confirmado)"
+        value={formatCurrency(forecast?.currentMonthlyBalance || 0)}
         icon={DollarSign}
-        variant={forecast && forecast.currentBalance >= 0 ? "success" : "destructive"}
+        variant={forecast && forecast.currentMonthlyBalance >= 0 ? "success" : "destructive"}
+        description="Receitas menos despesas confirmadas do mês corrente. Não é saldo bancário."
       />
 
       {/* Horizons */}
