@@ -18,12 +18,13 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { calculateGoalProgress } from "@/services/financeEngine";
 import type { GoalRaw, GoalContributionRaw } from "@/services/financeEngine/types";
 import { toast } from "sonner";
-import { Plus, Target, Loader2, Trash2, PiggyBank, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, Target, Loader2, Trash2, PiggyBank, AlertTriangle, CheckCircle, Pencil } from "lucide-react";
 
 export default function Goals() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<any>(null);
   const [contributionGoalId, setContributionGoalId] = useState<string | null>(null);
   const [contributionValue, setContributionValue] = useState("");
 
@@ -184,6 +185,10 @@ export default function Goals() {
                         <Button size="sm" variant="outline" className="flex-1" onClick={() => setContributionGoalId(g.id)}>
                           <PiggyBank className="h-3 w-3 mr-1" /> Aportar
                         </Button>
+                        <Button size="sm" variant="ghost" className="text-muted-foreground"
+                          onClick={() => setEditingGoal(g)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
                         <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive"
                           onClick={() => deleteMutation.mutate(g.id)}>
                           <Trash2 className="h-3 w-3" />
@@ -197,28 +202,58 @@ export default function Goals() {
           })}
         </div>
       )}
+
+      <Dialog open={!!editingGoal} onOpenChange={(open) => !open && setEditingGoal(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Meta</DialogTitle></DialogHeader>
+          {editingGoal && (
+            <GoalForm
+              initialData={editingGoal}
+              onSuccess={() => { setEditingGoal(null); queryClient.invalidateQueries({ queryKey: ["goals"] }); }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function GoalForm({ onSuccess }: { onSuccess: () => void }) {
+function GoalForm({ onSuccess, initialData }: { onSuccess: () => void; initialData?: any }) {
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    nome: "", valor_alvo: "", prazo: "", prioridade: "media", scope: "family", notas: "",
+    nome: initialData?.nome || "",
+    valor_alvo: initialData?.valor_alvo?.toString() || "",
+    prazo: initialData?.prazo || "",
+    prioridade: initialData?.prioridade || "media",
+    scope: initialData?.scope || "family",
+    notas: initialData?.notas || "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !form.nome.trim() || !form.valor_alvo) { toast.error("Preencha nome e valor"); return; }
     setSubmitting(true);
-    const { error } = await supabase.from("goals").insert({
-      user_id: user.id, nome: form.nome.trim(), valor_alvo: Number(form.valor_alvo),
-      prazo: form.prazo || null, prioridade: form.prioridade as any, scope: form.scope as any,
-      notas: form.notas || null, valor_atual: 0,
-    });
-    if (error) toast.error("Erro ao criar meta");
-    else { toast.success("Meta criada!"); onSuccess(); }
+    
+    const payload = {
+      user_id: user.id,
+      nome: form.nome.trim(),
+      valor_alvo: Number(form.valor_alvo),
+      prazo: form.prazo || null,
+      prioridade: form.prioridade as any,
+      scope: form.scope as any,
+      notas: form.notas || null,
+    };
+
+    const { error } = initialData 
+      ? await supabase.from("goals").update(payload).eq("id", initialData.id)
+      : await supabase.from("goals").insert({ ...payload, valor_atual: 0 });
+
+    if (error) toast.error(initialData ? "Erro ao atualizar meta" : "Erro ao criar meta");
+    else {
+      toast.success(initialData ? "Meta atualizada!" : "Meta criada!");
+      onSuccess();
+    }
     setSubmitting(false);
   };
 
@@ -257,7 +292,8 @@ function GoalForm({ onSuccess }: { onSuccess: () => void }) {
       <div className="space-y-2"><Label>Notas</Label>
         <Textarea placeholder="Observações..." value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} rows={2} /></div>
       <Button type="submit" className="w-full" disabled={submitting}>
-        {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Criar meta
+        {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />} 
+        {initialData ? "Salvar alterações" : "Criar meta"}
       </Button>
     </form>
   );

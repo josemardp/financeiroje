@@ -90,15 +90,27 @@ export async function getFinancialContext(
     alertResult, valuesResult, accountsResult, profileResult,
     accountTxResult,
   ] = await Promise.all([
-    supabase.from("transactions")
-      .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
-      .gte("data", startOfMonth).lte("data", endOfMonth),
-    supabase.from("budgets")
-      .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
-      .eq("mes", mes).eq("ano", ano),
-    supabase.from("recurring_transactions")
-      .select("id, descricao, valor, tipo, frequencia, dia_mes, ativa, categoria_id, scope")
-      .eq("ativa", true),
+    (() => {
+      let q = supabase.from("transactions")
+        .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
+        .gte("data", startOfMonth).lte("data", endOfMonth);
+      if (scope !== "all") q = q.eq("scope", scope);
+      return q;
+    })(),
+    (() => {
+      let q = supabase.from("budgets")
+        .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
+        .eq("mes", mes).eq("ano", ano);
+      if (scope !== "all") q = q.eq("scope", scope);
+      return q;
+    })(),
+    (() => {
+      let q = supabase.from("recurring_transactions")
+        .select("id, descricao, valor, tipo, frequencia, dia_mes, ativa, categoria_id, scope")
+        .eq("ativa", true);
+      if (scope !== "all") q = q.eq("scope", scope);
+      return q;
+    })(),
     supabase.from("loans").select("*").eq("ativo", true),
     supabase.from("loan_installments").select("*").gte("data_vencimento", startOfMonth),
     supabase.from("extra_amortizations").select("*"),
