@@ -3,6 +3,9 @@ import { parseTransactionText } from "../smartCapture/textParser";
 import { analyzeDataQuality } from "../dataQuality";
 import { generateAlerts } from "../alertEngine";
 import { parseAiResponse } from "../aiAdvisor/responseParser";
+import { calculateHealthScore } from "../financeEngine/healthScore";
+import { calculateCashflowForecast } from "../financeEngine/cashflowForecast";
+import type { HealthScoreInput, CashflowForecastInput } from "../financeEngine/types";
 
 // ── Smart Capture Parser ──
 describe("parseTransactionText", () => {
@@ -61,6 +64,27 @@ Considere alternativas mais baratas.`;
     expect(result.blocks.length).toBe(1);
     expect(result.blocks[0].type).toBe("fact");
   });
+
+  it("parses JSON structured response", () => {
+    const json = JSON.stringify({
+      blocks: [
+        { type: "fact", title: "Receita", content: "Sua receita é R$ 5000" },
+        { type: "alert", title: "Alerta", content: "Orçamento estourado", severity: "warning" },
+      ]
+    });
+    const result = parseAiResponse(json);
+    expect(result.blocks.length).toBe(2);
+    expect(result.blocks[0].type).toBe("fact");
+    expect(result.blocks[1].type).toBe("alert");
+    expect(result.blocks[1].severity).toBe("warning");
+  });
+
+  it("parses JSON in code fences", () => {
+    const text = '```json\n{"blocks":[{"type":"suggestion","title":"Dica","content":"Economize mais"}]}\n```';
+    const result = parseAiResponse(text);
+    expect(result.blocks.length).toBe(1);
+    expect(result.blocks[0].type).toBe("suggestion");
+  });
 });
 
 // ── Data Quality ──
@@ -102,6 +126,7 @@ describe("generateAlerts", () => {
     budgetItems: [], loans: [], installments: [],
     suggestedCount: 0, savingsRate: 20,
     projectedBalance7d: null, projectedBalance30d: null,
+    emergencyReserveConfigured: false,
     emergencyReserve: 0, monthlyExpense: 4000,
   };
 
@@ -127,5 +152,69 @@ describe("generateAlerts", () => {
   it("generates alert for suggested pending", () => {
     const alerts = generateAlerts({ ...baseInput, suggestedCount: 3 });
     expect(alerts.some(a => a.tipo === "suggested_pendentes")).toBe(true);
+  });
+
+  it("does NOT generate reserve alert when reserve is not configured", () => {
+    const alerts = generateAlerts({ ...baseInput, emergencyReserveConfigured: false, emergencyReserve: 0 });
+    expect(alerts.some(a => a.tipo === "reserva_insuficiente")).toBe(false);
+  });
+
+  it("generates reserve alert ONLY when configured", () => {
+    const alerts = generateAlerts({ ...baseInput, emergencyReserveConfigured: true, emergencyReserve: 500 });
+    expect(alerts.some(a => a.tipo === "reserva_insuficiente")).toBe(true);
+  });
+});
+
+// ── Health Score Hardening ──
+describe("calculateHealthScore — hardening", () => {
+  it("returns null score when no data at all", () => {
+    const input: HealthScoreInput = {
+      totalIncome: 0, totalExpense: 0, totalDebt: 0, emergencyReserve: 0,
+      emergencyReserveConfigured: false, budgetConfigured: false,
+      budgetDeviation: 0, overdueInstallments: 0, totalInstallments: 0,
+      monthsWithData: 0, totalMonthsPossible: 0,
+    };
+    const result = calculateHealthScore(input);
+    expect(result.scoreGeral).toBeNull();
+    expect(result.availableComponents).toBe(0);
+  });
+
+  it("excludes unconfigured components from average", () => {
+    const input: HealthScoreInput = {
+      totalIncome: 10000, totalExpense: 4000, totalDebt: 0, emergencyReserve: 0,
+      emergencyReserveConfigured: false, budgetConfigured: false,
+      budgetDeviation: 0, overdueInstallments: 0, totalInstallments: 0,
+      monthsWithData: 1, totalMonthsPossible: 1,
+    };
+    const result = calculateHealthScore(input);
+    // Only comprometimentoRenda should be available
+    expect(result.availableComponents).toBe(1);
+    expect(result.comprometimentoRenda).not.toBeNull();
+    expect(result.reservaEmergencia).toBeNull();
+    expect(result.controleOrcamento).toBeNull();
+    expect(result.scoreGeral).not.toBeNull();
+  });
+
+  it("generates info recommendation for unconfigured reserve", () => {
+    const input: HealthScoreInput = {
+      totalIncome: 5000, totalExpense: 3000, totalDebt: 0, emergencyReserve: 0,
+      emergencyReserveConfigured: false, budgetConfigured: false,
+      budgetDeviation: 0, overdueInstallments: 0, totalInstallments: 0,
+      monthsWithData: 1, totalMonthsPossible: 1,
+    };
+    const result = calculateHealthScore(input);
+    expect(result.recommendations.some(r => r.component === "reservaEmergencia" && r.score === null)).toBe(true);
+  });
+});
+
+// ── Forecast Hardening ──
+describe("calculateCashflowForecast — hardening", () => {
+  it("labels balance correctly as monthly balance", () => {
+    const input: CashflowForecastInput = {
+      currentBalance: 3000, recurringTransactions: [], recentTransactions: [], upcomingInstallments: [],
+    };
+    const result = calculateCashflowForecast(input);
+    expect(result.currentMonthlyBalance).toBe(3000);
+    expect(result.assumptions.some(a => a.includes("saldo bancário"))).toBe(true);
   });
 });
