@@ -1,8 +1,9 @@
 /**
- * FinanceAI — Motor de Alertas Inteligentes
+ * FinanceAI — Motor de Alertas Inteligentes (Hardened)
  * 
  * Gera alertas baseados em regras determinísticas sobre os dados financeiros.
- * Cada alerta tem tipo, severidade, mensagem e contexto estruturado.
+ * HARDENING: só gera alertas quando há base real suficiente.
+ * Reserva de emergência só gera alerta se explicitamente configurada.
  */
 
 export interface GeneratedAlert {
@@ -13,7 +14,7 @@ export interface GeneratedAlert {
   dados: Record<string, unknown>;
 }
 
-interface AlertEngineInput {
+export interface AlertEngineInput {
   totalIncome: number;
   totalExpense: number;
   balance: number;
@@ -28,7 +29,7 @@ interface AlertEngineInput {
     nome: string;
     saldoDevedor: number;
     parcelasRestantes: number;
-    taxaMensal: number;
+    taxaMensal?: number;
   }>;
   installments: Array<{
     emprestimo_nome?: string;
@@ -40,6 +41,8 @@ interface AlertEngineInput {
   savingsRate: number;
   projectedBalance7d: number | null;
   projectedBalance30d: number | null;
+  /** Whether emergency reserve has been explicitly configured by the user */
+  emergencyReserveConfigured?: boolean;
   emergencyReserve: number;
   monthlyExpense: number;
 }
@@ -62,7 +65,6 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
         dados: { vencimento: inst.data_vencimento, valor: inst.valor },
       });
     }
-    // Parcelas vencidas
     if (diffDays < 0) {
       alerts.push({
         tipo: "parcela_vencida",
@@ -80,17 +82,9 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
       alerts.push({
         tipo: "orcamento_estourado",
         titulo: `Orçamento estourado: ${item.categoryName}`,
-        mensagem: `Categoria "${item.categoryName}" ultrapassou o limite em ${item.deviationPercent.toFixed(0)}% (planejado: R$ ${item.planned.toFixed(2)}, realizado: R$ ${item.actual.toFixed(2)}).`,
+        mensagem: `Categoria "${item.categoryName}" ultrapassou o limite em ${item.deviationPercent.toFixed(0)}%.`,
         nivel: "warning",
         dados: { categoria: item.categoryName, planejado: item.planned, realizado: item.actual },
-      });
-    } else if (item.status === "warning" && item.deviationPercent > 0) {
-      alerts.push({
-        tipo: "orcamento_proximo_limite",
-        titulo: `Categoria perto do limite: ${item.categoryName}`,
-        mensagem: `"${item.categoryName}" está ${item.deviationPercent.toFixed(0)}% acima do planejado.`,
-        nivel: "info",
-        dados: { categoria: item.categoryName, desvio: item.deviationPercent },
       });
     }
   }
@@ -100,15 +94,15 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
     alerts.push({
       tipo: "saldo_projetado_negativo",
       titulo: "Saldo projetado negativo em 7 dias",
-      mensagem: `[PROJEÇÃO] O saldo pode ficar negativo em R$ ${Math.abs(input.projectedBalance7d).toFixed(2)} nos próximos 7 dias, baseado nas recorrências cadastradas.`,
+      mensagem: `[PROJEÇÃO] O saldo pode ficar negativo em R$ ${Math.abs(input.projectedBalance7d).toFixed(2)} nos próximos 7 dias.`,
       nivel: "critical",
       dados: { projecao7d: input.projectedBalance7d },
     });
   } else if (input.projectedBalance30d !== null && input.projectedBalance30d < 0) {
     alerts.push({
-      tipo: "saldo_projetado_negativo_30d",
+      tipo: "saldo_projetado_negativo",
       titulo: "Saldo projetado negativo em 30 dias",
-      mensagem: `[PROJEÇÃO] O saldo pode ficar negativo em R$ ${Math.abs(input.projectedBalance30d).toFixed(2)} nos próximos 30 dias.`,
+      mensagem: `[PROJEÇÃO] O saldo pode ficar negativo em 30 dias.`,
       nivel: "warning",
       dados: { projecao30d: input.projectedBalance30d },
     });
@@ -119,25 +113,25 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
     alerts.push({
       tipo: "suggested_pendentes",
       titulo: `${input.suggestedCount} transação(ões) pendente(s)`,
-      mensagem: `Existem ${input.suggestedCount} transação(ões) sugerida(s) aguardando confirmação. Confirme para incluir nos cálculos oficiais.`,
+      mensagem: `Existem ${input.suggestedCount} transação(ões) sugerida(s) aguardando confirmação.`,
       nivel: "info",
       dados: { count: input.suggestedCount },
     });
   }
 
-  // 5. Taxa de economia baixa
+  // 5. Taxa de economia baixa (only if income exists)
   if (input.totalIncome > 0 && input.savingsRate < 10) {
     alerts.push({
       tipo: "economia_baixa",
       titulo: "Taxa de economia baixa",
-      mensagem: `Sua taxa de economia este mês é de ${input.savingsRate.toFixed(1)}%. O ideal é acima de 20%.`,
+      mensagem: `Sua taxa de economia é de ${input.savingsRate.toFixed(1)}%. O ideal é acima de 20%.`,
       nivel: input.savingsRate < 0 ? "critical" : "warning",
       dados: { savingsRate: input.savingsRate },
     });
   }
 
-  // 6. Reserva de emergência insuficiente
-  if (input.monthlyExpense > 0) {
+  // 6. Reserva de emergência — ONLY if explicitly configured
+  if (input.emergencyReserveConfigured && input.monthlyExpense > 0) {
     const mesesReserva = input.emergencyReserve / input.monthlyExpense;
     if (mesesReserva < 1) {
       alerts.push({
@@ -152,11 +146,11 @@ export function generateAlerts(input: AlertEngineInput): GeneratedAlert[] {
 
   // 7. Dívidas com juros altos
   for (const loan of input.loans) {
-    if (loan.taxaMensal > 3) {
+    if (loan.taxaMensal && loan.taxaMensal > 3) {
       alerts.push({
         tipo: "juros_altos",
         titulo: `Dívida com juros altos: ${loan.nome}`,
-        mensagem: `"${loan.nome}" tem taxa de ${loan.taxaMensal.toFixed(1)}% ao mês. Considere amortização extra ou renegociação.`,
+        mensagem: `"${loan.nome}" tem taxa de ${loan.taxaMensal.toFixed(1)}% ao mês. Considere amortização extra.`,
         nivel: "opportunity",
         dados: { nome: loan.nome, taxa: loan.taxaMensal },
       });

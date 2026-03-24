@@ -225,12 +225,16 @@ export async function getFinancialContext(
     (i) => i.status !== "pago" && new Date(i.data_vencimento) < now
   ).length;
 
+  const hasBudget = budgets.length > 0;
+
   const scoreFinanceiro = resumoConfirmado
     ? calculateHealthScore({
         totalIncome: resumoConfirmado.totalIncome,
         totalExpense: resumoConfirmado.totalExpense,
         totalDebt: dividas?.totalSaldoDevedor || 0,
-        emergencyReserve: 0, // TODO: configure emergency reserve
+        emergencyReserve: 0,
+        emergencyReserveConfigured: false, // TODO: user preference
+        budgetConfigured: hasBudget,
         budgetDeviation: orcamento ? Math.max(0, orcamento.totalDeviationPercent) : 0,
         overdueInstallments,
         totalInstallments: installments.length,

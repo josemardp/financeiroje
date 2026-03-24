@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { calculateMonthlySummary, calculateBudgetDeviation, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
+import { calculateMonthlySummary, calculateBudgetDeviation, calculateHealthScore, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
 import type { TransactionRaw, BudgetRaw } from "@/services/financeEngine/types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,7 +78,46 @@ export default function MonthlyClosing() {
   const closeMutation = useMutation({
     mutationFn: async () => {
       if (!user || !monthData?.summary) throw new Error("Sem dados para fechar");
-      const payload = {
+
+      // Build snapshots for the closing
+      const budgetSnapshot = monthData.budget ? {
+        items: monthData.budget.items.map(i => ({
+          category: i.categoryName,
+          planned: i.planned,
+          actual: i.actual,
+          deviation: i.deviationPercent,
+          status: i.status,
+        })),
+        totalPlanned: monthData.budget.totalPlanned,
+        totalActual: monthData.budget.totalActual,
+        overallStatus: monthData.budget.overallStatus,
+      } : null;
+
+      // Calculate score snapshot
+      const overdueInstallments = 0; // simplified for closing
+      const scoreSnapshot = calculateHealthScore({
+        totalIncome: monthData.summary.totalIncome,
+        totalExpense: monthData.summary.totalExpense,
+        totalDebt: 0,
+        emergencyReserve: 0,
+        emergencyReserveConfigured: false,
+        budgetConfigured: !!monthData.budget,
+        budgetDeviation: monthData.budget ? Math.max(0, monthData.budget.totalDeviationPercent) : 0,
+        overdueInstallments,
+        totalInstallments: 0,
+        monthsWithData: 1,
+        totalMonthsPossible: 1,
+      });
+
+      const pendenciasSnapshot = monthData.pending.map(t => ({
+        id: t.id,
+        descricao: t.descricao,
+        status: t.data_status,
+        valor: t.valor,
+        tipo: t.tipo,
+      }));
+
+      const payload: any = {
         user_id: user.id,
         mes: selectedMonth,
         ano: selectedYear,
@@ -88,8 +127,17 @@ export default function MonthlyClosing() {
         saldo: monthData.summary.balance,
         fechado_em: new Date().toISOString(),
         fechado_por: user.id,
-        pendencias: monthData.pending.map(t => ({ id: t.id, descricao: t.descricao, status: t.data_status })),
-        resumo: `Mês ${formatMonthYear(selectedMonth, selectedYear)} — Receitas: ${formatCurrency(monthData.summary.totalIncome)}, Despesas: ${formatCurrency(monthData.summary.totalExpense)}, Saldo: ${formatCurrency(monthData.summary.balance)}. ${monthData.pending.length} pendência(s) não resolvida(s).`,
+        pendencias: JSON.parse(JSON.stringify({
+          transacoes: pendenciasSnapshot,
+          orcamento: budgetSnapshot,
+          score: scoreSnapshot,
+          qualidade: {
+            semCategoria: monthData.rawTxns.filter(t => !t.categoria_id).length,
+            sugeridosPendentes: monthData.pending.filter(t => t.data_status === "suggested").length,
+            incompletosPendentes: monthData.pending.filter(t => t.data_status === "incomplete").length,
+          },
+        })),
+        resumo: `Mês ${formatMonthYear(selectedMonth, selectedYear)} — Receitas: ${formatCurrency(monthData.summary.totalIncome)}, Despesas: ${formatCurrency(monthData.summary.totalExpense)}, Saldo: ${formatCurrency(monthData.summary.balance)}. Score: ${scoreSnapshot.scoreGeral !== null ? scoreSnapshot.scoreGeral.toFixed(0) : 'N/A'}. ${monthData.pending.length} pendência(s).`,
       };
 
       if (closing) {
