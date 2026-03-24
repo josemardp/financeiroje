@@ -25,6 +25,8 @@ export default function Transactions() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterScope, setFilterScope] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -35,7 +37,7 @@ export default function Transactions() {
   });
 
   const { data: transactions, isLoading } = useQuery({
-    queryKey: ["transactions", filterType, filterScope, search],
+    queryKey: ["transactions", filterType, filterScope, search, filterStatus],
     queryFn: async () => {
       let query = supabase
         .from("transactions")
@@ -45,6 +47,7 @@ export default function Transactions() {
 
       if (filterType !== "all") query = query.eq("tipo", filterType as "income" | "expense");
       if (filterScope !== "all") query = query.eq("scope", filterScope as "private" | "family" | "business");
+      if (filterStatus !== "all") query = query.eq("data_status", filterStatus);
       if (search) query = query.ilike("descricao", `%${search}%`);
 
       const { data } = await query;
@@ -64,6 +67,31 @@ export default function Transactions() {
       toast.success("Transação excluída");
     },
     onError: () => toast.error("Erro ao excluir transação"),
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").update({ data_status: "confirmed" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      toast.success("Transação confirmada");
+    },
+    onError: () => toast.error("Erro ao confirmar transação"),
+  });
+
+  const markIncompleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").update({ data_status: "incomplete" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      toast.success("Marcada como incompleta");
+    },
+    onError: () => toast.error("Erro ao marcar como incompleta"),
   });
 
   return (
@@ -111,6 +139,16 @@ export default function Transactions() {
             <SelectItem value="business">Negócio</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="confirmed">Confirmadas</SelectItem>
+            <SelectItem value="suggested">Sugeridas</SelectItem>
+            <SelectItem value="incomplete">Incompletas</SelectItem>
+            <SelectItem value="inconsistent">Inconsistentes</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -120,26 +158,72 @@ export default function Transactions() {
           <Button onClick={() => setIsOpen(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar</Button>
         </EmptyState>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border">
+        <>
+          {/* Resumo de pendências */}
+          {transactions && transactions.some((t: any) => t.data_status !== "confirmed") && (
+            <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>⚠️ Atenção:</strong> Você tem {transactions.filter((t: any) => t.data_status !== "confirmed").length} transação(ões) pendente(s) que não entram nos cálculos oficiais. Revise e confirme para atualizar seus KPIs.
+              </p>
+            </div>
+          )}
+          {editingId && (
+            <Dialog open={!!editingId} onOpenChange={(open) => !open && setEditingId(null)}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Editar Transação</DialogTitle>
+                </DialogHeader>
+                <EditTransactionForm
+                  transaction={transactions.find((t: any) => t.id === editingId)}
+                  categories={categories || []}
+                  onSuccess={() => {
+                    setEditingId(null);
+                    queryClient.invalidateQueries({ queryKey: ["transactions"] });
+                    queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
               {transactions.map((t: any) => (
-                <div key={t.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                <div key={t.id} className={`flex items-center justify-between p-4 transition-colors ${
+                  t.data_status === "confirmed" ? "hover:bg-muted/30" : "bg-yellow-50/50 dark:bg-yellow-950/10 hover:bg-yellow-100/50 dark:hover:bg-yellow-950/20"
+                }`}>
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span className="text-xl shrink-0">{t.categories?.icone || "📋"}</span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{t.descricao || t.categories?.nome || "Sem descrição"}</p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-xs text-muted-foreground">{formatDate(t.data)}</span>
-                        <DataStatusBadge status={t.data_status} showLabel={false} />
+                        <DataStatusBadge status={t.data_status} showLabel={true} />
                         <ScopeBadge scope={t.scope} />
+                        {t.data_status !== "confirmed" && (
+                          <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded">
+                            Não entra nos cálculos
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-sm font-mono font-bold ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
                       {t.tipo === "income" ? "+" : "-"}{formatCurrency(Number(t.valor))}
                     </span>
+                    {t.data_status !== "confirmed" && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => setEditingId(t.id)} title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
+                          onClick={() => confirmMutation.mutate(t.id)} title="Confirmar">
+                          ✓
+                        </Button>
+                      </>
+                    )}
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
                       onClick={() => deleteMutation.mutate(t.id)}>
                       <Trash2 className="h-4 w-4" />
@@ -150,8 +234,105 @@ export default function Transactions() {
             </div>
           </CardContent>
         </Card>
+        </>
       )}
     </div>
+  );
+}
+
+function EditTransactionForm({ transaction, categories, onSuccess }: { transaction: any; categories: any[]; onSuccess: () => void }) {
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    valor: transaction?.valor || "",
+    tipo: transaction?.tipo || "expense",
+    categoria_id: transaction?.categoria_id || "",
+    descricao: transaction?.descricao || "",
+    data: transaction?.data || new Date().toISOString().split("T")[0],
+    scope: transaction?.scope || "private",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !form.valor || Number(form.valor) <= 0 || !form.tipo || !form.data) {
+      toast.error("Preencha os campos obrigatórios: valor, tipo e data");
+      return;
+    }
+    setIsSubmitting(true);
+    const { error } = await supabase.from("transactions").update({
+      valor: Number(form.valor),
+      tipo: form.tipo as any,
+      categoria_id: form.categoria_id || null,
+      descricao: form.descricao,
+      data: form.data,
+      scope: form.scope as any,
+    }).eq("id", transaction.id);
+    if (error) {
+      toast.error("Erro ao atualizar", { description: error.message });
+    } else {
+      toast.success("Transação atualizada!");
+      onSuccess();
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Valor (R$)</Label>
+          <Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor}
+            onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="expense">Despesa</SelectItem>
+              <SelectItem value="income">Receita</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>Categoria</Label>
+        <Select value={form.categoria_id} onValueChange={(v) => setForm((f) => ({ ...f, categoria_id: v }))}>
+          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+          <SelectContent>
+            {categories.map((c: any) => (
+              <SelectItem key={c.id} value={c.id}>{c.icone} {c.nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label>Descrição</Label>
+        <Textarea placeholder="Ex: Mercado, Salário PM, Netflix..." value={form.descricao}
+          onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={2} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Data</Label>
+          <Input type="date" value={form.data} onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label>Escopo</Label>
+          <Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="private">Pessoal</SelectItem>
+              <SelectItem value="family">Família</SelectItem>
+              <SelectItem value="business">Negócio/MEI</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        Atualizar transação
+      </Button>
+    </form>
   );
 }
 
