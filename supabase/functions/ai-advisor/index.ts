@@ -100,7 +100,9 @@ serve(async (req) => {
       });
     }
 
-    const { messages, context } = await req.json();
+    const { messages, context, model: requestedModel } = await req.json();
+    const ALLOWED_MODELS = ["google/gemini-3-flash-preview", "openai/gpt-5-mini"];
+    const selectedModel = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : "google/gemini-3-flash-preview";
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -123,7 +125,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: selectedModel,
         messages: aiMessages,
         stream: true,
       }),
