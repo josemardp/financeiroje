@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { calculateMonthlySummary, calculateBudgetDeviation, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
+import { calculateMonthlySummary, calculateBudgetDeviation, calculateHealthScore, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
 import type { TransactionRaw, BudgetRaw } from "@/services/financeEngine/types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
