@@ -127,7 +127,7 @@ export default function Documents() {
       ) : (
         <Card>
           <CardContent className="p-0 divide-y divide-border">
-            {documents.map((doc: any) => (
+            {documents.map((doc: DocumentRow) => (
               <div key={doc.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
