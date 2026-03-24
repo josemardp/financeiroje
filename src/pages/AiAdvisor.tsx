@@ -31,6 +31,7 @@ export default function AiAdvisor() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [currentScope, setCurrentScope] = useState<"private" | "family" | "business">("private");
+  const [currentModel, setCurrentModel] = useState<"google/gemini-3-flash-preview" | "openai/gpt-5-mini">("google/gemini-3-flash-preview");
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
