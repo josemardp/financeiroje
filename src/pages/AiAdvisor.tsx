@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getFinancialContext } from "@/services/aiAdvisor/contextCollector";
 import { parseAiResponse } from "@/services/aiAdvisor/responseParser";
@@ -25,15 +25,15 @@ interface Message {
 }
 
 export default function AiAdvisor() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [currentScope, setCurrentScope] = useState<"private" | "family" | "business">("private");
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  // Load existing conversations
   const { data: conversations } = useQuery({
     queryKey: ["ai-conversations"],
     queryFn: async () => {
@@ -47,7 +47,6 @@ export default function AiAdvisor() {
     enabled: !!user,
   });
 
-  // Load messages for selected conversation
   useEffect(() => {
     if (!conversationId) return;
     supabase
@@ -73,7 +72,7 @@ export default function AiAdvisor() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || !user || isStreaming) return;
+    if (!input.trim() || !user || !session || isStreaming) return;
     const userText = input.trim();
     setInput("");
 
@@ -87,15 +86,14 @@ export default function AiAdvisor() {
     setIsStreaming(true);
 
     try {
-      // Collect financial context
-      const context = await getFinancialContext(user.id);
+      // Collect financial context with explicit scope
+      const context = await getFinancialContext(user.id, currentScope);
 
-      // Create conversation if needed
       let convId = conversationId;
       if (!convId) {
         const { data: conv } = await supabase
           .from("ai_conversations")
-          .insert({ user_id: user.id, titulo: userText.substring(0, 60) })
+          .insert({ user_id: user.id, titulo: userText.substring(0, 60), scope: currentScope })
           .select("id")
           .single();
         if (conv) {
@@ -104,7 +102,6 @@ export default function AiAdvisor() {
         }
       }
 
-      // Save user message
       if (convId) {
         await supabase.from("ai_messages").insert({
           conversation_id: convId,
@@ -115,17 +112,17 @@ export default function AiAdvisor() {
         });
       }
 
-      // Stream AI response
       const chatMessages = [...messages, userMsg].map(m => ({
         role: m.role,
         content: m.content,
       }));
 
+      // Use real user session token for auth
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ messages: chatMessages, context }),
       });
@@ -141,7 +138,6 @@ export default function AiAdvisor() {
       const decoder = new TextDecoder();
       let assistantText = "";
       let textBuffer = "";
-
       const assistantId = crypto.randomUUID();
 
       while (true) {
@@ -190,7 +186,6 @@ export default function AiAdvisor() {
         }
       }
 
-      // Save assistant message
       if (convId && assistantText) {
         await supabase.from("ai_messages").insert({
           conversation_id: convId,
@@ -213,13 +208,38 @@ export default function AiAdvisor() {
     setMessages([]);
   };
 
+  const scopeLabels: Record<string, string> = { private: "Pessoal", family: "Família", business: "Negócio" };
+
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] animate-fade-in">
       <PageHeader title="IA Conselheira" description="Protocolo zero-alucinação — interpreta, nunca calcula">
-        <Button variant="outline" size="sm" onClick={startNewConversation}>Nova conversa</Button>
+        <div className="flex gap-2 items-center">
+          {/* Scope selector */}
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            {(["private", "family", "business"] as const).map(scope => (
+              <button
+                key={scope}
+                onClick={() => setCurrentScope(scope)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  currentScope === scope
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {scopeLabels[scope]}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={startNewConversation}>Nova conversa</Button>
+        </div>
       </PageHeader>
 
-      {/* Conversation history sidebar */}
+      {/* Scope indicator */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 px-1">
+        <Badge variant="outline" className="text-[10px]">Escopo: {scopeLabels[currentScope]}</Badge>
+        <span>A IA só responderá sobre dados do escopo selecionado.</span>
+      </div>
+
       {conversations && conversations.length > 0 && !conversationId && messages.length === 0 && (
         <div className="mb-4 space-y-2">
           <p className="text-sm text-muted-foreground">Conversas recentes:</p>
@@ -237,7 +257,6 @@ export default function AiAdvisor() {
         </div>
       )}
 
-      {/* Messages area */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
@@ -302,7 +321,6 @@ export default function AiAdvisor() {
         <div ref={scrollRef} />
       </div>
 
-      {/* Input area */}
       <div className="border-t border-border pt-4">
         <div className="flex gap-2">
           <Textarea
@@ -337,20 +355,8 @@ function ResponseBlock({ block }: { block: AiResponseBlock }) {
     question: <HelpCircle className="h-4 w-4 text-muted-foreground" />,
   };
 
-  const badgeVariant: Record<string, string> = {
-    fact: "data-badge-confirmed",
-    alert: "data-badge-suggested",
-    suggestion: "data-badge-incomplete",
-    projection: "data-badge-estimated",
-    question: "",
-  };
-
   const typeLabels: Record<string, string> = {
-    fact: "FATO",
-    alert: "ALERTA",
-    suggestion: "SUGESTÃO",
-    projection: "PROJEÇÃO",
-    question: "PERGUNTA",
+    fact: "FATO", alert: "ALERTA", suggestion: "SUGESTÃO", projection: "PROJEÇÃO", question: "PERGUNTA",
   };
 
   return (
@@ -364,7 +370,7 @@ function ResponseBlock({ block }: { block: AiResponseBlock }) {
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-2">
           {iconMap[block.type] || <Info className="h-4 w-4" />}
-          <Badge variant="outline" className={`text-[10px] ${badgeVariant[block.type] || ""}`}>
+          <Badge variant="outline" className="text-[10px]">
             {typeLabels[block.type] || block.type.toUpperCase()}
           </Badge>
           {block.title && <span className="text-sm font-medium">{block.title}</span>}
