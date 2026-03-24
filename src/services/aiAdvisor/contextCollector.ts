@@ -319,15 +319,26 @@ export async function getFinancialContext(
       .sort((a, b) => b.totalGasto - a.totalGasto)
     : [];
 
-  // Impacto em metas (velocidade de progresso)
+  // Impacto em metas (ritmo qualitativo e honesto)
   const impactoEmMetas = metas.map(m => {
-    const diasNoMes = 30;
-    const diasPassados = new Date().getDate();
-    const progressoEsperado = (diasPassados / diasNoMes) * 100;
-    const velocidadeAtual = m.progressPercent;
-    const emRisco = velocidadeAtual < (progressoEsperado * 0.8);
-    // Removido: diasParaConcluir (cálculo frágil sem histórico suficiente)
-    return { metaNome: m.goalName, velocidadeAtual, emRisco };
+    const hasProgress = m.totalContributed > 0;
+    const isNew = m.progressPercent < 5;
+    const isSignificant = m.progressPercent > 50;
+    
+    // Classificação qualitativa baseada em fatos, não em projeção temporal frágil
+    let ritmo = "inicial";
+    if (isSignificant) ritmo = "avançado";
+    else if (hasProgress) ritmo = "em andamento";
+    
+    return { 
+      metaNome: m.goalName, 
+      progressoAtual: m.progressPercent,
+      ritmo,
+      acumulado: m.totalContributed,
+      faltante: m.remainingAmount,
+      isNew,
+      hasProgress
+    };
   });
 
   return {
