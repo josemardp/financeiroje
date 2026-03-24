@@ -22,6 +22,8 @@ import FamilyValues from "./pages/FamilyValues";
 import SettingsPage from "./pages/Settings";
 import SmartCapture from "./pages/SmartCapture";
 import MonthlyClosing from "./pages/MonthlyClosing";
+import Accounts from "./pages/Accounts";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -55,6 +57,7 @@ function AppRoutes() {
         <Route path="/transacoes" element={<Transactions />} />
         <Route path="/orcamento" element={<Budget />} />
         <Route path="/recorrencias" element={<Recurring />} />
+        <Route path="/contas" element={<Accounts />} />
         <Route path="/dividas" element={<Loans />} />
         <Route path="/metas" element={<Goals />} />
         <Route path="/assinaturas" element={<Subscriptions />} />
@@ -66,6 +69,7 @@ function AppRoutes() {
         <Route path="/valores" element={<FamilyValues />} />
         <Route path="/captura" element={<SmartCapture />} />
         <Route path="/fechamento" element={<MonthlyClosing />} />
+        <Route path="/relatorios" element={<Reports />} />
         <Route path="/configuracoes" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
