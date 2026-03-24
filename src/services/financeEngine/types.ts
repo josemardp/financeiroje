@@ -186,7 +186,11 @@ export interface HealthScoreInput {
   totalExpense: number;
   totalDebt: number;
   emergencyReserve: number;
-  budgetDeviation: number; // 0-100, how much over budget
+  /** Whether emergency reserve has been configured by the user */
+  emergencyReserveConfigured: boolean;
+  /** Whether budget exists for this period */
+  budgetConfigured: boolean;
+  budgetDeviation: number; // 0-100
   overdueInstallments: number;
   totalInstallments: number;
   monthsWithData: number;
@@ -194,18 +198,23 @@ export interface HealthScoreInput {
 }
 
 export interface HealthScoreResult {
-  scoreGeral: number; // 0-100
-  comprometimentoRenda: number; // 0-100
-  reservaEmergencia: number; // 0-100
-  controleOrcamento: number; // 0-100
-  adimplencia: number; // 0-100
-  regularidade: number; // 0-100
+  /** null if insufficient data to compute */
+  scoreGeral: number | null;
+  comprometimentoRenda: number | null;
+  reservaEmergencia: number | null;
+  controleOrcamento: number | null;
+  adimplencia: number | null;
+  regularidade: number | null;
   recommendations: HealthRecommendation[];
+  /** How many components had real data */
+  availableComponents: number;
+  /** Total components */
+  totalComponents: number;
 }
 
 export interface HealthRecommendation {
   component: string;
-  score: number;
+  score: number | null;
   message: string;
   severity: "critical" | "warning" | "info" | "ok";
 }
@@ -220,13 +229,18 @@ export interface ForecastHorizon {
 }
 
 export interface CashflowForecastResult {
-  currentBalance: number;
+  /**
+   * Saldo líquido do mês (receitas - despesas confirmadas até agora).
+   * NÃO é saldo bancário real. É o resultado do mês corrente.
+   */
+  currentMonthlyBalance: number;
   horizons: ForecastHorizon[];
   assumptions: string[];
   warnings: string[];
 }
 
 export interface CashflowForecastInput {
+  /** Saldo líquido do mês corrente (receitas - despesas confirmadas) */
   currentBalance: number;
   recurringTransactions: RecurringRaw[];
   recentTransactions: TransactionRaw[];
