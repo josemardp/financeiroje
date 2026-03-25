@@ -3,7 +3,22 @@
  * Funções puras para gerar insights executivos a partir dos dados da engine.
  * Sem dependência de React/Supabase. Patch mínimo.
  */
-import type { MonthlySummary, BudgetDeviationResult, BudgetDeviationItem } from "./financeEngine/types";
+import type { MonthlySummary, BudgetDeviationResult, BudgetDeviationItem, GoalProgressResult } from "./financeEngine/types";
+
+// ─── Inputs opcionais de metas e reserva ─────────────────────────
+
+export interface GoalClosingInput {
+  atRisk: { name: string; progressPercent: number; monthlyNeeded: number | null }[];
+  totalActive: number;
+}
+
+export interface ReserveClosingInput {
+  currentValue: number;
+  targetMonths: number;
+  monthlyExpense: number;
+  coverageMonths: number;
+  configured: boolean;
+}
 
 // ─── Resumo Executivo ────────────────────────────────────────────
 
@@ -60,6 +75,8 @@ export function buildDeviations(
   budget: BudgetDeviationResult | null,
   pendingCount: number,
   noCategoryCount: number,
+  goals?: GoalClosingInput | null,
+  reserve?: ReserveClosingInput | null,
 ): MonthDeviation[] {
   const deviations: MonthDeviation[] = [];
 
@@ -109,6 +126,27 @@ export function buildDeviations(
       label: `${noCategoryCount} sem categoria`,
       detail: "Dificulta análise por categoria e orçamento",
       severity: "info",
+    });
+  }
+
+  // Meta em risco
+  if (goals && goals.atRisk.length > 0) {
+    const top = goals.atRisk[0];
+    deviations.push({
+      type: "budget_warning",
+      label: `🎯 Meta "${top.name}" em risco`,
+      detail: `Apenas ${top.progressPercent.toFixed(0)}% atingido${top.monthlyNeeded ? ` — precisa de R$ ${top.monthlyNeeded.toFixed(0)}/mês` : ""}`,
+      severity: "warning",
+    });
+  }
+
+  // Reserva abaixo da meta
+  if (reserve && reserve.configured && reserve.coverageMonths < reserve.targetMonths) {
+    deviations.push({
+      type: "budget_warning",
+      label: `🛡️ Reserva abaixo da meta`,
+      detail: `${reserve.coverageMonths.toFixed(1)} meses cobertos de ${reserve.targetMonths} planejados`,
+      severity: reserve.coverageMonths < 1 ? "critical" : "warning",
     });
   }
 
@@ -168,6 +206,8 @@ export function buildMonthReading(
   summary: MonthlySummary,
   budget: BudgetDeviationResult | null,
   pendingCount: number,
+  goals?: GoalClosingInput | null,
+  reserve?: ReserveClosingInput | null,
 ): MonthReading {
   let positivePoint: string | null = null;
   let attentionPoint: string | null = null;
@@ -210,6 +250,15 @@ export function buildMonthReading(
     }
   }
 
+  // Enriquecer com metas e reserva
+  if (goals && goals.atRisk.length > 0 && !attentionPoint) {
+    attentionPoint = `Meta "${goals.atRisk[0].name}" está com apenas ${goals.atRisk[0].progressPercent.toFixed(0)}% de progresso.`;
+  }
+
+  if (reserve && reserve.configured && reserve.coverageMonths < reserve.targetMonths && !attentionPoint) {
+    attentionPoint = `Reserva de emergência cobre ${reserve.coverageMonths.toFixed(1)} meses (meta: ${reserve.targetMonths}).`;
+  }
+
   return { positivePoint, attentionPoint, biggestPressure };
 }
 
@@ -225,6 +274,8 @@ export function buildNextMonthFocus(
   budget: BudgetDeviationResult | null,
   pendingCount: number,
   reliability: ReliabilityResult,
+  goals?: GoalClosingInput | null,
+  reserve?: ReserveClosingInput | null,
 ): NextMonthFocus {
   const secondary: string[] = [];
   let primary: string;
@@ -252,6 +303,16 @@ export function buildNextMonthFocus(
     if (exceeded.length > 0) {
       secondary.push(`Revisar orçamento de ${exceeded.map(i => i.categoryName).join(", ")}.`);
     }
+  }
+
+  // Metas em risco
+  if (goals && goals.atRisk.length > 0 && secondary.length < 2) {
+    secondary.push(`Reforçar contribuição para meta "${goals.atRisk[0].name}".`);
+  }
+
+  // Reserva abaixo da meta
+  if (reserve && reserve.configured && reserve.coverageMonths < reserve.targetMonths && secondary.length < 2) {
+    secondary.push(`Aumentar reserva de emergência (atual: ${reserve.coverageMonths.toFixed(1)} meses de ${reserve.targetMonths}).`);
   }
 
   if (summary.savingsRate >= 15 && secondary.length === 0) {
