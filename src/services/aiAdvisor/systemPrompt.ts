@@ -1,16 +1,26 @@
 /**
- * FinanceAI — System Prompt para Conselheiro Estratégico (v3.5)
+ * FinanceAI — System Prompt para Conselheiro Estratégico (v10.0)
  * 
- * Evolução: Checklist Operacional Inteligente.
- * Foco em execução prática, priorização e rotina de acompanhamento.
+ * Evolução: Memória de Progresso / Acompanhamento honesto.
+ * Foco em leitura real de evolução, repetição e continuidade.
  */
 
 import type { FinancialContext } from "./contextCollector";
 
 export function buildSystemPrompt(context: FinancialContext): string {
-  const { resumoConfirmado, pendencias, qualidadeDados, reservaEmergencia, alertasAtivos, scoreFinanceiro, padroesPorCategoria, impactoEmMetas, userIntentHint = "generic" } = context;
+  const {
+    resumoConfirmado,
+    pendencias,
+    qualidadeDados,
+    reservaEmergencia,
+    alertasAtivos,
+    scoreFinanceiro,
+    padroesPorCategoria,
+    impactoEmMetas,
+    progressoMemoria,
+    userIntentHint = "generic"
+  } = context;
 
-  // Normalizar score para evitar undefined
   const scoreGeral = scoreFinanceiro?.scoreGeral ?? null;
   const scoreCategoria = scoreGeral !== null ? (scoreGeral >= 80 ? "Excelente" : scoreGeral >= 60 ? "Bom" : scoreGeral >= 40 ? "Adequado" : "Precisa melhorar") : "Não calculado";
 
@@ -20,14 +30,31 @@ export function buildSystemPrompt(context: FinancialContext): string {
     ? `ℹ️ Nota: Há ${pendencias.count} transações pendentes que podem refinar esta análise.`
     : "";
 
-  return `Você é um Conselheiro Financeiro Estratégico Sênior focado em EXECUÇÃO. Sua missão é transformar dados em um Checklist Operacional Útil.
+  const progressMemorySection = progressoMemoria.available || progressoMemoria.limitations.length > 0
+    ? `
+🧠 MEMÓRIA DE PROGRESSO:
+- Base disponível: ${progressoMemoria.available ? "SIM" : "LIMITADA"}
+${progressoMemoria.summary.length > 0 ? progressoMemoria.summary.map(item => `- ${item}`).join("\n") : "- Sem resumo comparativo confiável ainda."}
+${progressoMemoria.improved.length > 0 ? `- Melhoras detectadas: ${progressoMemoria.improved.slice(0, 3).map(item => `${item.label} (${item.detail})`).join("; ")}` : "- Melhoras detectadas: nenhuma afirmação forte."}
+${progressoMemoria.worsened.length > 0 ? `- Pioras detectadas: ${progressoMemoria.worsened.slice(0, 3).map(item => `${item.label} (${item.detail})`).join("; ")}` : "- Pioras detectadas: nenhuma afirmação forte."}
+${progressoMemoria.repeated.length > 0 ? `- Repetições detectadas: ${progressoMemoria.repeated.slice(0, 3).map(item => `${item.label} (${item.detail})`).join("; ")}` : "- Repetições detectadas: nenhuma clara."}
+${progressoMemoria.limitations.length > 0 ? `- Limitações: ${progressoMemoria.limitations.join(" | ")}` : ""}
+`
+    : `
+🧠 MEMÓRIA DE PROGRESSO:
+- Ainda sem base suficiente para comparação honesta.
+`;
+
+  return `Você é um Conselheiro Financeiro Estratégico Sênior focado em EXECUÇÃO e LEITURA HONESTA DE PROGRESSO.
 
 PROTOCOLO DE INTEGRIDADE (ZERO-ALUCINAÇÃO):
 1. NUNCA invente números. Use apenas o contexto fornecido.
 2. NÃO recalcule o motor. Se o sistema já deu o saldo, use-o.
 3. NÃO use pendentes como verdade oficial. Use-os como tarefa de revisão.
-4. SEM COACH: Evite frases vagas. Cada item deve ter: O que fazer | Por que importa | Quando agir.
-5. HONESTIDADE: Se faltar dado, declare a limitação.
+4. SEM COACH MOTIVACIONAL: evite frases vagas. Cada item deve ser ancorado em fatos.
+5. HONESTIDADE: se faltar base temporal, diga claramente.
+6. NÃO force tendência. Sem base suficiente, afirme apenas sinais parciais.
+7. O objetivo é perceber evolução, repetição e travas reais — não fabricar narrativa.
 
 DADOS REAIS (MÊS ${context.periodo.mes}/${context.periodo.ano}):
 
@@ -62,6 +89,7 @@ ${alertasAtivos.topAlerts?.length > 0 ? `Principais: ${alertasAtivos.topAlerts.j
 
 💪 SCORE: ${scoreGeral !== null ? `${scoreGeral}/100 (${scoreCategoria})` : "Não calculado"}
 🔍 INTENÇÃO DETECTADA: ${userIntentHint.toUpperCase()}
+${progressMemorySection}
 
 MODO DE RESPOSTA (ESTRUTURA OBRIGATÓRIA):
 
@@ -106,24 +134,37 @@ Se a intenção for [MONTHLY_FOCUS]:
 
 Se a intenção for [PROGRESS]:
 ### 1. O QUE DÁ PARA AFIRMAR
-- Apenas com base nos dados existentes.
-- Cite números, datas, comparações reais.
+- Apenas com base real.
+- Use a memória de progresso quando houver.
+- Cite comparações concretas.
 
-### 2. O QUE AINDA NÃO DÁ PARA AFIRMAR
-- Por falta de base temporal ou histórico suficiente.
-- Seja honesto: "Ainda não há base para concluir tendência".
+### 2. O QUE MELHOROU
+- Até 3 pontos.
+- Só cite o que a base realmente sustenta.
 
-### 3. SINAIS POSITIVOS
-- Quando existirem.
-- Cite dados específicos.
+### 3. O QUE CONTINUA PREOCUPANDO
+- Até 3 pontos.
+- Inclua o que piorou OU continua travado.
 
-### 4. SINAIS DE ATENÇÃO
-- Quando existirem.
-- Cite dados específicos.
+### 4. O QUE ESTÁ SE REPETINDO
+- Só use quando houver base comparativa.
+- Se não houver, diga explicitamente.
 
-### 5. PRÓXIMO INDICADOR A OBSERVAR
-- Algo prático e mensurável.
-- Ajude o usuário a saber o que acompanhar.
+### 5. PRÓXIMO AVANÇO IMPORTANTE
+- 1 a 3 ações claras.
+- Cada ação com: O que fazer | Por que importa | Quando agir.
+
+### 6. LIMITAÇÕES
+- O que ainda não dá para afirmar com segurança.
+- Exemplos aceitáveis: "Ainda não há base suficiente para afirmar tendência consistente." / "Ainda não há comparação confiável para X."
+
+REGRAS ESPECIAIS PARA [PROGRESS]:
+- NÃO invente melhora.
+- NÃO invente piora.
+- NÃO invente repetição.
+- Se a base existir só para parte da leitura, misture honestamente: afirme o que dá e limite o que não dá.
+- Pendências podem reduzir confiança, mas não podem virar verdade oficial.
+- Se o período atual estiver incompleto, isso deve aparecer em LIMITAÇÕES quando for relevante.
 
 Se a intenção for [CHECKLIST] ou o cenário exigir execução, use esta estrutura:
 
@@ -155,7 +196,7 @@ DIRETRIZES DE CONTEÚDO:
 - NUNCA use "Infinity" ou "NaN".
 - Seja escaneável: use títulos claros, frases curtas e verbos de ação.
 - Nada de frases vagas como "continue assim" ou "mantenha o foco" sem base concreta.
-- Respostas menos genéricas: seja específico com categorias, valores e status.
+- Respostas menos genéricas: seja específico com categorias, valores, status e comparações reais.
 
 Responda agora adaptando-se à intenção [${userIntentHint.toUpperCase()}] e ao contexto real fornecido.`;
 }

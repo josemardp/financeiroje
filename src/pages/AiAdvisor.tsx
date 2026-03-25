@@ -88,7 +88,7 @@ export default function AiAdvisor() {
     setIsStreaming(true);
 
     try {
-      // PHASE 7: Enhanced intent detection with recurring tracking modes
+      // PHASE 10: Enhanced intent detection with real progress/memory mode
       const lowerInput = userText.toLowerCase();
       let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "generic" = "generic";
       
@@ -101,7 +101,24 @@ export default function AiAdvisor() {
         userIntentHint = "monthly_focus";
       }
       // Progress detection
-      else if (lowerInput.includes("melhorando") || lowerInput.includes("avancei") || lowerInput.includes("caminho certo") || lowerInput.includes("evoluindo") || lowerInput.includes("estou no caminho")) {
+      else if (
+        lowerInput.includes("melhorando") ||
+        lowerInput.includes("avancei") ||
+        lowerInput.includes("caminho certo") ||
+        lowerInput.includes("evoluindo") ||
+        lowerInput.includes("estou no caminho") ||
+        lowerInput.includes("o que melhorou") ||
+        lowerInput.includes("o que mudou") ||
+        lowerInput.includes("houve avanço") ||
+        lowerInput.includes("qual foi meu progresso") ||
+        lowerInput.includes("continua travado") ||
+        lowerInput.includes("continua igual") ||
+        lowerInput.includes("está se repetindo") ||
+        lowerInput.includes("to repetindo") ||
+        lowerInput.includes("estou repetindo") ||
+        lowerInput.includes("patinando") ||
+        lowerInput.includes("piorou")
+      ) {
         userIntentHint = "progress";
       }
       // Existing intents
