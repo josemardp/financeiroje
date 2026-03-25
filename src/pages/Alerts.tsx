@@ -73,104 +73,103 @@ export default function Alerts() {
   });
 
   // Generate alerts from current data
-  const generatedAlerts: GeneratedAlert[] = (() => {
-    if (!financialData) return [];
-    const now = new Date();
-    const mes = now.getMonth() + 1;
-    const ano = now.getFullYear();
+  const { data: generatedAlerts = [] } = useQuery({
+    queryKey: ["alerts-generated", financialData],
+    queryFn: async () => {
+      if (!financialData) return [];
+      const now = new Date();
 
-    const rawTxns: TransactionRaw[] = (financialData.transactions).map((t: any) => ({
-      id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data, descricao: t.descricao,
-      categoria_id: t.categoria_id, categoria_nome: t.categories?.nome, categoria_icone: t.categories?.icone,
-      scope: t.scope, data_status: t.data_status, source_type: t.source_type, confidence: t.confidence, e_mei: t.e_mei,
-    }));
+      const rawTxns: TransactionRaw[] = (financialData.transactions).map((t: any) => ({
+        id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data, descricao: t.descricao,
+        categoria_id: t.categoria_id, categoria_nome: t.categories?.nome, categoria_icone: t.categories?.icone,
+        scope: t.scope, data_status: t.data_status, source_type: t.source_type, confidence: t.confidence, e_mei: t.e_mei,
+      }));
 
-    const officialTxns = filterOfficialTransactions(rawTxns);
-    const summary = officialTxns.length > 0 ? calculateMonthlySummary(officialTxns) : null;
+      const officialTxns = filterOfficialTransactions(rawTxns);
+      const summary = officialTxns.length > 0 ? await calculateMonthlySummary(officialTxns) : null;
 
-    const budgets: BudgetRaw[] = (financialData.budgets).map((b: any) => ({
-      id: b.id, categoria_id: b.categoria_id, categoria_nome: b.categories?.nome, categoria_icone: b.categories?.icone,
-      valor_planejado: Number(b.valor_planejado), mes: b.mes, ano: b.ano, scope: b.scope,
-    }));
+      const budgets: BudgetRaw[] = (financialData.budgets).map((b: any) => ({
+        id: b.id, categoria_id: b.categoria_id, categoria_nome: b.categories?.nome, categoria_icone: b.categories?.icone,
+        valor_planejado: Number(b.valor_planejado), mes: b.mes, ano: b.ano, scope: b.scope,
+      }));
 
-    const budgetDev = budgets.length > 0 ? calculateBudgetDeviation(budgets, rawTxns, mes, ano) : null;
+      const budgetDev = budgets.length > 0 ? await calculateBudgetDeviation(budgets, rawTxns) : null;
 
-    const recurrings: RecurringRaw[] = (financialData.recurrings).map((r: any) => ({
-      id: r.id, descricao: r.descricao, valor: Number(r.valor), tipo: r.tipo,
-      frequencia: r.frequencia, dia_mes: r.dia_mes, ativa: r.ativa, categoria_id: r.categoria_id, scope: r.scope,
-    }));
+      const recurrings: RecurringRaw[] = (financialData.recurrings).map((r: any) => ({
+        id: r.id, descricao: r.descricao, valor: Number(r.valor), tipo: r.tipo,
+        frequencia: r.frequencia, dia_mes: r.dia_mes, ativa: r.ativa, categoria_id: r.categoria_id, scope: r.scope,
+      }));
 
-    const loans: LoanRaw[] = (financialData.loans).map((l: any) => ({
-      id: l.id, nome: l.nome, valor_original: Number(l.valor_original),
-      saldo_devedor: l.saldo_devedor ? Number(l.saldo_devedor) : null,
-      taxa_juros_mensal: l.taxa_juros_mensal ? Number(l.taxa_juros_mensal) : null,
-      cet_anual: l.cet_anual ? Number(l.cet_anual) : null,
-      parcelas_total: l.parcelas_total, parcelas_restantes: l.parcelas_restantes,
-      valor_parcela: l.valor_parcela ? Number(l.valor_parcela) : null,
-      metodo_amortizacao: l.metodo_amortizacao, tipo: l.tipo,
-      credor: l.credor, data_inicio: l.data_inicio, ativo: l.ativo,
-    }));
+      const loans: LoanRaw[] = (financialData.loans).map((l: any) => ({
+        id: l.id, nome: l.nome, valor_original: Number(l.valor_original),
+        saldo_devedor: l.saldo_devedor ? Number(l.saldo_devedor) : null,
+        taxa_juros_mensal: l.taxa_juros_mensal ? Number(l.taxa_juros_mensal) : null,
+        cet_anual: l.cet_anual ? Number(l.cet_anual) : null,
+        parcelas_total: l.parcelas_total, parcelas_restantes: l.parcelas_restantes,
+        valor_parcela: l.valor_parcela ? Number(l.valor_parcela) : null,
+        metodo_amortizacao: l.metodo_amortizacao, tipo: l.tipo,
+        credor: l.credor, data_inicio: l.data_inicio, ativo: l.ativo,
+      }));
 
-    const installments: InstallmentRaw[] = (financialData.installments).map((i: any) => ({
-      id: i.id, emprestimo_id: i.emprestimo_id, numero: i.numero,
-      valor: Number(i.valor), data_vencimento: i.data_vencimento,
-      data_pagamento: i.data_pagamento, status: i.status,
-    }));
+      const installments: InstallmentRaw[] = (financialData.installments).map((i: any) => ({
+        id: i.id, emprestimo_id: i.emprestimo_id, numero: i.numero,
+        valor: Number(i.valor), data_vencimento: i.data_vencimento,
+        data_pagamento: i.data_pagamento, status: i.status,
+      }));
 
-    const forecast = recurrings.length > 0 ? calculateCashflowForecast({
-      currentBalance: summary?.balance || 0,
-      recurringTransactions: recurrings,
-      recentTransactions: officialTxns,
-      upcomingInstallments: installments.filter(i => i.status !== "pago"),
-    }) : null;
+      const forecast = recurrings.length > 0 ? await calculateCashflowForecast({
+        currentBalance: summary?.balance || 0,
+        recurringTransactions: recurrings,
+        recentTransactions: officialTxns,
+        upcomingInstallments: installments.filter(i => i.status !== "pago"),
+      }) : null;
 
-    const loanSummary = calculateLoanIndicators(loans, installments, (financialData.amortizations).map((a: any) => ({
-      id: a.id, emprestimo_id: a.emprestimo_id, valor: Number(a.valor), data: a.data,
-      economia_juros_calculada: a.economia_juros_calculada ? Number(a.economia_juros_calculada) : null,
-    })));
+      const loanSummary = await calculateLoanIndicators(loans, installments);
 
-    const suggestedCount = rawTxns.filter(t => t.data_status === "suggested").length;
-    const incompleteCount = rawTxns.filter(t => t.data_status === "incomplete").length;
-    const inconsistentCount = rawTxns.filter(t => t.data_status === "inconsistent").length;
-    const noCategoryCount = rawTxns.filter(t => !t.categoria_id).length;
+      const suggestedCount = rawTxns.filter(t => t.data_status === "suggested").length;
+      const incompleteCount = rawTxns.filter(t => t.data_status === "incomplete").length;
+      const inconsistentCount = rawTxns.filter(t => t.data_status === "inconsistent").length;
+      const noCategoryCount = rawTxns.filter(t => !t.categoria_id).length;
 
-    // Map installments with loan names
-    const loanNameMap = new Map(loans.map(l => [l.id, l.nome]));
-    const mappedInstallments = installments.map(i => ({
-      emprestimo_nome: loanNameMap.get(i.emprestimo_id),
-      valor: i.valor,
-      data_vencimento: i.data_vencimento,
-      status: i.status,
-    }));
+      // Map installments with loan names
+      const loanNameMap = new Map(loans.map(l => [l.id, l.nome]));
+      const mappedInstallments = installments.map(i => ({
+        emprestimo_nome: loanNameMap.get(i.emprestimo_id),
+        valor: i.valor,
+        data_vencimento: i.data_vencimento,
+        status: i.status,
+      }));
 
-    const prefs = (financialData.profile?.preferences || {}) as any;
+      const prefs = (financialData.profile?.preferences || {}) as any;
 
-    return generateAlerts({
-      totalIncome: summary?.totalIncome || 0,
-      totalExpense: summary?.totalExpense || 0,
-      balance: summary?.balance || 0,
-      budgetItems: budgetDev?.items.map(i => ({
-        categoryName: i.categoryName, planned: i.planned,
-        actual: i.actual, deviationPercent: i.deviationPercent, status: i.status,
-      })) || [],
-      loans: loanSummary.loans.map(l => ({
-        nome: l.loanName, saldoDevedor: l.saldoAtual,
-        parcelasRestantes: l.parcelasRestantes, taxaMensal: l.taxaMensal,
-      })),
-      installments: mappedInstallments,
-      suggestedCount,
-      incompleteCount,
-      inconsistentCount,
-      noCategoryCount,
-      savingsRate: summary?.savingsRate || 0,
-      projectedBalance7d: forecast?.horizons[0]?.projectedBalance ?? null,
-      projectedBalance30d: forecast?.horizons[1]?.projectedBalance ?? null,
-      emergencyReserveConfigured: !!prefs.reserva_emergencia_valor || !!prefs.reserva_emergencia_meses_meta,
-      emergencyReserve: prefs.reserva_emergencia_valor || 0,
-      emergencyReserveGoal: prefs.reserva_emergencia_valor_meta || 0,
-      monthlyExpense: summary?.totalExpense || 0,
-    });
-  })();
+      return generateAlerts({
+        totalIncome: summary?.totalIncome || 0,
+        totalExpense: summary?.totalExpense || 0,
+        balance: summary?.balance || 0,
+        budgetItems: budgetDev?.items.map(i => ({
+          categoryName: i.categoryName, planned: i.planned,
+          actual: i.actual, deviationPercent: i.deviationPercent, status: i.status,
+        })) || [],
+        loans: loanSummary.loans.map(l => ({
+          nome: l.loanName, saldoDevedor: l.saldoAtual,
+          parcelasRestantes: l.parcelasRestantes, taxaMensal: l.taxaMensal,
+        })),
+        installments: mappedInstallments,
+        suggestedCount,
+        incompleteCount,
+        inconsistentCount,
+        noCategoryCount,
+        savingsRate: summary?.savingsRate || 0,
+        projectedBalance7d: forecast?.horizons[0]?.projectedBalance ?? null,
+        projectedBalance30d: forecast?.horizons[1]?.projectedBalance ?? null,
+        emergencyReserveConfigured: !!prefs.reserva_emergencia_valor || !!prefs.reserva_emergencia_meses_meta,
+        emergencyReserve: prefs.reserva_emergencia_valor || 0,
+        emergencyReserveGoal: prefs.reserva_emergencia_valor_meta || 0,
+        monthlyExpense: summary?.totalExpense || 0,
+      });
+    },
+    enabled: !!financialData,
+  });
 
   const iconForLevel = (nivel: string) => {
     switch (nivel) {

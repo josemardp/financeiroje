@@ -93,9 +93,26 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  const summary = rawTransactions ? calculateMonthlySummary(rawTransactions) : null;
+  const { data: summary } = useQuery({
+    queryKey: ["dashboard-summary", rawTransactions],
+    queryFn: async () => {
+      if (!rawTransactions || rawTransactions.length === 0) return null;
+      return await calculateMonthlySummary(rawTransactions);
+    },
+    enabled: !!rawTransactions,
+  });
+
   const officialTransactions = rawTransactions ? filterOfficialTransactions(rawTransactions) : [];
-  const summaryConfirmed = officialTransactions.length > 0 ? calculateMonthlySummary(officialTransactions) : null;
+  
+  const { data: summaryConfirmed } = useQuery({
+    queryKey: ["dashboard-summary-confirmed", officialTransactions],
+    queryFn: async () => {
+      if (!officialTransactions || officialTransactions.length === 0) return null;
+      return await calculateMonthlySummary(officialTransactions);
+    },
+    enabled: officialTransactions.length > 0,
+  });
+
   const recentTransactions = rawTransactions?.slice(0, 8) || [];
 
   const totalAccountBalance = (accounts || []).reduce((sum: number, a: any) => {

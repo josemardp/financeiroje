@@ -37,7 +37,7 @@ export default function Forecast() {
       }));
 
       const officialTxns = filterOfficialTransactions(rawTxns);
-      const summary = officialTxns.length > 0 ? calculateMonthlySummary(officialTxns) : null;
+      const summary = officialTxns.length > 0 ? await calculateMonthlySummary(officialTxns) : null;
       const currentBalance = summary?.balance || 0;
 
       const recurrings: RecurringRaw[] = (recRes.data || []).map((r: any) => ({
@@ -52,7 +52,7 @@ export default function Forecast() {
         data_pagamento: i.data_pagamento, status: i.status,
       }));
 
-      return calculateCashflowForecast({
+      return await calculateCashflowForecast({
         currentBalance,
         recurringTransactions: recurrings,
         recentTransactions: officialTxns,
