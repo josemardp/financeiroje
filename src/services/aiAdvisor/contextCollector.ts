@@ -384,8 +384,8 @@ export async function getFinancialContext(
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes, inconsistentes, impactoNaPrecisao },
     contas: accountsList,
-    padroesPorCategoria,
-    impactoEmMetas,
+    padroesPorCategoria: padroesPorCategoria as any,
+    impactoEmMetas: impactoEmMetas as any,
     reservaEmergencia: reserveConfigured ? {
       valor: reserveValue,
       metaMeses: reserveMonthsTarget,
