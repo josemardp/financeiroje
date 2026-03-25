@@ -56,6 +56,7 @@ export interface TransactionRaw {
   source_type: string | null;
   confidence: string | null;
   e_mei: boolean | null;
+  categoria_is_business_cost?: boolean | null;
 }
 
 export interface BudgetRaw {
@@ -145,6 +146,19 @@ export interface MonthlySummary {
   transactionCount: number;
   confirmedCount: number;
   suggestedCount: number;
+}
+
+export interface MeiSummary {
+  receitaBruta: number;
+  custosOperacionais: number;
+  despesasIndiretas: number;
+  lucroOperacional: number;
+  margemLucro: number;
+  percentualLimite: number;
+  limiteAnual: number;
+  valorRestanteLimite: number;
+  alertLevel: "info" | "warning" | "critical";
+  businessTransactionCount: number;
 }
 
 export interface CategoryAmount {
