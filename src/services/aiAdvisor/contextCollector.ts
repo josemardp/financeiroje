@@ -175,14 +175,14 @@ export async function getFinancialContext(
       let q = supabase.from("budgets")
         .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
         .eq("mes", mes).eq("ano", ano);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
     (() => {
       let q = supabase.from("recurring_transactions")
         .select("id, descricao, valor, tipo, frequencia, dia_mes, ativa, categoria_id, scope")
         .eq("ativa", true);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
     supabase.from("loans").select("*").eq("ativo", true),
@@ -209,7 +209,7 @@ export async function getFinancialContext(
         .select("id, valor, tipo, data, data_status, categoria_id, categories(nome), scope")
         .gte("data", prevStart).lte("data", prevEnd)
         .or("data_status.eq.confirmed,data_status.is.null");
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
     // Fase 12: alertas do mês anterior (snapshot via lidos)
