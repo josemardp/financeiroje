@@ -82,7 +82,18 @@ export default function MonthlyClosing() {
       const budget = budgets.length > 0 ? calculateBudgetDeviation(budgets, rawTxns, selectedMonth, selectedYear) : null;
       const noCategoryCount = rawTxns.filter(t => !t.categoria_id).length;
 
-      return { rawTxns, official, pending, summary, budget, budgets, noCategoryCount };
+      // Goal progress
+      const goalsRaw: GoalRaw[] = (goalsRes.data || []).map((g: any) => ({
+        id: g.id, nome: g.nome, valor_alvo: Number(g.valor_alvo),
+        valor_atual: g.valor_atual != null ? Number(g.valor_atual) : null,
+        prazo: g.prazo, prioridade: g.prioridade, ativo: g.ativo,
+      }));
+      const contribsRaw: GoalContributionRaw[] = (contribRes.data || []).map((c: any) => ({
+        id: c.id, goal_id: c.goal_id, valor: Number(c.valor), data: c.data,
+      }));
+      const goalProgress = calculateGoalProgress(goalsRaw, contribsRaw);
+
+      return { rawTxns, official, pending, summary, budget, budgets, noCategoryCount, goalProgress };
     },
     enabled: !!user,
   });
