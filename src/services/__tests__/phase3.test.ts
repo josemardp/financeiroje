@@ -121,10 +121,11 @@ describe("analyzeDataQuality", () => {
 
 // ── Alert Engine ──
 describe("generateAlerts", () => {
-  const baseInput = {
+  const baseInput: AlertEngineInput = {
     totalIncome: 5000, totalExpense: 4000, balance: 1000,
     budgetItems: [], loans: [], installments: [],
-    suggestedCount: 0, savingsRate: 20,
+    suggestedCount: 0, incompleteCount: 0, inconsistentCount: 0, noCategoryCount: 0,
+    savingsRate: 20,
     projectedBalance7d: null, projectedBalance30d: null,
     emergencyReserveConfigured: false,
     emergencyReserve: 0, monthlyExpense: 4000,
