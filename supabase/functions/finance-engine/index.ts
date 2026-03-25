@@ -17,8 +17,10 @@ interface TransactionRaw {
   categoria_id: string | null;
   categoria_nome?: string | null;
   categoria_icone?: string | null;
+  categoria_is_business_cost?: boolean | null;
   scope: "private" | "family" | "business" | null;
   data_status: string | null;
+  e_mei?: boolean | null;
 }
 
 interface BudgetRaw {
@@ -329,6 +331,50 @@ function calculateLoanIndicators(loans: LoanRaw[], installments: InstallmentRaw[
   };
 }
 
+/** MEI Business Summary Calculation */
+function calculateMeiSummary(transactions: TransactionRaw[], annualLimit: number = 81000) {
+  // Filtrar apenas transações do escopo business
+  const businessTxns = transactions.filter(t => t.scope === "business");
+  
+  let receitaBruta = 0;
+  let custosOperacionais = 0;
+  let despesasIndiretas = 0;
+  
+  businessTxns.forEach(t => {
+    const valor = Number(t.valor) || 0;
+    if (t.tipo === "income") {
+      receitaBruta += valor;
+    } else {
+      // Se a categoria for marcada como custo ou se o campo e_mei for true (custo direto)
+      if (t.categoria_is_business_cost || t.e_mei) {
+        custosOperacionais += valor;
+      } else {
+        despesasIndiretas += valor;
+      }
+    }
+  });
+
+  const lucroOperacional = receitaBruta - custosOperacionais - despesasIndiretas;
+  const percentualLimite = annualLimit > 0 ? (receitaBruta / annualLimit) * 100 : 0;
+  
+  let alertLevel: "info" | "warning" | "critical" = "info";
+  if (percentualLimite >= 95) alertLevel = "critical";
+  else if (percentualLimite >= 80) alertLevel = "warning";
+
+  return {
+    receitaBruta: round2(receitaBruta),
+    custosOperacionais: round2(custosOperacionais),
+    despesasIndiretas: round2(despesasIndiretas),
+    lucroOperacional: round2(lucroOperacional),
+    margemLucro: receitaBruta > 0 ? round2((lucroOperacional / receitaBruta) * 100) : 0,
+    percentualLimite: round2(percentualLimite),
+    limiteAnual: annualLimit,
+    valorRestanteLimite: round2(Math.max(0, annualLimit - receitaBruta)),
+    alertLevel,
+    businessTransactionCount: businessTxns.length
+  };
+}
+
 /** Monthly Summary Calculation */
 function calculateMonthlySummary(transactions: TransactionRaw[]) {
   let totalIncome = 0;
@@ -421,6 +467,9 @@ serve(async (req) => {
         break;
       case "calculate-monthly-summary":
         result = calculateMonthlySummary(data.transactions);
+        break;
+      case "calculate-mei-summary":
+        result = calculateMeiSummary(data.transactions, data.annualLimit);
         break;
       default:
         throw new Error(`Operação inválida: ${operation}`);
