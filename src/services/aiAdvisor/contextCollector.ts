@@ -136,7 +136,7 @@ export async function getFinancialContext(
     supabase.from("extra_amortizations").select("*"),
     supabase.from("goals").select("*").eq("ativo", true),
     supabase.from("goal_contributions").select("*"),
-    supabase.from("alerts").select("id").eq("lido", false),
+    supabase.from("alerts").select("id, nivel, titulo").eq("lido", false),
     supabase.from("family_values").select("descricao"),
     supabase.from("accounts").select("*").eq("ativa", true),
     supabase.from("profiles").select("preferences").eq("user_id", userId).single(),
@@ -311,12 +311,20 @@ export async function getFinancialContext(
       ).map(([categoria, data]) => {
         const budgetItem = budgets.find(b => b.categoria_nome === categoria);
         const totalExpenses = resumoConfirmado?.totalExpense || 1;
+        const isOverBudget = budgetItem && data.total > budgetItem.valor_planejado;
+        const percentualDasDespesas = (data.total / totalExpenses) * 100;
+        
+        // PHASE 6: Refined pressure analysis
+        // A category "pressures" if it's over budget OR represents > 20% of expenses
+        const isPressuring = isOverBudget || percentualDasDespesas > 20;
+
         return {
           categoria,
           totalGasto: data.total,
-          percentualDasDespesas: (data.total / totalExpenses) * 100,
-          statusOrcamento: budgetItem && data.total > budgetItem.valor_planejado ? "acima" : "dentro",
+          percentualDasDespesas,
+          statusOrcamento: isOverBudget ? "acima" : "dentro",
           desvio: budgetItem ? ((data.total - budgetItem.valor_planejado) / budgetItem.valor_planejado) * 100 : undefined,
+          isPressuring,
         };
       })
       .sort((a, b) => b.totalGasto - a.totalGasto)
@@ -366,9 +374,10 @@ export async function getFinancialContext(
     recorrenciasAtivas: recurrings.length,
     alertasAtivos: {
       total: alertResult.data?.length || 0,
-      critical: 0,
-      warning: 0,
-      info: 0,
+      critical: (alertResult.data || []).filter(a => a.nivel === "critical").length,
+      warning: (alertResult.data || []).filter(a => a.nivel === "warning").length,
+      info: (alertResult.data || []).filter(a => a.nivel === "info").length,
+      topAlerts: (alertResult.data || []).slice(0, 3).map(a => a.titulo),
     },
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes, inconsistentes, impactoNaPrecisao },
