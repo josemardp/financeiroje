@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ScopeProvider } from "@/contexts/ScopeContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import Auth from "./pages/Auth";
@@ -94,16 +95,16 @@ function AppRoutes() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-        <ScopeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
-    </ScopeProvider>
-      </AuthProvider>
+      <ScopeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </ScopeProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
