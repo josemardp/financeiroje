@@ -8,8 +8,7 @@
 import type { FinancialContext } from "./contextCollector";
 
 export function buildSystemPrompt(context: FinancialContext): string {
-  const { resumoConfirmado, pendencias, qualidadeDados, reservaEmergencia, alertasAtivos, scoreFinanceiro, padroesPorCategoria, impactoEmMetas } = context;
-  const userIntentHint = (context as any).userIntentHint || "generic";
+  const { resumoConfirmado, pendencias, qualidadeDados, reservaEmergencia, alertasAtivos, scoreFinanceiro, padroesPorCategoria, impactoEmMetas, userIntentHint = "generic" } = context;
 
   // Normalizar score para evitar undefined
   const scoreGeral = scoreFinanceiro?.scoreGeral ?? null;

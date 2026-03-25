@@ -109,7 +109,7 @@ export default function AiAdvisor() {
       // Collect financial context with explicit scope
       const context = await getFinancialContext(user.id, currentScope);
       // Inject hint into context for the prompt builder
-      (context as any).userIntentHint = userIntentHint;
+      context.userIntentHint = userIntentHint;
 
       let convId = conversationId;
       if (!convId) {
