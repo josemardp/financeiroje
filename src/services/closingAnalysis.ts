@@ -129,6 +129,27 @@ export function buildDeviations(
     });
   }
 
+  // Meta em risco
+  if (goals && goals.atRisk.length > 0) {
+    const top = goals.atRisk[0];
+    deviations.push({
+      type: "budget_warning",
+      label: `🎯 Meta "${top.name}" em risco`,
+      detail: `Apenas ${top.progressPercent.toFixed(0)}% atingido${top.monthlyNeeded ? ` — precisa de R$ ${top.monthlyNeeded.toFixed(0)}/mês` : ""}`,
+      severity: "warning",
+    });
+  }
+
+  // Reserva abaixo da meta
+  if (reserve && reserve.configured && reserve.coverageMonths < reserve.targetMonths) {
+    deviations.push({
+      type: "budget_warning",
+      label: `🛡️ Reserva abaixo da meta`,
+      detail: `${reserve.coverageMonths.toFixed(1)} meses cobertos de ${reserve.targetMonths} planejados`,
+      severity: reserve.coverageMonths < 1 ? "critical" : "warning",
+    });
+  }
+
   return deviations;
 }
 
