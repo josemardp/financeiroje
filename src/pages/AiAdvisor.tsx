@@ -138,13 +138,13 @@ export default function AiAdvisor() {
       }
 
       if (convId) {
-        await supabase.from("ai_messages").insert({
+        await supabase.from("ai_messages").insert([{
           conversation_id: convId,
           user_id: user.id,
           role: "user" as const,
           content: userText,
-          contexto_enviado: context,
-        });
+          contexto_enviado: context as any,
+        }]);
       }
 
       // Build system prompt with real context
