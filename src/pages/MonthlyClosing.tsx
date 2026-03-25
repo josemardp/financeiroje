@@ -9,8 +9,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateMonthlySummary, calculateBudgetDeviation, calculateHealthScore, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
-import type { TransactionRaw, BudgetRaw } from "@/services/financeEngine/types";
+import { calculateGoalProgress } from "@/services/financeEngine/goalProgress";
+import type { TransactionRaw, BudgetRaw, GoalRaw, GoalContributionRaw } from "@/services/financeEngine/types";
 import { buildExecutiveSummary, buildDeviations, buildReliability, buildMonthReading, buildNextMonthFocus } from "@/services/closingAnalysis";
+import type { GoalClosingInput, ReserveClosingInput } from "@/services/closingAnalysis";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,9 +58,11 @@ export default function MonthlyClosing() {
       const start = new Date(selectedYear, selectedMonth - 1, 1).toISOString().split("T")[0];
       const end = new Date(selectedYear, selectedMonth, 0).toISOString().split("T")[0];
 
-      const [txRes, budRes] = await Promise.all([
+      const [txRes, budRes, goalsRes, contribRes] = await Promise.all([
         supabase.from("transactions").select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)").gte("data", start).lte("data", end),
         supabase.from("budgets").select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)").eq("mes", selectedMonth).eq("ano", selectedYear),
+        supabase.from("goals").select("id, nome, valor_alvo, valor_atual, prazo, prioridade, ativo").eq("ativo", true),
+        supabase.from("goal_contributions").select("id, goal_id, valor, data"),
       ]);
 
       const rawTxns: TransactionRaw[] = (txRes.data || []).map((t: any) => ({
@@ -78,7 +82,18 @@ export default function MonthlyClosing() {
       const budget = budgets.length > 0 ? calculateBudgetDeviation(budgets, rawTxns, selectedMonth, selectedYear) : null;
       const noCategoryCount = rawTxns.filter(t => !t.categoria_id).length;
 
-      return { rawTxns, official, pending, summary, budget, budgets, noCategoryCount };
+      // Goal progress
+      const goalsRaw: GoalRaw[] = (goalsRes.data || []).map((g: any) => ({
+        id: g.id, nome: g.nome, valor_alvo: Number(g.valor_alvo),
+        valor_atual: g.valor_atual != null ? Number(g.valor_atual) : null,
+        prazo: g.prazo, prioridade: g.prioridade, ativo: g.ativo,
+      }));
+      const contribsRaw: GoalContributionRaw[] = (contribRes.data || []).map((c: any) => ({
+        id: c.id, goal_id: c.goal_id, valor: Number(c.valor), data: c.data,
+      }));
+      const goalProgress = calculateGoalProgress(goalsRaw, contribsRaw);
+
+      return { rawTxns, official, pending, summary, budget, budgets, noCategoryCount, goalProgress };
     },
     enabled: !!user,
   });
@@ -86,14 +101,36 @@ export default function MonthlyClosing() {
   // Derived analysis (pure, memoized)
   const analysis = useMemo(() => {
     if (!monthData?.summary) return null;
-    const { summary, budget, pending, noCategoryCount, rawTxns } = monthData;
+    const { summary, budget, pending, noCategoryCount, rawTxns, goalProgress } = monthData;
+
+    // Goals closing input
+    const goalsInput: GoalClosingInput | null = goalProgress.length > 0 ? {
+      totalActive: goalProgress.length,
+      atRisk: goalProgress
+        .filter(g => !g.isOnTrack && g.progressPercent < 80)
+        .sort((a, b) => a.progressPercent - b.progressPercent)
+        .slice(0, 2)
+        .map(g => ({ name: g.goalName, progressPercent: g.progressPercent, monthlyNeeded: g.monthlyContributionNeeded })),
+    } : null;
+
+    // Reserve closing input
+    const prefs = (profile?.preferences || {}) as any;
+    const reserveValue = Number(prefs.reserva_emergencia_valor) || 0;
+    const targetMonths = Number(prefs.reserva_emergencia_meses_meta) || 6;
+    const reserveConfigured = reserveValue > 0 || targetMonths > 0;
+    const monthlyExpense = summary.totalExpense;
+    const coverageMonths = monthlyExpense > 0 ? reserveValue / monthlyExpense : 0;
+    const reserveInput: ReserveClosingInput | null = reserveConfigured ? {
+      currentValue: reserveValue, targetMonths, monthlyExpense, coverageMonths, configured: true,
+    } : null;
+
     const executive = buildExecutiveSummary(summary);
-    const deviations = buildDeviations(summary, budget, pending.length, noCategoryCount);
+    const deviations = buildDeviations(summary, budget, pending.length, noCategoryCount, goalsInput, reserveInput);
     const reliability = buildReliability(rawTxns.length, pending.length, noCategoryCount);
-    const reading = buildMonthReading(summary, budget, pending.length);
-    const focus = buildNextMonthFocus(summary, budget, pending.length, reliability);
+    const reading = buildMonthReading(summary, budget, pending.length, goalsInput, reserveInput);
+    const focus = buildNextMonthFocus(summary, budget, pending.length, reliability, goalsInput, reserveInput);
     return { executive, deviations, reliability, reading, focus };
-  }, [monthData]);
+  }, [monthData, profile]);
 
   const closeMutation = useMutation({
     mutationFn: async () => {
