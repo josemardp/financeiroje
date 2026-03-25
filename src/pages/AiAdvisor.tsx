@@ -139,7 +139,13 @@ export default function AiAdvisor() {
         lowerInput.includes("to repetindo") ||
         lowerInput.includes("estou repetindo") ||
         lowerInput.includes("patinando") ||
-        lowerInput.includes("piorou")
+        lowerInput.includes("piorou") ||
+        lowerInput.includes("estou avançando") ||
+        lowerInput.includes("avançando") ||
+        lowerInput.includes("onde estou patinando") ||
+        lowerInput.includes("o que piorou") ||
+        lowerInput.includes("erros repetidos") ||
+        lowerInput.includes("mesmos erros")
       ) {
         userIntentHint = "progress";
       }
