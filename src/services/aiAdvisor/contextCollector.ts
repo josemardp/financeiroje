@@ -421,6 +421,23 @@ export async function getFinancialContext(
     };
   });
 
+  // Pre-compute alertasAtivos and reservaEmergencia for use in nested functions
+  const alertasAtivos = {
+    total: alertResult.data?.length || 0,
+    critical: (alertResult.data || []).filter((a: any) => a.nivel === "critical").length,
+    warning: (alertResult.data || []).filter((a: any) => a.nivel === "warning").length,
+    info: (alertResult.data || []).filter((a: any) => a.nivel === "info").length,
+    topAlerts: (alertResult.data || []).slice(0, 3).map((a: any) => a.titulo),
+  };
+
+  const reservaEmergencia = reserveConfigured ? {
+    valor: reserveValue,
+    metaMeses: reserveMonthsTarget,
+    despesaMensalRef,
+    coberturaMeses: despesaMensalRef > 0 ? Math.round((reserveValue / despesaMensalRef) * 10) / 10 : null,
+    statusMeta: (!despesaMensalRef ? "ok" : reserveValue < (despesaMensalRef * reserveMonthsTarget) ? "abaixo" : "acima") as "abaixo" | "ok" | "acima",
+  } : null;
+
   // --- Fase 12: Memória de progresso (comparação honesta mês atual vs anterior) ---
 
   const prevRawTx: TransactionRaw[] = (prevTxResult.data || []).map((t: any) => ({
