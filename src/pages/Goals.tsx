@@ -81,17 +81,24 @@ export default function Goals() {
   });
 
   // Engine calculations
-  const allGoalRaws: GoalRaw[] = (goals || []).map((g: any) => ({
-    id: g.id, nome: g.nome, valor_alvo: Number(g.valor_alvo),
-    valor_atual: Number(g.valor_atual || 0), prazo: g.prazo, prioridade: g.prioridade, ativo: g.ativo,
-  }));
-  const allContribs: GoalContributionRaw[] = (contributions || []).map((c: any) => ({
-    id: c.id, goal_id: c.goal_id, valor: Number(c.valor), data: c.data,
-  }));
-  const progressResults = calculateGoalProgress(allGoalRaws, allContribs);
-  const goalsWithProgress = (goals || []).map((g: any) => ({
-    ...g, progress: progressResults.find(p => p.goalId === g.id),
-  }));
+  const { data: goalsWithProgress = [] } = useQuery({
+    queryKey: ["goals-progress", goals, contributions],
+    queryFn: async () => {
+      if (!goals) return [];
+      const allGoalRaws: GoalRaw[] = (goals || []).map((g: any) => ({
+        id: g.id, nome: g.nome, valor_alvo: Number(g.valor_alvo),
+        valor_atual: Number(g.valor_atual || 0), prazo: g.prazo, prioridade: g.prioridade, ativo: g.ativo,
+      }));
+      const allContribs: GoalContributionRaw[] = (contributions || []).map((c: any) => ({
+        id: c.id, goal_id: c.goal_id, valor: Number(c.valor), data: c.data,
+      }));
+      const progressResults = await calculateGoalProgress(allGoalRaws, allContribs);
+      return (goals || []).map((g: any) => ({
+        ...g, progress: progressResults.find(p => p.goalId === g.id),
+      }));
+    },
+    enabled: !!goals && !!contributions,
+  });
 
   const PRIORITY_LABELS: Record<string, string> = { alta: "Alta", media: "Média", baixa: "Baixa" };
   const PRIORITY_COLORS: Record<string, string> = { alta: "destructive", media: "default", baixa: "secondary" };

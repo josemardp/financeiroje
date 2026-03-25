@@ -65,15 +65,15 @@ export default function HealthScore() {
         data: a.data, economia_juros_calculada: a.economia_juros_calculada ? Number(a.economia_juros_calculada) : null,
       }));
 
-      const dividas = loans.length > 0 ? calculateLoanIndicators(loans, installments, amortizations) : null;
-      const orcamento = budgets.length > 0 ? calculateBudgetDeviation(budgets, rawTxns, mes, ano) : null;
+      const dividas = loans.length > 0 ? await calculateLoanIndicators(loans, installments) : null;
+      const orcamento = budgets.length > 0 ? await calculateBudgetDeviation(budgets, rawTxns) : null;
       const hasBudget = budgets.length > 0;
 
       const overdueInstallments = installments.filter(
         i => i.status !== "pago" && new Date(i.data_vencimento) < now
       ).length;
 
-      return calculateHealthScore({
+      return await calculateHealthScore({
         totalIncome,
         totalExpense,
         totalDebt: dividas?.totalSaldoDevedor || 0,

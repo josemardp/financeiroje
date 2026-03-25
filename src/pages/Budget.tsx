@@ -83,9 +83,14 @@ export default function Budget() {
   });
 
   // ENGINE: desvio calculado pela engine determinística
-  const deviation = budgets && transactions
-    ? calculateBudgetDeviation(budgets, transactions, month, year)
-    : null;
+  const { data: deviation } = useQuery({
+    queryKey: ["budget-deviation", budgets, transactions],
+    queryFn: async () => {
+      if (!budgets || !transactions) return null;
+      return await calculateBudgetDeviation(budgets, transactions);
+    },
+    enabled: !!budgets && !!transactions,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {

@@ -284,23 +284,23 @@ export async function getFinancialContext(
   // Engine calculations — all deterministic
   const officialTxns = filterOfficialTransactions(rawTransactions);
   const pendingTxns = filterPendingTransactions(rawTransactions);
-  const resumoMensal = rawTransactions.length > 0 ? calculateMonthlySummary(rawTransactions) : null;
-  const resumoConfirmado = officialTxns.length > 0 ? calculateMonthlySummary(officialTxns) : null;
+  const resumoMensal = rawTransactions.length > 0 ? await calculateMonthlySummary(rawTransactions) : null;
+  const resumoConfirmado = officialTxns.length > 0 ? await calculateMonthlySummary(officialTxns) : null;
 
   const orcamento = budgets.length > 0
-    ? calculateBudgetDeviation(budgets, rawTransactions, mes, ano)
+    ? await calculateBudgetDeviation(budgets, rawTransactions)
     : null;
 
   const dividas = loans.length > 0
-    ? calculateLoanIndicators(loans, installments, amortizations)
+    ? await calculateLoanIndicators(loans, installments)
     : null;
 
-  const metas = calculateGoalProgress(goals, contributions);
+  const metas = await calculateGoalProgress(goals, contributions);
 
   // Forecast — uses balance from confirmed data
   const saldoAtual = resumoConfirmado ? resumoConfirmado.balance : 0;
   const previsaoCaixa = recurrings.length > 0 || installments.length > 0
-    ? calculateCashflowForecast({
+    ? await calculateCashflowForecast({
         currentBalance: saldoAtual,
         recurringTransactions: recurrings,
         recentTransactions: officialTxns,
@@ -325,7 +325,7 @@ export async function getFinancialContext(
   const despesaMensalRef = resumoConfirmado?.totalExpense || 0;
 
   const scoreFinanceiro = resumoConfirmado
-    ? calculateHealthScore({
+    ? await calculateHealthScore({
         totalIncome: resumoConfirmado.totalIncome,
         totalExpense: resumoConfirmado.totalExpense,
         totalDebt: dividas?.totalSaldoDevedor || 0,
@@ -429,7 +429,7 @@ export async function getFinancialContext(
     source_type: undefined, confidence: undefined, e_mei: undefined,
   }));
 
-  const prevSummary = prevRawTx.length > 0 ? calculateMonthlySummary(prevRawTx) : null;
+  const prevSummary = prevRawTx.length > 0 ? await calculateMonthlySummary(prevRawTx) : null;
   const prevAlerts = prevAlertResult.data || [];
 
   function buildProgressoMemoria(): ProgressoMemoria {

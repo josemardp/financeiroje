@@ -2,16 +2,18 @@
  * FinanceAI — Engine Determinística
  * Ponto de entrada único para todas as funções de cálculo financeiro.
  *
- * Regra central de estados do dado — ver types.ts para documentação completa.
+ * SPRINT 1: Todas as funções críticas agora consomem o BACKEND por padrão.
  */
 
-// ─── Cálculos Financeiros ────────────────────────────────────────
-export { calculateMonthlySummary } from "./monthlySummary";
-export { calculateBudgetDeviation } from "./budgetDeviation";
-export { calculateHealthScore } from "./healthScore";
-export { calculateCashflowForecast } from "./cashflowForecast";
-export { calculateGoalProgress } from "./goalProgress";
-export { calculateLoanIndicators } from "./loanIndicators";
+import { backendEngine } from "./backend";
+
+// ─── Cálculos Financeiros (Agora via Backend/Edge Functions) ─────
+export const calculateMonthlySummary = backendEngine.calculateMonthlySummary;
+export const calculateBudgetDeviation = backendEngine.calculateBudgetDeviation;
+export const calculateHealthScore = backendEngine.calculateHealthScore;
+export const calculateCashflowForecast = backendEngine.calculateCashflowForecast;
+export const calculateGoalProgress = backendEngine.calculateGoalProgress;
+export const calculateLoanIndicators = backendEngine.calculateLoanIndicators;
 
 // ─── Filtros de Status ───────────────────────────────────────────
 export {

@@ -78,8 +78,8 @@ export default function MonthlyClosing() {
 
       const official = filterOfficialTransactions(rawTxns);
       const pending = filterPendingTransactions(rawTxns);
-      const summary = official.length > 0 ? calculateMonthlySummary(official) : null;
-      const budget = budgets.length > 0 ? calculateBudgetDeviation(budgets, rawTxns, selectedMonth, selectedYear) : null;
+      const summary = official.length > 0 ? await calculateMonthlySummary(official) : null;
+      const budget = budgets.length > 0 ? await calculateBudgetDeviation(budgets, rawTxns) : null;
       const noCategoryCount = rawTxns.filter(t => !t.categoria_id).length;
 
       // Goal progress
@@ -91,7 +91,7 @@ export default function MonthlyClosing() {
       const contribsRaw: GoalContributionRaw[] = (contribRes.data || []).map((c: any) => ({
         id: c.id, goal_id: c.goal_id, valor: Number(c.valor), data: c.data,
       }));
-      const goalProgress = calculateGoalProgress(goalsRaw, contribsRaw);
+      const goalProgress = await calculateGoalProgress(goalsRaw, contribsRaw);
 
       return { rawTxns, official, pending, summary, budget, budgets, noCategoryCount, goalProgress };
     },
@@ -149,7 +149,7 @@ export default function MonthlyClosing() {
       const prefs = (profile?.preferences || {}) as any;
       const emergencyReserveValue = prefs.reserva_emergencia_valor || 0;
       const emergencyReserveConfigured = emergencyReserveValue > 0 || !!prefs.reserva_emergencia_meses_meta;
-      const scoreSnapshot = calculateHealthScore({
+      const scoreSnapshot = await calculateHealthScore({
         totalIncome: monthData.summary.totalIncome,
         totalExpense: monthData.summary.totalExpense,
         totalDebt: 0, emergencyReserve: emergencyReserveValue, emergencyReserveConfigured,

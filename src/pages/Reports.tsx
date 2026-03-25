@@ -40,7 +40,15 @@ export default function Reports() {
   });
 
   const official = rawTransactions ? filterOfficialTransactions(rawTransactions) : [];
-  const summary = official.length > 0 ? calculateMonthlySummary(official) : null;
+  
+  const { data: summary } = useQuery({
+    queryKey: ["report-summary", official],
+    queryFn: async () => {
+      if (!official || official.length === 0) return null;
+      return await calculateMonthlySummary(official);
+    },
+    enabled: official.length > 0,
+  });
 
   // Scope breakdown
   const scopeBreakdown = rawTransactions ? (() => {

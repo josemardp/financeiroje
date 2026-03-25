@@ -74,9 +74,14 @@ export default function Loans() {
   });
 
   // ENGINE: indicadores determinísticos
-  const summary = loans && installments && amortizations
-    ? calculateLoanIndicators(loans, installments, amortizations)
-    : null;
+  const { data: summary } = useQuery({
+    queryKey: ["loan-summary", loans, installments],
+    queryFn: async () => {
+      if (!loans || !installments) return null;
+      return await calculateLoanIndicators(loans, installments);
+    },
+    enabled: !!loans && !!installments,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
