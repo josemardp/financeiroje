@@ -274,6 +274,8 @@ export function buildNextMonthFocus(
   budget: BudgetDeviationResult | null,
   pendingCount: number,
   reliability: ReliabilityResult,
+  goals?: GoalClosingInput | null,
+  reserve?: ReserveClosingInput | null,
 ): NextMonthFocus {
   const secondary: string[] = [];
   let primary: string;
