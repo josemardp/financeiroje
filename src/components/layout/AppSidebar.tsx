@@ -21,6 +21,7 @@ import {
   Lock,
   Landmark,
   FileSpreadsheet,
+  PieChart,
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,6 +46,7 @@ const mainNav = [
 ];
 
 const financeNav = [
+  { title: "Patrimônio & Investimentos", icon: PieChart, href: "/patrimonio" },
   { title: "Dívidas", icon: CreditCard, href: "/dividas" },
   { title: "Metas & Sonhos", icon: Target, href: "/metas" },
   { title: "Assinaturas", icon: Wallet, href: "/assinaturas" },
