@@ -29,53 +29,31 @@ export interface ClosingPayload {
 }
 
 /**
- * Persiste o fechamento de um período no banco de dados.
- * Cria ou atualiza registro em monthly_closings.
+ * Persiste o fechamento de um período via Edge Function.
  */
 export async function persistClosing(
   payload: ClosingPayload,
-): Promise<{ id: string; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
-    // Verificar se já existe registro para este período
-    const { data: existing, error: checkError } = await supabase
-      .from("monthly_closings")
-      .select("id")
-      .eq("user_id", payload.user_id)
-      .eq("mes", payload.mes)
-      .eq("ano", payload.ano)
-      .maybeSingle();
+    const { data, error } = await supabase.functions.invoke("closing-operations", {
+      method: "POST",
+      body: { 
+        action: "close",
+        month: payload.mes, 
+        year: payload.ano, 
+        snapshot: payload.pendencias 
+      },
+    });
 
-    if (checkError) throw checkError;
-
-    if (existing) {
-      // Atualizar existente
-      const { data, error } = await supabase
-        .from("monthly_closings")
-        .update(payload)
-        .eq("id", existing.id)
-        .select("id")
-        .single();
-
-      if (error) throw error;
-      return { id: data.id };
-    } else {
-      // Inserir novo
-      const { data, error } = await supabase
-        .from("monthly_closings")
-        .insert(payload)
-        .select("id")
-        .single();
-
-      if (error) throw error;
-      return { id: data.id };
-    }
+    if (error) throw error;
+    return { success: data.success, error: data.error };
   } catch (err: any) {
-    return { id: "", error: err.message };
+    return { success: false, error: err.message };
   }
 }
 
 /**
- * Obtém status de fechamento de um período.
+ * Obtém status de fechamento de um período via Edge Function.
  */
 export async function getPeriodClosingStatus(
   userId: string,
@@ -83,24 +61,25 @@ export async function getPeriodClosingStatus(
   year: number,
 ): Promise<PeriodLockInfo | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabase.functions.invoke("closing-operations", {
+      method: "GET",
+      queries: { action: "status", month: month.toString(), year: year.toString() },
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (err: any) {
+    console.error("Erro ao obter status de fechamento via Edge Function:", err);
+    // Fallback para consulta direta se a function falhar (para leitura apenas)
+    const { data } = await supabase
       .from("monthly_closings")
       .select("status, fechado_em, fechado_por, reaberto_em, reaberto_por")
       .eq("user_id", userId)
       .eq("mes", month)
       .eq("ano", year)
       .maybeSingle();
-
-    if (error) throw error;
-
-    if (!data) {
-      return {
-        period: { month, year },
-        status: "open",
-        isLocked: false,
-      };
-    }
-
+    
+    if (!data) return { period: { month, year }, status: "open", isLocked: false };
     return {
       period: { month, year },
       status: data.status,
@@ -110,14 +89,11 @@ export async function getPeriodClosingStatus(
       reopenedAt: data.reaberto_em,
       reopenedBy: data.reaberto_por,
     };
-  } catch (err: any) {
-    console.error("Erro ao obter status de fechamento:", err);
-    return null;
   }
 }
 
 /**
- * Reabre um período fechado com rastreabilidade.
+ * Reabre um período fechado via Edge Function.
  */
 export async function reopenPeriod(
   userId: string,
@@ -126,35 +102,18 @@ export async function reopenPeriod(
   reason?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: existing, error: checkError } = await supabase
-      .from("monthly_closings")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("mes", month)
-      .eq("ano", year)
-      .maybeSingle();
-
-    if (checkError) throw checkError;
-
-    if (!existing) {
-      return { success: false, error: "Período não encontrado" };
-    }
-
-    const { error } = await supabase
-      .from("monthly_closings")
-      .update({
-        status: "open",
-        fechado_em: null,
-        fechado_por: null,
-        reaberto_em: new Date().toISOString(),
-        reaberto_por: userId,
-        reabertura_motivo: reason,
-      })
-      .eq("id", existing.id);
+    const { data, error } = await supabase.functions.invoke("closing-operations", {
+      method: "POST",
+      body: { 
+        action: "reopen",
+        month, 
+        year, 
+        reason 
+      },
+    });
 
     if (error) throw error;
-
-    return { success: true };
+    return { success: data.success, error: data.error };
   } catch (err: any) {
     return { success: false, error: err.message };
   }

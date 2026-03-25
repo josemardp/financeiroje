@@ -39,3 +39,11 @@ export function formatMonthYear(month: number, year: number): string {
     year: "numeric",
   }).format(date);
 }
+
+export function formatTime(date: string | Date): string {
+  return new Intl.DateTimeFormat(LOCALE, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(typeof date === "string" ? new Date(date) : date);
+}
