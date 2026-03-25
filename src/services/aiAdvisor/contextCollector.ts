@@ -37,6 +37,42 @@ import type {
   LoanSummary,
 } from "@/services/financeEngine/types";
 
+// --- Fase 12: Tipos de memória de progresso, decisão guiada e assinaturas ---
+
+export interface ProgressoMemoriaItem {
+  label: string;
+  detail: string;
+}
+
+export interface ProgressoMemoria {
+  available: boolean;
+  summary: string[];
+  improved: ProgressoMemoriaItem[];
+  worsened: ProgressoMemoriaItem[];
+  repeated: ProgressoMemoriaItem[];
+  limitations: string[];
+}
+
+export interface AssinaturasResumo {
+  totalAtivas: number;
+  totalMensal: number;
+  principais: Array<{ nome: string; valorMensal: number }>;
+}
+
+export interface DecisaoGuiada {
+  pressaoDoMes: "low" | "medium" | "high";
+  prioridadeAtual: "protect_cash" | "advance_goal" | "review_recurring_costs" | "stabilize_month";
+  sensibilidadeCompra: "low" | "medium" | "high";
+  pressaoCustoRecorrente: "low" | "medium" | "high";
+  cuidadoAntecipacaoDivida: "low" | "medium" | "high";
+  principalMotivo: string;
+  sinais: string[];
+  topMetaEmRisco: { nome: string; progressoAtual: number; faltante: number } | null;
+  oQueMudaria: string[];
+}
+
+// --- Fim Fase 12 ---
+
 export interface FinancialContext {
   periodo: { mes: number; ano: number };
   escopo: string;
@@ -102,6 +138,10 @@ export interface FinancialContext {
       message: string;
     }>;
   };
+  // Fase 12
+  progressoMemoria: ProgressoMemoria;
+  assinaturasResumo: AssinaturasResumo | null;
+  decisaoGuiada: DecisaoGuiada;
 }
 
 export async function getFinancialContext(
@@ -121,7 +161,7 @@ export async function getFinancialContext(
     txResult, budgetResult, recurringResult, loanResult,
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
-    accountTxResult,
+    accountTxResult, prevTxResult, prevAlertResult,
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
@@ -158,6 +198,21 @@ export async function getFinancialContext(
       .select("account_id, tipo, valor, data_status")
       .not("account_id", "is", null)
       .or("data_status.eq.confirmed,data_status.is.null"),
+    // Fase 12: mês anterior para comparação honesta
+    (() => {
+      const prevMes = mes === 1 ? 12 : mes - 1;
+      const prevAno = mes === 1 ? ano - 1 : ano;
+      const prevStart = new Date(prevAno, prevMes - 1, 1).toISOString().split("T")[0];
+      const prevEnd = new Date(prevAno, prevMes, 0).toISOString().split("T")[0];
+      let q = supabase.from("transactions")
+        .select("id, valor, tipo, data, data_status, categoria_id, categories(nome), scope")
+        .gte("data", prevStart).lte("data", prevEnd)
+        .or("data_status.eq.confirmed,data_status.is.null");
+      if (scope !== "all") q = q.eq("scope", scope);
+      return q;
+    })(),
+    // Fase 12: alertas do mês anterior (snapshot via lidos)
+    supabase.from("alerts").select("id, nivel").eq("lido", true).limit(50),
   ]);
 
   // Map raw data
@@ -365,6 +420,175 @@ export async function getFinancialContext(
     };
   });
 
+  // --- Fase 12: Memória de progresso (comparação honesta mês atual vs anterior) ---
+
+  const prevRawTx: TransactionRaw[] = (prevTxResult.data || []).map((t: any) => ({
+    id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data,
+    descricao: "", categoria_id: t.categoria_id, categoria_nome: t.categories?.nome,
+    scope: t.scope, data_status: t.data_status,
+    source_type: undefined, confidence: undefined, e_mei: undefined,
+  }));
+
+  const prevSummary = prevRawTx.length > 0 ? calculateMonthlySummary(prevRawTx) : null;
+  const prevAlerts = prevAlertResult.data || [];
+
+  function buildProgressoMemoria(): ProgressoMemoria {
+    const limitations: string[] = [];
+    const improved: ProgressoMemoriaItem[] = [];
+    const worsened: ProgressoMemoriaItem[] = [];
+    const repeated: ProgressoMemoriaItem[] = [];
+    const summary: string[] = [];
+
+    if (!prevSummary || !resumoConfirmado) {
+      limitations.push("Sem dados do mês anterior para comparar com segurança.");
+      return { available: false, summary, improved, worsened, repeated, limitations };
+    }
+
+    const scoreAtual = scoreFinanceiro?.scoreGeral ?? null;
+
+    const saldoPrev = prevSummary.balance;
+    const saldoAtual = resumoConfirmado.balance;
+    const saldoDiff = saldoAtual - saldoPrev;
+    if (Math.abs(saldoDiff) > 10) {
+      if (saldoDiff > 0) {
+        improved.push({ label: "Saldo", detail: `R$ ${saldoDiff.toFixed(2)} melhor que mês anterior` });
+      } else {
+        worsened.push({ label: "Saldo", detail: `R$ ${Math.abs(saldoDiff).toFixed(2)} pior que mês anterior` });
+      }
+    }
+
+    const despPrev = prevSummary.totalExpense;
+    const despAtual = resumoConfirmado.totalExpense;
+    const despDiff = despAtual - despPrev;
+    if (Math.abs(despDiff) > 10) {
+      if (despDiff < 0) {
+        improved.push({ label: "Gastos totais", detail: `R$ ${Math.abs(despDiff).toFixed(2)} menos que mês anterior` });
+      } else {
+        worsened.push({ label: "Gastos totais", detail: `R$ ${despDiff.toFixed(2)} a mais que mês anterior` });
+      }
+    }
+
+    const alertasCriticosAgora = alertasAtivos.critical;
+    const alertasLidosCriticos = prevAlerts.filter((a: any) => a.nivel === "critical").length;
+    if (alertasCriticosAgora === 0 && alertasLidosCriticos > 0) {
+      improved.push({ label: "Alertas críticos", detail: "Sem alertas críticos ativos agora" });
+    } else if (alertasCriticosAgora > 0 && alertasCriticosAgora > alertasLidosCriticos) {
+      worsened.push({ label: "Alertas críticos", detail: `${alertasCriticosAgora} alertas críticos ativos` });
+    }
+
+    if (reservaEmergencia) {
+      if (reservaEmergencia.statusMeta === "abaixo") {
+        repeated.push({ label: "Reserva de emergência", detail: "continua abaixo da meta" });
+      } else {
+        improved.push({ label: "Reserva de emergência", detail: `${reservaEmergencia.coberturaMeses} meses cobertos` });
+      }
+    }
+
+    const taxaPrev = prevSummary.savingsRate;
+    const taxaAtual = resumoConfirmado.savingsRate;
+    if (Math.abs(taxaAtual - taxaPrev) > 2) {
+      if (taxaAtual > taxaPrev) {
+        improved.push({ label: "Taxa de economia", detail: `${taxaAtual.toFixed(1)}% vs ${taxaPrev.toFixed(1)}% no mês anterior` });
+      } else {
+        worsened.push({ label: "Taxa de economia", detail: `${taxaAtual.toFixed(1)}% vs ${taxaPrev.toFixed(1)}% no mês anterior` });
+      }
+    }
+
+    const catsPressuring = padroesPorCategoria.filter(p => p.isPressuring).map(p => p.categoria);
+    if (catsPressuring.length > 0) {
+      repeated.push({ label: "Categorias pressionando", detail: catsPressuring.slice(0, 3).join(", ") });
+    }
+
+    if (scoreAtual !== null) summary.push(`Score financeiro atual: ${scoreAtual}/100`);
+    summary.push(`Saldo confirmado: R$ ${saldoAtual.toFixed(2)} (anterior: R$ ${saldoPrev.toFixed(2)})`);
+    summary.push(`Despesa confirmada: R$ ${despAtual.toFixed(2)} (anterior: R$ ${despPrev.toFixed(2)})`);
+
+    if (improved.length === 0 && worsened.length === 0) {
+      limitations.push("Variação entre meses muito pequena para afirmar tendência.");
+    }
+
+    return { available: true, summary, improved, worsened, repeated, limitations };
+  }
+
+  // --- Fase 12: Decisão Guiada ---
+  function buildDecisaoGuiada(): DecisaoGuiada {
+    const score = scoreFinanceiro?.scoreGeral ?? 50;
+    const saldo = resumoConfirmado?.balance ?? 0;
+    const catsPressuring = padroesPorCategoria.filter(p => p.isPressuring);
+    const reservaBaixa = reservaEmergencia?.statusMeta === "abaixo";
+    const alertasCriticos = alertasAtivos.critical > 0;
+    const temDivida = (dividas?.totalSaldoDevedor ?? 0) > 0;
+    const sinais: string[] = [];
+
+    let pressaoDoMes: "low" | "medium" | "high" = "low";
+    if (alertasCriticos || score < 40 || saldo < 0) pressaoDoMes = "high";
+    else if (catsPressuring.length > 0 || reservaBaixa) pressaoDoMes = "medium";
+
+    let prioridadeAtual: DecisaoGuiada["prioridadeAtual"] = "stabilize_month";
+    if (saldo < 0 || alertasCriticos) {
+      prioridadeAtual = "protect_cash";
+    } else if (reservaBaixa) {
+      prioridadeAtual = "protect_cash";
+      sinais.push("Reserva abaixo da meta");
+    } else if (catsPressuring.length > 2) {
+      prioridadeAtual = "review_recurring_costs";
+      sinais.push(`${catsPressuring.length} categorias pressionando`);
+    } else if (impactoEmMetas.some(m => m.hasProgress && m.progressoAtual > 10 && m.progressoAtual < 90)) {
+      prioridadeAtual = "advance_goal";
+    }
+
+    const sensibilidadeCompra: "low" | "medium" | "high" =
+      pressaoDoMes === "high" ? "high" : pressaoDoMes === "medium" ? "medium" : "low";
+
+    const pressaoCustoRecorrente: "low" | "medium" | "high" =
+      catsPressuring.length > 1 ? "high" : catsPressuring.length === 1 ? "medium" : "low";
+
+    const cuidadoAntecipacaoDivida: "low" | "medium" | "high" =
+      saldo < 500 || reservaBaixa ? "high" : temDivida ? "medium" : "low";
+
+    let principalMotivo = "Contexto financeiro estável.";
+    if (saldo < 0) principalMotivo = "Saldo negativo — prioridade absoluta: estabilizar caixa.";
+    else if (alertasCriticos) principalMotivo = "Alertas críticos ativos — resolver antes de qualquer decisão nova.";
+    else if (reservaBaixa) principalMotivo = "Reserva de emergência abaixo da meta.";
+    else if (catsPressuring.length > 0) principalMotivo = `${catsPressuring[0].categoria} está pressionando o orçamento.`;
+
+    const topMetaEmRisco = impactoEmMetas.length > 0
+      ? impactoEmMetas
+          .filter(m => m.faltante > 0)
+          .sort((a, b) => a.progressoAtual - b.progressoAtual)
+          .map(m => ({ nome: m.metaNome, progressoAtual: m.progressoAtual, faltante: m.faltante }))[0] ?? null
+      : null;
+
+    const oQueMudaria: string[] = [];
+    if (reservaBaixa) oQueMudaria.push("Reserva atingir meta liberaria foco para meta");
+    if (catsPressuring.length > 0) oQueMudaria.push("Redução das categorias pressionando");
+    if (alertasCriticos) oQueMudaria.push("Resolução dos alertas críticos");
+
+    return {
+      pressaoDoMes, prioridadeAtual, sensibilidadeCompra,
+      pressaoCustoRecorrente, cuidadoAntecipacaoDivida,
+      principalMotivo, sinais, topMetaEmRisco, oQueMudaria,
+    };
+  }
+
+  // --- Fase 12: Assinaturas Resumo (derivado de recorrentes de despesa) ---
+  function buildAssinaturasResumo(): AssinaturasResumo | null {
+    const recorrentesDesp = recurrings.filter(r => r.tipo === "expense" && r.ativa);
+    if (recorrentesDesp.length === 0) return null;
+    const totalMensal = recorrentesDesp.reduce((s, r) => s + r.valor, 0);
+    const principais = recorrentesDesp
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 3)
+      .map(r => ({ nome: r.descricao, valorMensal: r.valor }));
+    return { totalAtivas: recorrentesDesp.length, totalMensal, principais };
+  }
+
+  const progressoMemoria = buildProgressoMemoria();
+  const decisaoGuiada = buildDecisaoGuiada();
+  const assinaturasResumo = buildAssinaturasResumo();
+
+  // --- Fim Fase 12 ---
+
   return {
     periodo: { mes, ano },
     escopo: scope,
@@ -407,6 +631,10 @@ export async function getFinancialContext(
     preferenciasUsuario: userPrefs,
     userIntentHint: "generic",
     assinaturas: undefined, // Will be populated by caller if needed
+    // Fase 12
+    progressoMemoria,
+    assinaturasResumo,
+    decisaoGuiada,
     metadados: {
       dataColeta: now.toISOString(),
       versaoEngine: "4.2-final",
