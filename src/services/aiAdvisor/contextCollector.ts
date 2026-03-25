@@ -90,7 +90,7 @@ export interface FinancialContext {
     nota: string;
     avisoAlucinacao: string;
   };
-  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "generic";
+  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "generic";
 }
 
 export async function getFinancialContext(

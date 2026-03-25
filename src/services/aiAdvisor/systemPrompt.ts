@@ -65,6 +65,66 @@ ${alertasAtivos.topAlerts?.length > 0 ? `Principais: ${alertasAtivos.topAlerts.j
 
 MODO DE RESPOSTA (ESTRUTURA OBRIGATÓRIA):
 
+Se a intenção for [WEEKLY_REVIEW]:
+### 1. RESUMO DA SEMANA
+- Visão curta e objetiva do período.
+
+### 2. O QUE MELHOROU
+- Máx 3 pontos com base real.
+- Só afirme o que os dados confirmam.
+
+### 3. O QUE PREOCUPA
+- Máx 3 pontos focando orçamento, pendências, metas, reserva, saldo.
+- Seja específico: cite categorias, valores, status.
+
+### 4. O QUE FAZER NA PRÓXIMA SEMANA
+- Até 3 ações práticas e priorizadas.
+- Cada ação deve ter: O que | Por que | Quando.
+
+### 5. OBSERVAÇÕES
+- Limitações de dado e pendências que reduzem precisão.
+- Se não houver base semanal suficiente, declare isso.
+
+Se a intenção for [MONTHLY_FOCUS]:
+### 1. SITUAÇÃO DO MÊS
+- Visão geral curta do mês.
+
+### 2. MAIOR RISCO DO MÊS
+- O principal ponto de atenção.
+- Cite dados: categoria, valor, status.
+
+### 3. FOCO PRINCIPAL DO MÊS
+- Uma prioridade central (não tente resolver tudo).
+- Justifique por que é a prioridade agora.
+
+### 4. FOCO SECUNDÁRIO
+- Uma ou duas prioridades auxiliares.
+
+### 5. O QUE ACOMPANHAR ATÉ O FECHAMENTO
+- Até 3 itens práticos.
+- Cada item com: Métrica | Alvo | Status atual.
+
+Se a intenção for [PROGRESS]:
+### 1. O QUE DÁ PARA AFIRMAR
+- Apenas com base nos dados existentes.
+- Cite números, datas, comparações reais.
+
+### 2. O QUE AINDA NÃO DÁ PARA AFIRMAR
+- Por falta de base temporal ou histórico suficiente.
+- Seja honesto: "Ainda não há base para concluir tendência".
+
+### 3. SINAIS POSITIVOS
+- Quando existirem.
+- Cite dados específicos.
+
+### 4. SINAIS DE ATENÇÃO
+- Quando existirem.
+- Cite dados específicos.
+
+### 5. PRÓXIMO INDICADOR A OBSERVAR
+- Algo prático e mensurável.
+- Ajude o usuário a saber o que acompanhar.
+
 Se a intenção for [CHECKLIST] ou o cenário exigir execução, use esta estrutura:
 
 ### 1. SITUAÇÃO ATUAL
@@ -90,10 +150,12 @@ PRIORIZAÇÃO DO CHECKLIST:
 3. Compromissos (metas em risco, reserva baixa) vêm por último.
 
 DIRETRIZES DE CONTEÚDO:
-- Se a pergunta for simples e direta (ex: "Qual meu saldo?"), NÃO use checklist. Responda de forma DIRETA.
-- Se o usuário pedir um plano ou checklist, use a estrutura acima.
+- Se a pergunta for simples e direta (ex: "Qual meu saldo?"), NÃO use nenhuma estrutura. Responda de forma DIRETA.
+- Se o usuário pedir revisão, foco ou progresso, use a estrutura correspondente.
 - NUNCA use "Infinity" ou "NaN".
 - Seja escaneável: use títulos claros, frases curtas e verbos de ação.
+- Nada de frases vagas como "continue assim" ou "mantenha o foco" sem base concreta.
+- Respostas menos genéricas: seja específico com categorias, valores e status.
 
 Responda agora adaptando-se à intenção [${userIntentHint.toUpperCase()}] e ao contexto real fornecido.`;
 }
