@@ -304,7 +304,7 @@ function BudgetForm({ categories, month, year, onSuccess }: { categories: any[];
       </div>
       <div className="space-y-2">
         <Label>Escopo</Label>
-        <Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v }))}>
+        <Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v as "private" | "family" | "business" }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="private">Pessoal</SelectItem>
