@@ -58,9 +58,11 @@ export default function MonthlyClosing() {
       const start = new Date(selectedYear, selectedMonth - 1, 1).toISOString().split("T")[0];
       const end = new Date(selectedYear, selectedMonth, 0).toISOString().split("T")[0];
 
-      const [txRes, budRes] = await Promise.all([
+      const [txRes, budRes, goalsRes, contribRes] = await Promise.all([
         supabase.from("transactions").select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)").gte("data", start).lte("data", end),
         supabase.from("budgets").select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)").eq("mes", selectedMonth).eq("ano", selectedYear),
+        supabase.from("goals").select("id, nome, valor_alvo, valor_atual, prazo, prioridade, ativo").eq("ativo", true),
+        supabase.from("goal_contributions").select("id, goal_id, valor, data"),
       ]);
 
       const rawTxns: TransactionRaw[] = (txRes.data || []).map((t: any) => ({
