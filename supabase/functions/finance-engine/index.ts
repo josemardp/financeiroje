@@ -265,7 +265,7 @@ function calculateGoalProgress(goals: GoalRaw[], contributions: GoalContribution
     const progressPercent = goal.valor_alvo > 0 ? (currentVal / goal.valor_alvo) * 100 : 0;
     const remainingAmount = Math.max(0, goal.valor_alvo - currentVal);
     
-    let projectedCompletionDate = null;
+    const projectedCompletionDate = null;
     let monthlyContributionNeeded = null;
     
     if (goal.prazo) {
