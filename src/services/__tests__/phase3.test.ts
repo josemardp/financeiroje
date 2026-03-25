@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseTransactionText } from "../smartCapture/textParser";
 import { analyzeDataQuality } from "../dataQuality";
-import { generateAlerts } from "../alertEngine";
+import { generateAlerts, type AlertEngineInput } from "../alertEngine";
 import { parseAiResponse } from "../aiAdvisor/responseParser";
 import { calculateHealthScore } from "../financeEngine/healthScore";
 import { calculateCashflowForecast } from "../financeEngine/cashflowForecast";
