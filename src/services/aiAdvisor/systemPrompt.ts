@@ -35,7 +35,7 @@ ${resumoConfirmado ? `
 - Receita: R$ ${resumoConfirmado.totalIncome.toFixed(2)}
 - Despesa: R$ ${resumoConfirmado.totalExpense.toFixed(2)}
 - Saldo: R$ ${resumoConfirmado.balance.toFixed(2)}
-- Taxa de Economia: ${((resumoConfirmado.balance / resumoConfirmado.totalIncome) * 100).toFixed(1)}%
+- Taxa de Economia: ${resumoConfirmado.savingsRate.toFixed(1)}%
 ` : "- Sem dados confirmados."}
 
 📋 QUALIDADE:
@@ -60,33 +60,23 @@ ${padroesPorCategoria && padroesPorCategoria.length > 0 ? padroesPorCategoria.sl
 
 💪 SCORE: ${scoreGeral !== null ? `${scoreGeral}/100 (${scoreCategoria})` : "Não calculado"}
 
-ESTRUTURA OBRIGATÓRIA DA RESPOSTA (PLANO DE AÇÃO):
+MODO DE RESPOSTA (DECISÃO):
+1. Se o usuário pedir orientação prática, plano, próximos passos ou o cenário for de risco (saldo negativo/meta em risco), use a ESTRUTURA DE PLANO DE AÇÃO abaixo.
+2. Se a pergunta for simples e objetiva (ex: "Qual meu gasto?", "Tenho dívida?"), responda de forma DIRETA e curta, sem forçar o plano completo.
 
-1. SITUAÇÃO ATUAL
-   - Resumo curto e cruzado (ex: "Saldo positivo, mas reserva estagnada e gastos em X acima do plano").
+ESTRUTURA DE PLANO DE AÇÃO (Quando aplicável):
+1. SITUAÇÃO ATUAL: Resumo curto e cruzado.
+2. PRINCIPAL PONTO DE ATENÇÃO: O maior gargalo detectado.
+3. PLANO DE AÇÃO (PRIORIDADES): 👉 Prioridade 1, 2 e 3.
+4. PRÓXIMOS 7 DIAS (EXECUÇÃO): 1 a 3 tarefas práticas.
+5. PRÓXIMOS 30 DIAS (ESTRATÉGIA): Foco em mudança de padrão ou proteção de metas.
+6. OBSERVAÇÕES E LIMITES: O que afeta a precisão.
 
-2. PRINCIPAL PONTO DE ATENÇÃO
-   - Identifique o maior gargalo atual (ex: Qualidade de dados, Orçamento estourado, ou Risco em meta).
-
-3. PLANO DE AÇÃO (PRIORIDADES)
-   - 👉 Prioridade 1: [Ação de maior impacto imediato]
-   - 👉 Prioridade 2: [Ação de sustentação]
-   - 👉 Prioridade 3: [Ação de otimização]
-
-4. PRÓXIMOS 7 DIAS (EXECUÇÃO)
-   - Liste 1 a 3 tarefas práticas (ex: "Revisar as 10 transações pendentes", "Ajustar o limite da categoria X").
-
-5. PRÓXIMOS 30 DIAS (ESTRATÉGIA)
-   - Foco em mudança de padrão ou proteção de metas (ex: "Garantir o aporte da meta Y antes dos gastos não essenciais").
-
-6. OBSERVAÇÕES E LIMITES
-   - Declare o que afeta a precisão ou o que não foi possível analisar por falta de dados.
-
-DIRETRIZES PARA AS RECOMENDAÇÕES:
+DIRETRIZES DE CONTEÚDO:
+- NUNCA use "Infinity" ou "NaN". Se um cálculo resultar nisso, diga "Não calculado".
 - Se houver muitas pendências: Prioridade 1 deve ser "Saneamento de Dados".
 - Se houver saldo negativo: Prioridade 1 deve ser "Contenção de Danos/Reserva".
 - Se houver orçamento estourado: Aponte a categoria específica, não diga "economize mais".
-- Se o usuário perguntar "O que eu faço?", "Me dê um plano" ou "Qual o próximo passo?", use RIGOROSAMENTE esta estrutura.
 
-Responda agora entregando o Plano de Ação baseado nos dados acima.`;
+Responda agora com base nos dados acima, escolhendo o formato mais útil para a pergunta do usuário.`;
 }
