@@ -1,24 +1,30 @@
 /**
- * FinanceAI — Fechamento Mensal
+ * FinanceAI — Fechamento Mensal Premium
  * 
- * Fluxo: selecionar mês → revisar pendências → fechar opcionalmente → gerar resumo
+ * Fluxo: selecionar mês → resumo executivo → desvios → confiabilidade → leitura → foco → fechar
  * Regras: mês fechado não pode ser alterado silenciosamente.
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateMonthlySummary, calculateBudgetDeviation, calculateHealthScore, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
 import type { TransactionRaw, BudgetRaw } from "@/services/financeEngine/types";
+import { buildExecutiveSummary, buildDeviations, buildReliability, buildMonthReading, buildNextMonthFocus } from "@/services/closingAnalysis";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DataStatusBadge } from "@/components/shared/DataStatusBadge";
+import { ClosingExecutiveSummary } from "@/components/closing/ClosingExecutiveSummary";
+import { ClosingDeviations } from "@/components/closing/ClosingDeviations";
+import { ClosingReliability } from "@/components/closing/ClosingReliability";
+import { ClosingMonthReading } from "@/components/closing/ClosingMonthReading";
+import { ClosingNextFocus } from "@/components/closing/ClosingNextFocus";
 import { formatCurrency, formatMonthYear } from "@/lib/format";
 import { toast } from "sonner";
-import { Lock, Unlock, AlertTriangle, CheckCircle, Loader2, FileText } from "lucide-react";
+import { Lock, Unlock, AlertTriangle, Loader2, FileText, ChevronDown } from "lucide-react";
 
 export default function MonthlyClosing() {
   const { user, profile } = useAuth();
@@ -26,6 +32,7 @@ export default function MonthlyClosing() {
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [showPending, setShowPending] = useState(false);
 
   // Fetch closing status
   const { data: closing } = useQuery({
@@ -69,73 +76,65 @@ export default function MonthlyClosing() {
       const pending = filterPendingTransactions(rawTxns);
       const summary = official.length > 0 ? calculateMonthlySummary(official) : null;
       const budget = budgets.length > 0 ? calculateBudgetDeviation(budgets, rawTxns, selectedMonth, selectedYear) : null;
+      const noCategoryCount = rawTxns.filter(t => !t.categoria_id).length;
 
-      return { rawTxns, official, pending, summary, budget, budgets };
+      return { rawTxns, official, pending, summary, budget, budgets, noCategoryCount };
     },
     enabled: !!user,
   });
+
+  // Derived analysis (pure, memoized)
+  const analysis = useMemo(() => {
+    if (!monthData?.summary) return null;
+    const { summary, budget, pending, noCategoryCount, rawTxns } = monthData;
+    const executive = buildExecutiveSummary(summary);
+    const deviations = buildDeviations(summary, budget, pending.length, noCategoryCount);
+    const reliability = buildReliability(rawTxns.length, pending.length, noCategoryCount);
+    const reading = buildMonthReading(summary, budget, pending.length);
+    const focus = buildNextMonthFocus(summary, budget, pending.length, reliability);
+    return { executive, deviations, reliability, reading, focus };
+  }, [monthData]);
 
   const closeMutation = useMutation({
     mutationFn: async () => {
       if (!user || !monthData?.summary) throw new Error("Sem dados para fechar");
 
-      // Build snapshots for the closing
       const budgetSnapshot = monthData.budget ? {
         items: monthData.budget.items.map(i => ({
-          category: i.categoryName,
-          planned: i.planned,
-          actual: i.actual,
-          deviation: i.deviationPercent,
-          status: i.status,
+          category: i.categoryName, planned: i.planned, actual: i.actual,
+          deviation: i.deviationPercent, status: i.status,
         })),
         totalPlanned: monthData.budget.totalPlanned,
         totalActual: monthData.budget.totalActual,
         overallStatus: monthData.budget.overallStatus,
       } : null;
 
-      // Calculate score snapshot with real user preferences
       const prefs = (profile?.preferences || {}) as any;
       const emergencyReserveValue = prefs.reserva_emergencia_valor || 0;
       const emergencyReserveConfigured = emergencyReserveValue > 0 || !!prefs.reserva_emergencia_meses_meta;
-      const overdueInstallments = 0; // simplified for closing
       const scoreSnapshot = calculateHealthScore({
         totalIncome: monthData.summary.totalIncome,
         totalExpense: monthData.summary.totalExpense,
-        totalDebt: 0,
-        emergencyReserve: emergencyReserveValue,
-        emergencyReserveConfigured,
+        totalDebt: 0, emergencyReserve: emergencyReserveValue, emergencyReserveConfigured,
         budgetConfigured: !!monthData.budget,
         budgetDeviation: monthData.budget ? Math.max(0, monthData.budget.totalDeviationPercent) : 0,
-        overdueInstallments,
-        totalInstallments: 0,
-        monthsWithData: 1,
-        totalMonthsPossible: 1,
+        overdueInstallments: 0, totalInstallments: 0, monthsWithData: 1, totalMonthsPossible: 1,
       });
 
       const pendenciasSnapshot = monthData.pending.map(t => ({
-        id: t.id,
-        descricao: t.descricao,
-        status: t.data_status,
-        valor: t.valor,
-        tipo: t.tipo,
+        id: t.id, descricao: t.descricao, status: t.data_status, valor: t.valor, tipo: t.tipo,
       }));
 
       const payload: any = {
-        user_id: user.id,
-        mes: selectedMonth,
-        ano: selectedYear,
-        status: "closed" as const,
+        user_id: user.id, mes: selectedMonth, ano: selectedYear, status: "closed" as const,
         total_receitas: monthData.summary.totalIncome,
         total_despesas: monthData.summary.totalExpense,
         saldo: monthData.summary.balance,
-        fechado_em: new Date().toISOString(),
-        fechado_por: user.id,
+        fechado_em: new Date().toISOString(), fechado_por: user.id,
         pendencias: JSON.parse(JSON.stringify({
-          transacoes: pendenciasSnapshot,
-          orcamento: budgetSnapshot,
-          score: scoreSnapshot,
+          transacoes: pendenciasSnapshot, orcamento: budgetSnapshot, score: scoreSnapshot,
           qualidade: {
-            semCategoria: monthData.rawTxns.filter(t => !t.categoria_id).length,
+            semCategoria: monthData.noCategoryCount,
             sugeridosPendentes: monthData.pending.filter(t => t.data_status === "suggested").length,
             incompletosPendentes: monthData.pending.filter(t => t.data_status === "incomplete").length,
           },
@@ -182,10 +181,10 @@ export default function MonthlyClosing() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Fechamento Mensal" description="Revise, consolide e feche o mês" />
+      <PageHeader title="Fechamento Mensal" description="Resumo executivo, análise e consolidação do mês" />
 
       {/* Month selector */}
-      <div className="flex gap-3 items-end">
+      <div className="flex gap-3 items-end flex-wrap">
         <div className="space-y-1">
           <span className="text-xs text-muted-foreground">Mês</span>
           <Select value={String(selectedMonth)} onValueChange={v => setSelectedMonth(Number(v))}>
@@ -211,57 +210,65 @@ export default function MonthlyClosing() {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : (
+      ) : !summary ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">Nenhuma transação confirmada neste mês.</p>
+          </CardContent>
+        </Card>
+      ) : analysis && (
         <>
-          {/* Summary KPIs */}
-          {summary && (
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase">Receitas (confirmadas)</p>
-                <p className="text-xl font-bold font-mono text-[hsl(var(--success))]">{formatCurrency(summary.totalIncome)}</p>
-              </CardContent></Card>
-              <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase">Despesas (confirmadas)</p>
-                <p className="text-xl font-bold font-mono text-destructive">{formatCurrency(summary.totalExpense)}</p>
-              </CardContent></Card>
-              <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase">Saldo</p>
-                <p className={`text-xl font-bold font-mono ${summary.balance >= 0 ? "text-[hsl(var(--success))]" : "text-destructive"}`}>{formatCurrency(summary.balance)}</p>
-              </CardContent></Card>
-            </div>
-          )}
+          {/* 1. Resumo Executivo */}
+          <ClosingExecutiveSummary summary={summary} executive={analysis.executive} />
 
-          {/* Pending items */}
+          {/* 2. Confiabilidade */}
+          <ClosingReliability reliability={analysis.reliability} />
+
+          {/* 3. Desvios */}
+          <ClosingDeviations deviations={analysis.deviations} />
+
+          {/* 4. Leitura do Mês */}
+          <ClosingMonthReading reading={analysis.reading} />
+
+          {/* 5. Pendências (colapsável) */}
           {pending.length > 0 && (
             <Card className="border-[hsl(var(--warning)/0.5)]">
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />
-                  <CardTitle className="text-base">Pendências ({pending.length})</CardTitle>
+              <CardHeader className="pb-2 cursor-pointer" onClick={() => setShowPending(!showPending)}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />
+                    <CardTitle className="text-base">Pendências ({pending.length})</CardTitle>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showPending ? "rotate-180" : ""}`} />
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Estas transações NÃO estão incluídas nos valores acima. Confirme ou remova antes de fechar.
-                </p>
-                <div className="space-y-2">
-                  {pending.slice(0, 10).map(t => (
-                    <div key={t.id} className="flex items-center justify-between text-sm border-b border-border pb-2">
-                      <div className="flex items-center gap-2">
-                        <DataStatusBadge status={t.data_status || "suggested"} />
-                        <span className="truncate">{t.descricao || "Sem descrição"}</span>
+              {showPending && (
+                <CardContent>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    NÃO incluídas nos valores oficiais. Confirme antes de fechar.
+                  </p>
+                  <div className="space-y-2">
+                    {pending.slice(0, 10).map(t => (
+                      <div key={t.id} className="flex items-center justify-between text-sm border-b border-border pb-2">
+                        <div className="flex items-center gap-2">
+                          <DataStatusBadge status={t.data_status || "suggested"} />
+                          <span className="truncate">{t.descricao || "Sem descrição"}</span>
+                        </div>
+                        <span className={`font-mono ${t.tipo === "income" ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
+                          {t.tipo === "income" ? "+" : "-"}{formatCurrency(t.valor)}
+                        </span>
                       </div>
-                      <span className={`font-mono ${t.tipo === "income" ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
-                        {t.tipo === "income" ? "+" : "-"}{formatCurrency(t.valor)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
+                    ))}
+                    {pending.length > 10 && (
+                      <p className="text-xs text-muted-foreground text-center">+{pending.length - 10} pendências adicionais</p>
+                    )}
+                  </div>
+                </CardContent>
+              )}
             </Card>
           )}
 
-          {/* Budget summary */}
+          {/* 6. Orçamento resumido */}
           {budget && budget.items.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Orçamento do Mês</CardTitle></CardHeader>
@@ -287,7 +294,10 @@ export default function MonthlyClosing() {
             </Card>
           )}
 
-          {/* Closing summary if already closed */}
+          {/* 7. Foco do Próximo Mês */}
+          <ClosingNextFocus focus={analysis.focus} />
+
+          {/* 8. Resumo do fechamento (se já fechado) */}
           {closing?.resumo && (
             <Card>
               <CardHeader className="pb-2">
