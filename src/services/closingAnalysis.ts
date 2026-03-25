@@ -75,6 +75,8 @@ export function buildDeviations(
   budget: BudgetDeviationResult | null,
   pendingCount: number,
   noCategoryCount: number,
+  goals?: GoalClosingInput | null,
+  reserve?: ReserveClosingInput | null,
 ): MonthDeviation[] {
   const deviations: MonthDeviation[] = [];
 
