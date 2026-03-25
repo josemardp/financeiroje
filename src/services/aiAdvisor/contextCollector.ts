@@ -116,21 +116,21 @@ export async function getFinancialContext(
       let q = supabase.from("transactions")
         .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
         .gte("data", startOfMonth).lte("data", endOfMonth);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scope as any);
       return q;
     })(),
     (() => {
       let q = supabase.from("budgets")
         .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
         .eq("mes", mes).eq("ano", ano);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scope as any);
       return q;
     })(),
     (() => {
       let q = supabase.from("recurring_transactions")
         .select("id, descricao, valor, tipo, frequencia, dia_mes, ativa, categoria_id, scope")
         .eq("ativa", true);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scope as any);
       return q;
     })(),
     supabase.from("loans").select("*").eq("ativo", true),
@@ -384,8 +384,8 @@ export async function getFinancialContext(
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes, inconsistentes, impactoNaPrecisao },
     contas: accountsList,
-    padroesPorCategoria,
-    impactoEmMetas,
+    padroesPorCategoria: padroesPorCategoria as any,
+    impactoEmMetas: impactoEmMetas as any,
     reservaEmergencia: reserveConfigured ? {
       valor: reserveValue,
       metaMeses: reserveMonthsTarget,

@@ -47,7 +47,7 @@ export default function Transactions() {
 
       if (filterType !== "all") query = query.eq("tipo", filterType as "income" | "expense");
       if (filterScope !== "all") query = query.eq("scope", filterScope as "private" | "family" | "business");
-      if (filterStatus !== "all") query = query.eq("data_status", filterStatus);
+      if (filterStatus !== "all") query = query.eq("data_status", filterStatus as any);
       if (search) query = query.ilike("descricao", `%${search}%`);
 
       const { data } = await query;
