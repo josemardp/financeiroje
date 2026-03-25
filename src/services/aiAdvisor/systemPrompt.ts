@@ -8,7 +8,7 @@
 import type { FinancialContext } from "./contextCollector";
 
 export function buildSystemPrompt(context: FinancialContext): string {
-  const { resumoConfirmado, pendencias, qualidadeDados, reservaEmergencia, metas, alertasAtivos, scoreFinanceiro, padroesPorCategoria, impactoEmMetas } = context;
+  const { resumoConfirmado, pendencias, qualidadeDados, reservaEmergencia, alertasAtivos, scoreFinanceiro, padroesPorCategoria, impactoEmMetas } = context;
   const userIntentHint = (context as any).userIntentHint || "generic";
 
   // Normalizar score para evitar undefined
@@ -59,7 +59,7 @@ ${padroesPorCategoria && padroesPorCategoria.length > 0 ? padroesPorCategoria.sl
 
 ⚠️ ALERTAS ATIVOS:
 - Total: ${alertasAtivos.total} (${alertasAtivos.critical} críticos, ${alertasAtivos.warning} avisos)
-${(alertasAtivos as any).topAlerts?.length > 0 ? `Principais: ${(alertasAtivos as any).topAlerts.join(", ")}` : ""}
+${alertasAtivos.topAlerts?.length > 0 ? `Principais: ${alertasAtivos.topAlerts.join(", ")}` : ""}
 
 💪 SCORE: ${scoreGeral !== null ? `${scoreGeral}/100 (${scoreCategoria})` : "Não calculado"}
 🔍 INTENÇÃO DETECTADA: ${userIntentHint.toUpperCase()}
