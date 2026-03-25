@@ -126,7 +126,7 @@ export interface FinancialContext {
     nota: string;
     avisoAlucinacao: string;
   };
-  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "generic";
+  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "decision" | "generic";
   assinaturas?: {
     totalMensal: number;
     totalAnual: number;
@@ -150,6 +150,10 @@ export async function getFinancialContext(
   month?: number,
   year?: number
 ): Promise<FinancialContext> {
+  const scopeTyped = scope as "private" | "family" | "business";
+  month?: number,
+  year?: number
+): Promise<FinancialContext> {
   const now = new Date();
   const mes = month || now.getMonth() + 1;
   const ano = year || now.getFullYear();
@@ -167,7 +171,7 @@ export async function getFinancialContext(
       let q = supabase.from("transactions")
         .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
         .gte("data", startOfMonth).lte("data", endOfMonth);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
     (() => {
