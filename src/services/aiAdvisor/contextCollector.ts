@@ -390,7 +390,7 @@ export async function getFinancialContext(
           categoria,
           totalGasto: data.total,
           percentualDasDespesas,
-          statusOrcamento: isOverBudget ? "acima" : "dentro",
+          statusOrcamento: (isOverBudget ? "acima" : "dentro") as "acima" | "dentro",
           desvio: budgetItem ? ((data.total - budgetItem.valor_planejado) / budgetItem.valor_planejado) * 100 : undefined,
           isPressuring,
         };
@@ -405,7 +405,7 @@ export async function getFinancialContext(
     const isSignificant = m.progressPercent > 50;
     
     // Classificação qualitativa baseada em fatos, não em projeção temporal frágil
-    let ritmo = "inicial";
+    let ritmo: "inicial" | "em andamento" | "avançado" = "inicial";
     if (isSignificant) ritmo = "avançado";
     else if (hasProgress) ritmo = "em andamento";
     
