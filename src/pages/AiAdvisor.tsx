@@ -88,19 +88,41 @@ export default function AiAdvisor() {
     setIsStreaming(true);
 
     try {
-      // PHASE 10: Enhanced intent detection with real progress/memory mode
       const lowerInput = userText.toLowerCase();
-      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "generic" = "generic";
+      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "decision" | "generic" = "generic";
+
+      const isDecisionQuestion =
+        lowerInput.includes("posso comprar") ||
+        lowerInput.includes("devo comprar") ||
+        lowerInput.includes("vale a pena comprar") ||
+        lowerInput.includes("vale a pena gastar") ||
+        lowerInput.includes("essa compra atrapalha") ||
+        lowerInput.includes("devo priorizar") ||
+        lowerInput.includes("priorizar reserva ou meta") ||
+        lowerInput.includes("é melhor guardar caixa") ||
+        lowerInput.includes("guardar caixa ou aportar") ||
+        lowerInput.includes("devo aportar") ||
+        lowerInput.includes("devo segurar caixa") ||
+        lowerInput.includes("segurar caixa") ||
+        lowerInput.includes("vale antecipar") ||
+        lowerInput.includes("antecipar essa dívida") ||
+        lowerInput.includes("devo cortar") ||
+        lowerInput.includes("essa assinatura") ||
+        lowerInput.includes("esse custo recorrente") ||
+        lowerInput.includes("qual decisão faz mais sentido agora") ||
+        lowerInput.includes("qual faz mais sentido agora") ||
+        lowerInput.includes("o que é mais inteligente financeiramente agora") ||
+        lowerInput.includes("devo pagar isso");
       
-      // Weekly review detection
-      if (lowerInput.includes("semana") || lowerInput.includes("semanal") || lowerInput.includes("como foi minha semana") || lowerInput.includes("o que revisar esta semana") || lowerInput.includes("saindo do controle")) {
+      if (isDecisionQuestion) {
+        userIntentHint = "decision";
+      }
+      else if (lowerInput.includes("semana") || lowerInput.includes("semanal") || lowerInput.includes("como foi minha semana") || lowerInput.includes("o que revisar esta semana") || lowerInput.includes("saindo do controle")) {
         userIntentHint = "weekly_review";
       }
-      // Monthly focus detection
       else if (lowerInput.includes("mês") || lowerInput.includes("mensal") || lowerInput.includes("foco do mês") || lowerInput.includes("qual meu foco") || lowerInput.includes("prioridade agora") || lowerInput.includes("restante do mês")) {
         userIntentHint = "monthly_focus";
       }
-      // Progress detection
       else if (
         lowerInput.includes("melhorando") ||
         lowerInput.includes("avancei") ||
@@ -121,7 +143,6 @@ export default function AiAdvisor() {
       ) {
         userIntentHint = "progress";
       }
-      // Existing intents
       else if (lowerInput.includes("vermelho") || lowerInput.includes("dívida") || lowerInput.includes("gastando demais") || lowerInput.includes("organizar")) {
         userIntentHint = "escape_red";
       } else if (lowerInput.includes("meta") || lowerInput.includes("alcançar") || lowerInput.includes("acelerar")) {
@@ -136,9 +157,7 @@ export default function AiAdvisor() {
         userIntentHint = "checklist";
       }
 
-      // Collect financial context with explicit scope
       const context = await getFinancialContext(user.id, currentScope);
-      // Inject hint into context for the prompt builder
       context.userIntentHint = userIntentHint;
 
       let convId = conversationId;
@@ -164,7 +183,6 @@ export default function AiAdvisor() {
         }]);
       }
 
-      // Build system prompt with real context
       const systemPrompt = buildSystemPrompt(context);
       
       const chatMessages = [
@@ -176,7 +194,6 @@ export default function AiAdvisor() {
         { role: "user", content: userText },
       ];
 
-      // Use real user session token for auth
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
@@ -273,7 +290,6 @@ export default function AiAdvisor() {
     <div className="flex flex-col h-[calc(100vh-7rem)] animate-fade-in">
       <PageHeader title="IA Conselheira" description="Protocolo zero-alucinação — interpreta, nunca calcula">
         <div className="flex gap-2 items-center">
-          {/* Scope selector */}
           <div className="flex rounded-lg border border-border overflow-hidden">
             {(["private", "family", "business"] as const).map(scope => (
               <button
@@ -289,7 +305,6 @@ export default function AiAdvisor() {
               </button>
             ))}
           </div>
-          {/* Model selector */}
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button
               onClick={() => setCurrentModel("google/gemini-3-flash-preview")}
@@ -316,7 +331,6 @@ export default function AiAdvisor() {
         </div>
       </PageHeader>
 
-      {/* Scope indicator */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 px-1">
         <Badge variant="outline" className="text-[10px]">Escopo: {scopeLabels[currentScope]}</Badge>
         <span>A IA só responderá sobre dados do escopo selecionado.</span>
@@ -350,9 +364,9 @@ export default function AiAdvisor() {
             <div className="grid gap-2 sm:grid-cols-2 max-w-lg">
               {[
                 "Como estão minhas finanças este mês?",
-                "Qual minha maior despesa?",
-                "Tenho alguma dívida preocupante?",
-                "Como posso economizar mais?",
+                "Posso comprar isso agora?",
+                "Devo priorizar reserva ou meta?",
+                "Devo cortar essa assinatura?",
               ].map((q) => (
                 <Button key={q} variant="outline" size="sm" className="text-left h-auto py-2 px-3"
                   onClick={() => { setInput(q); }}>
