@@ -94,6 +94,7 @@ function AppRoutes() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+        <ScopeProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -101,7 +102,8 @@ const App = () => (
           <AppRoutes />
         </BrowserRouter>
       </TooltipProvider>
-    </AuthProvider>
+    </ScopeProvider>
+      </AuthProvider>
   </QueryClientProvider>
 );
 
