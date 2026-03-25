@@ -27,6 +27,10 @@ import { ClosingNextFocus } from "@/components/closing/ClosingNextFocus";
 import { formatCurrency, formatMonthYear } from "@/lib/format";
 import { toast } from "sonner";
 import { Lock, Unlock, AlertTriangle, Loader2, FileText, ChevronDown } from "lucide-react";
+import { analyzeDataQuality } from "@/services/dataQuality";
+import { QualityCenter } from "@/components/closing/QualityCenter";
+import { PeriodStatus } from "@/components/closing/PeriodStatus";
+import { AuditTrail } from "@/components/closing/AuditTrail";
 
 export default function MonthlyClosing() {
   const { user, profile } = useAuth();
@@ -47,6 +51,22 @@ export default function MonthlyClosing() {
         .eq("ano", selectedYear)
         .maybeSingle();
       return data;
+    },
+    enabled: !!user,
+  });
+
+  // Fetch audit trail
+  const { data: auditTrail = [] } = useQuery({
+    queryKey: ["audit-trail", selectedMonth, selectedYear],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .in("context", ["Fechamento Mensal Realizado", "Reabertura de Período Auditada"])
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!user,
   });
@@ -213,6 +233,35 @@ export default function MonthlyClosing() {
   const pending = monthData?.pending || [];
   const budget = monthData?.budget;
 
+  // Analyze data quality
+  const dataQualityReport = monthData ? analyzeDataQuality({
+    transactions: monthData.rawTxns.map(t => ({
+      id: t.id,
+      descricao: t.descricao,
+      categoria_id: t.categoria_id,
+      data_status: t.data_status,
+      valor: t.valor,
+      tipo: t.tipo,
+      data: t.data,
+    })),
+    budgets: monthData.budgets,
+    recurringTransactions: [],
+    goals: [],
+    loans: [],
+    documents: [],
+  }) : null;
+
+  // Period lock info
+  const periodLockInfo = {
+    period: { month: selectedMonth, year: selectedYear },
+    status: (closing?.status || "open") as "open" | "reviewing" | "closed",
+    isLocked: closing?.status === "closed",
+    closedAt: closing?.fechado_em,
+    closedBy: closing?.fechado_por,
+    reopenedAt: closing?.reaberto_em,
+    reopenedBy: closing?.reaberto_por,
+  };
+
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const years = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
@@ -255,6 +304,26 @@ export default function MonthlyClosing() {
         </Card>
       ) : analysis && (
         <>
+          {/* Period Status */}
+          <PeriodStatus 
+            lockInfo={periodLockInfo} 
+            onReopenClick={() => reopenMutation.mutate()}
+            canReopen={isClosed}
+          />
+          {/* Quality Center */}
+          {dataQualityReport && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Centro de Qualidade de Dados
+              </h3>
+              <QualityCenter 
+                report={dataQualityReport}
+                onActionClick={(route) => window.location.href = route}
+              />
+            </div>
+          )}
+
           {/* 1. Resumo Executivo */}
           <ClosingExecutiveSummary summary={summary} executive={analysis.executive} />
 
@@ -354,10 +423,13 @@ export default function MonthlyClosing() {
             </Card>
           )}
 
+          {/* Audit Trail */}
+          <AuditTrail entries={auditTrail} isLoading={false} />
+
           {/* Actions */}
           <div className="flex gap-3">
             {!isClosed ? (
-              <Button onClick={() => closeMutation.mutate()} disabled={closeMutation.isPending || !summary}>
+              <Button onClick={() => closeMutation.mutate()} disabled={closeMutation.isPending || !summary || (dataQualityReport?.criticalCount ?? 0) > 0}>
                 {closeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
                 Fechar mês
               </Button>
