@@ -88,8 +88,26 @@ export default function AiAdvisor() {
     setIsStreaming(true);
 
     try {
+      // PHASE 6: Simple intent detection (heuristic)
+      const lowerInput = userText.toLowerCase();
+      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "generic" = "generic";
+      
+      if (lowerInput.includes("vermelho") || lowerInput.includes("dívida") || lowerInput.includes("gastando demais") || lowerInput.includes("organizar")) {
+        userIntentHint = "escape_red";
+      } else if (lowerInput.includes("meta") || lowerInput.includes("alcançar") || lowerInput.includes("acelerar")) {
+        userIntentHint = "goal";
+      } else if (lowerInput.includes("reserva") || lowerInput.includes("protegido") || lowerInput.includes("emergência")) {
+        userIntentHint = "reserve";
+      } else if (lowerInput.includes("comprar") || lowerInput.includes("vale a pena") || lowerInput.includes("posso")) {
+        userIntentHint = "purchase";
+      } else if (lowerInput.includes("cortar") || lowerInput.includes("errando") || lowerInput.includes("atacar")) {
+        userIntentHint = "cutting";
+      }
+
       // Collect financial context with explicit scope
       const context = await getFinancialContext(user.id, currentScope);
+      // Inject hint into context for the prompt builder
+      (context as any).userIntentHint = userIntentHint;
 
       let convId = conversationId;
       if (!convId) {

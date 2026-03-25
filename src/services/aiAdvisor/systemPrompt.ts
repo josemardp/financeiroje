@@ -9,6 +9,7 @@ import type { FinancialContext } from "./contextCollector";
 
 export function buildSystemPrompt(context: FinancialContext): string {
   const { resumoConfirmado, pendencias, qualidadeDados, reservaEmergencia, metas, alertasAtivos, scoreFinanceiro, padroesPorCategoria, impactoEmMetas } = context;
+  const userIntentHint = (context as any).userIntentHint || "generic";
 
   // Normalizar score para evitar undefined
   const scoreGeral = scoreFinanceiro?.scoreGeral ?? null;
@@ -52,16 +53,18 @@ ${reservaEmergencia ? `
 🎯 RITMO DAS METAS:
 ${impactoEmMetas && impactoEmMetas.length > 0 ? impactoEmMetas.map(i => `- ${i.metaNome}: ${i.progressoAtual.toFixed(1)}% (${i.ritmo.toUpperCase()}). Acumulado R$ ${i.acumulado.toFixed(2)}, falta R$ ${i.faltante.toFixed(2)}.`).join("\n") : "- Nenhuma meta ativa."}
 
-📊 CONCENTRAÇÃO DE GASTOS (TOP 5):
-${padroesPorCategoria && padroesPorCategoria.length > 0 ? padroesPorCategoria.slice(0, 5).map(p => `- ${p.categoria}: R$ ${p.totalGasto.toFixed(2)} (${p.percentualDasDespesas.toFixed(1)}% do total) - ${p.statusOrcamento === "acima" ? "🔴 ACIMA" : "🟢 OK"}`).join("\n") : "- Sem categorias."}
+📊 ANÁLISE DE CATEGORIAS (TOP 5):
+${padroesPorCategoria && padroesPorCategoria.length > 0 ? padroesPorCategoria.slice(0, 5).map(p => `- ${p.categoria}: R$ ${p.totalGasto.toFixed(2)} (${p.percentualDasDespesas.toFixed(1)}% do total) - ${p.statusOrcamento === "acima" ? "🔴 ACIMA" : "🟢 OK"} ${p.isPressuring ? "⚠️ PRESSIONA MÊS" : ""}`).join("\n") : "- Sem categorias."}
 
-⚠️ ALERTAS:
+⚠️ ALERTAS ATIVOS:
 - Total: ${alertasAtivos.total} (${alertasAtivos.critical} críticos, ${alertasAtivos.warning} avisos)
+${(alertasAtivos as any).topAlerts?.length > 0 ? `Principais: ${(alertasAtivos as any).topAlerts.join(", ")}` : ""}
 
 💪 SCORE: ${scoreGeral !== null ? `${scoreGeral}/100 (${scoreCategoria})` : "Não calculado"}
+🔍 INTENÇÃO DETECTADA: ${userIntentHint.toUpperCase()}
 
-MODO DE RESPOSTA (DETECÇÃO DE CENÁRIO):
-Identifique a intenção do usuário e use a estrutura correspondente:
+MODO DE RESPOSTA (DIRETRIZ DE CENÁRIO):
+O sistema detectou a intenção [${userIntentHint.toUpperCase()}]. Priorize a estrutura correspondente, mas ajuste se a pergunta real for diferente:
 
 ### CENÁRIO 1: SAIR DO VERMELHO / ORGANIZAR
 (Para perguntas sobre: dívidas, gastando demais, organizar, fechar o mês)
