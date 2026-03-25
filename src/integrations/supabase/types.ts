@@ -133,6 +133,7 @@ export type Database = {
           lido: boolean | null
           mensagem: string
           nivel: Database["public"]["Enums"]["alert_level"] | null
+          scope: Database["public"]["Enums"]["scope_type"] | null
           tipo: string
           titulo: string
           user_id: string
@@ -145,6 +146,7 @@ export type Database = {
           lido?: boolean | null
           mensagem: string
           nivel?: Database["public"]["Enums"]["alert_level"] | null
+          scope?: Database["public"]["Enums"]["scope_type"] | null
           tipo: string
           titulo: string
           user_id: string
@@ -157,6 +159,7 @@ export type Database = {
           lido?: boolean | null
           mensagem?: string
           nivel?: Database["public"]["Enums"]["alert_level"] | null
+          scope?: Database["public"]["Enums"]["scope_type"] | null
           tipo?: string
           titulo?: string
           user_id?: string
