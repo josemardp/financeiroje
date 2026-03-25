@@ -143,7 +143,7 @@ export default function AiAdvisor() {
           user_id: user.id,
           role: "user" as const,
           content: userText,
-          contexto_enviado: context,
+          contexto_enviado: context as any,
         }]);
       }
 
