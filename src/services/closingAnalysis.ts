@@ -206,6 +206,8 @@ export function buildMonthReading(
   summary: MonthlySummary,
   budget: BudgetDeviationResult | null,
   pendingCount: number,
+  goals?: GoalClosingInput | null,
+  reserve?: ReserveClosingInput | null,
 ): MonthReading {
   let positivePoint: string | null = null;
   let attentionPoint: string | null = null;
