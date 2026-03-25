@@ -1,5 +1,5 @@
 /**
- * FinanceAI — Fase 10 — Coleta de Contexto para IA Conselheira
+ * FinanceAI — Fase 11 — Coleta de Contexto para IA Conselheira
  * 
  * Responsabilidade: coletar dados financeiros reais do usuário
  * e montar um payload estruturado para envio à IA.
@@ -70,6 +70,31 @@ interface ProgressMemory {
   repeated: ProgressSignal[];
 }
 
+interface SubscriptionDecisionItem {
+  nome: string;
+  valorMensal: number;
+}
+
+interface SubscriptionSummary {
+  totalAtivas: number;
+  totalMensal: number;
+  principais: SubscriptionDecisionItem[];
+}
+
+interface DecisionGuidance {
+  prioridadeAtual: "protect_cash" | "advance_goal" | "review_recurring_costs" | "stabilize_month";
+  pressaoDoMes: "low" | "medium" | "high";
+  protegerCaixaAgora: boolean;
+  reservaDeveVirAntes: boolean;
+  sensibilidadeCompra: "low" | "medium" | "high";
+  pressaoCustoRecorrente: "low" | "medium" | "high";
+  cuidadoAntecipacaoDivida: "low" | "medium" | "high";
+  principalMotivo: string;
+  topMetaEmRisco: { nome: string; progressoAtual: number; faltante: number } | null;
+  sinais: string[];
+  oQueMudaria: string[];
+}
+
 export interface FinancialContext {
   periodo: { mes: number; ano: number };
   escopo: string;
@@ -117,6 +142,8 @@ export interface FinancialContext {
     hasProgress: boolean;
   }>;
   progressoMemoria: ProgressMemory;
+  assinaturasResumo: SubscriptionSummary | null;
+  decisaoGuiada: DecisionGuidance;
   preferenciasUsuario: Record<string, unknown>;
   metadados: {
     dataColeta: string;
@@ -124,7 +151,7 @@ export interface FinancialContext {
     nota: string;
     avisoAlucinacao: string;
   };
-  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "generic";
+  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "decision" | "generic";
 }
 
 export async function getFinancialContext(
@@ -145,13 +172,12 @@ export async function getFinancialContext(
   const prevStart = new Date(previousYear, previousMonth - 1, 1).toISOString().split("T")[0];
   const prevEnd = new Date(previousYear, previousMonth, 0).toISOString().split("T")[0];
 
-  // Fetch all data in parallel
   const [
     txResult, budgetResult, recurringResult, loanResult,
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
-    accountTxResult, prevTxResult, prevBudgetResult, prevHealthScoreResult,
-    lastReviewResult,
+    subscriptionsResult, accountTxResult, prevTxResult, prevBudgetResult,
+    prevHealthScoreResult, lastReviewResult,
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
@@ -183,6 +209,13 @@ export async function getFinancialContext(
     supabase.from("family_values").select("descricao"),
     supabase.from("accounts").select("*").eq("ativa", true),
     supabase.from("profiles").select("preferences").eq("user_id", userId).single(),
+    (() => {
+      let q = supabase.from("subscriptions")
+        .select("nome_servico, valor_mensal, status, scope")
+        .eq("status", "active");
+      if (scope !== "all") q = q.eq("scope", scope as any);
+      return q;
+    })(),
     supabase.from("transactions")
       .select("account_id, tipo, valor, data_status")
       .not("account_id", "is", null)
@@ -205,7 +238,6 @@ export async function getFinancialContext(
     supabase.from("ai_messages").select("created_at, contexto_enviado").eq("user_id", userId).eq("role", "user").not("contexto_enviado", "is", null).order("created_at", { ascending: false }).limit(20),
   ]);
 
-  // Map raw data
   const rawTransactions: TransactionRaw[] = (txResult.data || []).map((t: any) => ({
     id: t.id,
     valor: Number(t.valor),
@@ -234,44 +266,74 @@ export async function getFinancialContext(
   }));
 
   const recurrings: RecurringRaw[] = (recurringResult.data || []).map((r: any) => ({
-    id: r.id, descricao: r.descricao, valor: Number(r.valor), tipo: r.tipo,
-    frequencia: r.frequencia, dia_mes: r.dia_mes, ativa: r.ativa,
-    categoria_id: r.categoria_id, scope: r.scope,
+    id: r.id,
+    descricao: r.descricao,
+    valor: Number(r.valor),
+    tipo: r.tipo,
+    frequencia: r.frequencia,
+    dia_mes: r.dia_mes,
+    ativa: r.ativa,
+    categoria_id: r.categoria_id,
+    scope: r.scope,
   }));
 
   const loans: LoanRaw[] = (loanResult.data || []).map((l: any) => ({
-    id: l.id, nome: l.nome, valor_original: Number(l.valor_original),
+    id: l.id,
+    nome: l.nome,
+    valor_original: Number(l.valor_original),
     saldo_devedor: l.saldo_devedor ? Number(l.saldo_devedor) : null,
     taxa_juros_mensal: l.taxa_juros_mensal ? Number(l.taxa_juros_mensal) : null,
     cet_anual: l.cet_anual ? Number(l.cet_anual) : null,
-    parcelas_total: l.parcelas_total, parcelas_restantes: l.parcelas_restantes,
+    parcelas_total: l.parcelas_total,
+    parcelas_restantes: l.parcelas_restantes,
     valor_parcela: l.valor_parcela ? Number(l.valor_parcela) : null,
-    metodo_amortizacao: l.metodo_amortizacao, tipo: l.tipo,
-    credor: l.credor, data_inicio: l.data_inicio, ativo: l.ativo,
+    metodo_amortizacao: l.metodo_amortizacao,
+    tipo: l.tipo,
+    credor: l.credor,
+    data_inicio: l.data_inicio,
+    ativo: l.ativo,
   }));
 
   const installments: InstallmentRaw[] = (installmentResult.data || []).map((i: any) => ({
-    id: i.id, emprestimo_id: i.emprestimo_id, numero: i.numero,
-    valor: Number(i.valor), data_vencimento: i.data_vencimento,
-    data_pagamento: i.data_pagamento, status: i.status,
+    id: i.id,
+    emprestimo_id: i.emprestimo_id,
+    numero: i.numero,
+    valor: Number(i.valor),
+    data_vencimento: i.data_vencimento,
+    data_pagamento: i.data_pagamento,
+    status: i.status,
   }));
 
   const amortizations: ExtraAmortizationRaw[] = (amortResult.data || []).map((a: any) => ({
-    id: a.id, emprestimo_id: a.emprestimo_id, valor: Number(a.valor),
-    data: a.data, economia_juros_calculada: a.economia_juros_calculada ? Number(a.economia_juros_calculada) : null,
+    id: a.id,
+    emprestimo_id: a.emprestimo_id,
+    valor: Number(a.valor),
+    data: a.data,
+    economia_juros_calculada: a.economia_juros_calculada ? Number(a.economia_juros_calculada) : null,
   }));
 
   const goals: GoalRaw[] = (goalResult.data || []).map((g: any) => ({
-    id: g.id, nome: g.nome, valor_alvo: Number(g.valor_alvo),
+    id: g.id,
+    nome: g.nome,
+    valor_alvo: Number(g.valor_alvo),
     valor_atual: g.valor_atual ? Number(g.valor_atual) : null,
-    prazo: g.prazo, prioridade: g.prioridade, ativo: g.ativo,
+    prazo: g.prazo,
+    prioridade: g.prioridade,
+    ativo: g.ativo,
   }));
 
   const contributions: GoalContributionRaw[] = (contribResult.data || []).map((c: any) => ({
-    id: c.id, goal_id: c.goal_id, valor: Number(c.valor), data: c.data,
+    id: c.id,
+    goal_id: c.goal_id,
+    valor: Number(c.valor),
+    data: c.data,
   }));
 
-  // Engine calculations — all deterministic
+  const subscriptions = (subscriptionsResult.data || []).map((s: any) => ({
+    nome: s.nome_servico,
+    valorMensal: Number(s.valor_mensal || 0),
+  }));
+
   const officialTxns = filterOfficialTransactions(rawTransactions);
   const pendingTxns = filterPendingTransactions(rawTransactions);
   const resumoMensal = rawTransactions.length > 0 ? calculateMonthlySummary(rawTransactions) : null;
@@ -287,7 +349,6 @@ export async function getFinancialContext(
 
   const metas = calculateGoalProgress(goals, contributions);
 
-  // Forecast — uses balance from confirmed data
   const saldoAtual = resumoConfirmado ? resumoConfirmado.balance : 0;
   const previsaoCaixa = recurrings.length > 0 || installments.length > 0
     ? calculateCashflowForecast({
@@ -298,20 +359,17 @@ export async function getFinancialContext(
       })
     : null;
 
-  // Health score
   const overdueInstallments = installments.filter(
     (i) => i.status !== "pago" && new Date(i.data_vencimento) < now
   ).length;
 
   const hasBudget = budgets.length > 0;
 
-  // User preferences & reserve
   const userPrefs = (profileResult.data?.preferences || {}) as Record<string, any>;
   const reserveValue = Number(userPrefs.reserva_emergencia_valor || 0);
   const reserveMonthsTarget = Number(userPrefs.reserva_emergencia_meses_meta || 6);
   const reserveConfigured = reserveValue > 0;
 
-  // HARDENING: Reserve coverage uses EXPENSE, not income
   const despesaMensalRef = resumoConfirmado?.totalExpense || 0;
   const reservaEmergencia = reserveConfigured ? {
     valor: reserveValue,
@@ -337,7 +395,6 @@ export async function getFinancialContext(
       })
     : null;
 
-  // Accounts — real balance = saldo_inicial + confirmed transactions
   const accountTxnMap: Record<string, number> = {};
   (accountTxResult.data || []).forEach((t: any) => {
     const id = t.account_id;
@@ -352,18 +409,16 @@ export async function getFinancialContext(
     saldo_atual: Number(a.saldo_inicial) + (accountTxnMap[a.id] || 0),
   }));
 
-  // Data quality quick scan
   const semCategoria = rawTransactions.filter((t) => !t.categoria_id).length;
   const sugeridosPendentes = pendingTxns.filter((t) => t.data_status === "suggested").length;
   const incompletosPendentes = pendingTxns.filter((t) => t.data_status === "incomplete").length;
   const inconsistentes = pendingTxns.filter((t) => t.data_status === "inconsistent").length;
   const totalQualityIssues = semCategoria + sugeridosPendentes + incompletosPendentes + inconsistentes;
-  const impactoNaPrecisao: "baixo" | "medio" | "alto" = 
-    totalQualityIssues === 0 ? "baixo" : 
-    totalQualityIssues < 5 ? "medio" : 
+  const impactoNaPrecisao: "baixo" | "medio" | "alto" =
+    totalQualityIssues === 0 ? "baixo" :
+    totalQualityIssues < 5 ? "medio" :
     "alto";
 
-  // Padrões por categoria (análise de concentração de gastos)
   const padroesPorCategoria = officialTxns.length > 0
     ? Object.entries(
         officialTxns.reduce((acc, t) => {
@@ -374,12 +429,12 @@ export async function getFinancialContext(
           return acc;
         }, {} as Record<string, { total: number; count: number }>)
       ).map(([categoria, data]) => {
-        const budgetItem = budgets.find(b => b.categoria_nome === categoria);
+        const budgetItem = budgets.find((b) => b.categoria_nome === categoria);
         const totalExpenses = resumoConfirmado?.totalExpense || 1;
         const isOverBudget = budgetItem && data.total > budgetItem.valor_planejado;
         const percentualDasDespesas = (data.total / totalExpenses) * 100;
-        
-        const isPressuring = isOverBudget || percentualDasDespesas > 20;
+
+        const isPressuring = Boolean(isOverBudget) || percentualDasDespesas > 20;
 
         return {
           categoria,
@@ -393,26 +448,39 @@ export async function getFinancialContext(
       .sort((a, b) => b.totalGasto - a.totalGasto)
     : [];
 
-  // Impacto em metas (ritmo qualitativo e honesto)
-  const impactoEmMetas = metas.map(m => {
+  const impactoEmMetas = metas.map((m) => {
     const hasProgress = m.totalContributed > 0;
     const isNew = m.progressPercent < 5;
     const isSignificant = m.progressPercent > 50;
-    
+
     let ritmo: "inicial" | "em andamento" | "avançado" = "inicial";
     if (isSignificant) ritmo = "avançado";
     else if (hasProgress) ritmo = "em andamento";
-    
-    return { 
-      metaNome: m.goalName, 
+
+    return {
+      metaNome: m.goalName,
       progressoAtual: m.progressPercent,
       ritmo,
       acumulado: m.totalContributed,
       faltante: m.remainingAmount,
       isNew,
-      hasProgress
+      hasProgress,
     };
   });
+
+  const alertasAtivos = {
+    total: alertResult.data?.length || 0,
+    critical: (alertResult.data || []).filter((a) => a.nivel === "critical").length,
+    warning: (alertResult.data || []).filter((a) => a.nivel === "warning").length,
+    info: (alertResult.data || []).filter((a) => a.nivel === "info").length,
+    topAlerts: (alertResult.data || []).slice(0, 3).map((a) => a.titulo),
+  };
+
+  const assinaturasResumo: SubscriptionSummary | null = subscriptions.length > 0 ? {
+    totalAtivas: subscriptions.length,
+    totalMensal: subscriptions.reduce((sum, item) => sum + item.valorMensal, 0),
+    principais: [...subscriptions].sort((a, b) => b.valorMensal - a.valorMensal).slice(0, 3),
+  } : null;
 
   const prevRawTransactions: TransactionRaw[] = (prevTxResult.data || []).map((t: any) => ({
     id: t.id,
@@ -470,7 +538,7 @@ export async function getFinancialContext(
     pendenciasCount: pendingTxns.length,
     coberturaReservaMeses: reservaEmergencia?.coberturaMeses ?? null,
     taxaEconomia: resumoConfirmado?.savingsRate ?? null,
-    metasComProgresso: impactoEmMetas.filter(m => m.hasProgress).map(m => ({ nome: m.metaNome, progressoPercent: m.progressoAtual })),
+    metasComProgresso: impactoEmMetas.filter((m) => m.hasProgress).map((m) => ({ nome: m.metaNome, progressoPercent: m.progressoAtual })),
   };
 
   const recentPeriodSnapshot: ProgressSnapshot | null = (prevResumoConfirmado || prevPendingTxns.length > 0 || prevScore !== null)
@@ -512,6 +580,20 @@ export async function getFinancialContext(
     lastReview: lastReviewSnapshot,
   });
 
+  const decisaoGuiada = buildDecisionGuidance({
+    resumoConfirmado,
+    orcamento,
+    alertasAtivos,
+    pendenciasCount: pendingTxns.length,
+    reservaEmergencia,
+    impactoEmMetas,
+    assinaturasResumo,
+    scoreFinanceiro,
+    padroesPorCategoria,
+    overdueInstallments,
+    dividas,
+  });
+
   return {
     periodo: { mes, ano },
     escopo: scope,
@@ -532,26 +614,22 @@ export async function getFinancialContext(
     previsaoCaixa,
     scoreFinanceiro,
     recorrenciasAtivas: recurrings.length,
-    alertasAtivos: {
-      total: alertResult.data?.length || 0,
-      critical: (alertResult.data || []).filter(a => a.nivel === "critical").length,
-      warning: (alertResult.data || []).filter(a => a.nivel === "warning").length,
-      info: (alertResult.data || []).filter(a => a.nivel === "info").length,
-      topAlerts: (alertResult.data || []).slice(0, 3).map(a => a.titulo),
-    },
+    alertasAtivos,
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes, inconsistentes, impactoNaPrecisao },
     contas: accountsList,
     padroesPorCategoria: padroesPorCategoria as any,
     impactoEmMetas: impactoEmMetas as any,
     progressoMemoria: progressoMemoria as any,
+    assinaturasResumo,
+    decisaoGuiada,
     reservaEmergencia,
     preferenciasUsuario: userPrefs,
     userIntentHint: "generic",
     metadados: {
       dataColeta: now.toISOString(),
-      versaoEngine: "10.0-progress-memory",
-      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmed + null (default oficial). A leitura de progresso compara o agora com período recente e última revisão quando houver base real.",
+      versaoEngine: "11.0-guided-decision",
+      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmed + null (default oficial). A decisão guiada usa sinais já existentes do mês, metas, alertas, reserva, score, recorrências e assinaturas ativas quando houver.",
       avisoAlucinacao: `PROTOCOLO ZERO-ALUCINAÇÃO: Esta IA foi treinada para NUNCA inventar dados. Se um valor não estiver neste contexto, ela não o criará. Se a qualidade dos dados for '${impactoNaPrecisao}', ela alertará o usuário. Sempre ancore as respostas nos números reais acima.`,
     },
   };
@@ -700,6 +778,109 @@ function buildProgressMemory(input: {
   };
 }
 
+function buildDecisionGuidance(input: {
+  resumoConfirmado: MonthlySummary | null;
+  orcamento: BudgetDeviationResult | null;
+  alertasAtivos: { total: number; critical: number; warning: number; info: number; topAlerts: string[] };
+  pendenciasCount: number;
+  reservaEmergencia: FinancialContext["reservaEmergencia"];
+  impactoEmMetas: FinancialContext["impactoEmMetas"];
+  assinaturasResumo: SubscriptionSummary | null;
+  scoreFinanceiro: HealthScoreResult | null;
+  padroesPorCategoria: FinancialContext["padroesPorCategoria"];
+  overdueInstallments: number;
+  dividas: LoanSummary | null;
+}): DecisionGuidance {
+  let pressureScore = 0;
+  if ((input.resumoConfirmado?.balance ?? 0) < 0) pressureScore += 2;
+  if ((input.resumoConfirmado?.savingsRate ?? 0) <= 0) pressureScore += 1;
+  if ((input.orcamento?.totalDeviationPercent ?? 0) > 0) pressureScore += 1;
+  if (input.alertasAtivos.critical > 0) pressureScore += 1;
+  if (input.reservaEmergencia?.statusMeta === "abaixo") pressureScore += 1;
+  if ((input.scoreFinanceiro?.scoreGeral ?? 100) < 60) pressureScore += 1;
+
+  const pressaoDoMes: DecisionGuidance["pressaoDoMes"] = pressureScore >= 4 ? "high" : pressureScore >= 2 ? "medium" : "low";
+  const topMetaEmRisco = [...input.impactoEmMetas]
+    .filter((meta) => meta.progressoAtual < 80)
+    .sort((a, b) => a.progressoAtual - b.progressoAtual)[0];
+
+  const protegerCaixaAgora =
+    pressaoDoMes === "high" ||
+    (input.reservaEmergencia?.statusMeta === "abaixo" && (input.alertasAtivos.critical > 0 || (input.resumoConfirmado?.balance ?? 0) <= 0));
+
+  const reservaDeveVirAntes =
+    input.reservaEmergencia?.statusMeta === "abaixo" && (pressaoDoMes !== "low" || input.alertasAtivos.critical > 0);
+
+  const sensibilidadeCompra: DecisionGuidance["sensibilidadeCompra"] = protegerCaixaAgora
+    ? "high"
+    : input.pendenciasCount > 0 || pressaoDoMes === "medium" || input.padroesPorCategoria.some((item) => item.isPressuring)
+    ? "medium"
+    : "low";
+
+  const pressaoCustoRecorrente: DecisionGuidance["pressaoCustoRecorrente"] =
+    input.assinaturasResumo && input.assinaturasResumo.totalAtivas > 0
+      ? protegerCaixaAgora || pressaoDoMes === "high"
+        ? "high"
+        : pressaoDoMes === "medium"
+        ? "medium"
+        : "low"
+      : "low";
+
+  const cuidadoAntecipacaoDivida: DecisionGuidance["cuidadoAntecipacaoDivida"] =
+    input.overdueInstallments > 0 || protegerCaixaAgora || input.reservaEmergencia?.statusMeta === "abaixo"
+      ? "high"
+      : input.dividas?.totalSaldoDevedor
+      ? "medium"
+      : "low";
+
+  let prioridadeAtual: DecisionGuidance["prioridadeAtual"] = "stabilize_month";
+  if (protegerCaixaAgora || reservaDeveVirAntes) prioridadeAtual = "protect_cash";
+  else if (pressaoCustoRecorrente === "high") prioridadeAtual = "review_recurring_costs";
+  else if (topMetaEmRisco) prioridadeAtual = "advance_goal";
+
+  const sinais: string[] = [];
+  if ((input.resumoConfirmado?.balance ?? 0) < 0) sinais.push("O mês confirmado está negativo.");
+  if (input.reservaEmergencia?.statusMeta === "abaixo") sinais.push("A reserva ainda está abaixo da meta configurada.");
+  if (input.alertasAtivos.critical > 0) sinais.push(`Há ${input.alertasAtivos.critical} alerta(s) crítico(s) ativo(s).`);
+  if (topMetaEmRisco) sinais.push(`A meta mais sensível agora é "${topMetaEmRisco.metaNome}".`);
+  if (pressaoCustoRecorrente !== "low" && input.assinaturasResumo) sinais.push(`Assinaturas ativas somam R$ ${input.assinaturasResumo.totalMensal.toFixed(2)} por mês.`);
+  if (sinais.length === 0) sinais.push("O mês atual não mostra sinal forte de pressão crítica.");
+
+  let principalMotivo = "Hoje a leitura do mês está relativamente estável.";
+  if (prioridadeAtual === "protect_cash") {
+    principalMotivo = "Com os dados atuais, proteger caixa é mais importante do que adicionar novo compromisso.";
+  } else if (prioridadeAtual === "review_recurring_costs") {
+    principalMotivo = "Os custos recorrentes merecem revisão antes de ampliar gastos opcionais.";
+  } else if (prioridadeAtual === "advance_goal") {
+    principalMotivo = `Há espaço maior para priorizar a meta "${topMetaEmRisco?.metaNome || "principal"}" do que abrir outro peso agora.`;
+  }
+
+  const oQueMudaria = [
+    input.pendenciasCount > 0 ? "Com as pendências resolvidas, a leitura da decisão ficaria mais confiável." : null,
+    input.reservaEmergencia?.statusMeta === "abaixo" ? "Se a reserva estivesse no nível configurado, a decisão ficaria menos conservadora." : null,
+    topMetaEmRisco ? `Se a meta "${topMetaEmRisco.metaNome}" deixasse de estar pressionada, sobraria mais espaço para outra prioridade.` : null,
+    pressaoDoMes === "high" ? "Se o mês deixasse de estar pressionado, a decisão poderia aceitar mais risco." : null,
+  ].filter(Boolean).slice(0, 2) as string[];
+
+  return {
+    prioridadeAtual,
+    pressaoDoMes,
+    protegerCaixaAgora,
+    reservaDeveVirAntes,
+    sensibilidadeCompra,
+    pressaoCustoRecorrente,
+    cuidadoAntecipacaoDivida,
+    principalMotivo,
+    topMetaEmRisco: topMetaEmRisco ? {
+      nome: topMetaEmRisco.metaNome,
+      progressoAtual: topMetaEmRisco.progressoAtual,
+      faltante: topMetaEmRisco.faltante,
+    } : null,
+    sinais,
+    oQueMudaria,
+  };
+}
+
 function compareGoals(
   current: Array<{ nome: string; progressoPercent: number }>,
   previous: Array<{ nome: string; progressoPercent: number }>
@@ -707,7 +888,7 @@ function compareGoals(
   const improved: ProgressSignal[] = [];
   const repeated: ProgressSignal[] = [];
 
-  const previousMap = new Map(previous.map(item => [item.nome, item.progressoPercent]));
+  const previousMap = new Map(previous.map((item) => [item.nome, item.progressoPercent]));
   current.forEach((goal) => {
     const previousValue = previousMap.get(goal.nome);
     if (previousValue === undefined) return;
