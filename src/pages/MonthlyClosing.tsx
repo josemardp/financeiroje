@@ -101,14 +101,36 @@ export default function MonthlyClosing() {
   // Derived analysis (pure, memoized)
   const analysis = useMemo(() => {
     if (!monthData?.summary) return null;
-    const { summary, budget, pending, noCategoryCount, rawTxns } = monthData;
+    const { summary, budget, pending, noCategoryCount, rawTxns, goalProgress } = monthData;
+
+    // Goals closing input
+    const goalsInput: GoalClosingInput | null = goalProgress.length > 0 ? {
+      totalActive: goalProgress.length,
+      atRisk: goalProgress
+        .filter(g => !g.isOnTrack && g.progressPercent < 80)
+        .sort((a, b) => a.progressPercent - b.progressPercent)
+        .slice(0, 2)
+        .map(g => ({ name: g.goalName, progressPercent: g.progressPercent, monthlyNeeded: g.monthlyContributionNeeded })),
+    } : null;
+
+    // Reserve closing input
+    const prefs = (profile?.preferences || {}) as any;
+    const reserveValue = Number(prefs.reserva_emergencia_valor) || 0;
+    const targetMonths = Number(prefs.reserva_emergencia_meses_meta) || 6;
+    const reserveConfigured = reserveValue > 0 || targetMonths > 0;
+    const monthlyExpense = summary.totalExpense;
+    const coverageMonths = monthlyExpense > 0 ? reserveValue / monthlyExpense : 0;
+    const reserveInput: ReserveClosingInput | null = reserveConfigured ? {
+      currentValue: reserveValue, targetMonths, monthlyExpense, coverageMonths, configured: true,
+    } : null;
+
     const executive = buildExecutiveSummary(summary);
-    const deviations = buildDeviations(summary, budget, pending.length, noCategoryCount);
+    const deviations = buildDeviations(summary, budget, pending.length, noCategoryCount, goalsInput, reserveInput);
     const reliability = buildReliability(rawTxns.length, pending.length, noCategoryCount);
-    const reading = buildMonthReading(summary, budget, pending.length);
-    const focus = buildNextMonthFocus(summary, budget, pending.length, reliability);
+    const reading = buildMonthReading(summary, budget, pending.length, goalsInput, reserveInput);
+    const focus = buildNextMonthFocus(summary, budget, pending.length, reliability, goalsInput, reserveInput);
     return { executive, deviations, reliability, reading, focus };
-  }, [monthData]);
+  }, [monthData, profile]);
 
   const closeMutation = useMutation({
     mutationFn: async () => {
