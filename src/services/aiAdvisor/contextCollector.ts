@@ -90,7 +90,7 @@ export interface FinancialContext {
     nota: string;
     avisoAlucinacao: string;
   };
-  userIntentHint?: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "generic";
+  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "generic";
 }
 
 export async function getFinancialContext(
@@ -394,6 +394,7 @@ export async function getFinancialContext(
       statusMeta: !despesaMensalRef ? "ok" : reserveValue < (despesaMensalRef * reserveMonthsTarget) ? "abaixo" : "acima",
     } : null,
     preferenciasUsuario: userPrefs,
+    userIntentHint: "generic",
     metadados: {
       dataColeta: now.toISOString(),
       versaoEngine: "4.2-final",
