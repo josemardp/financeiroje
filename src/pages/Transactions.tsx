@@ -213,6 +213,16 @@ export default function Transactions() {
                         <span className="text-xs text-muted-foreground">{formatDate(t.data)}</span>
                         <DataStatusBadge status={t.data_status} showLabel={true} />
                         <ScopeBadge scope={t.scope} />
+                        {t.source_type && (
+                          <Badge variant="outline" className="text-[10px] py-0 h-4 border-muted-foreground/20 text-muted-foreground uppercase">
+                            {t.source_type === "free_text" ? "Texto" : t.source_type === "voice" ? "Voz" : t.source_type === "photo_ocr" ? "OCR" : t.source_type}
+                          </Badge>
+                        )}
+                        {t.confidence && t.data_status !== "confirmed" && (
+                          <span className={`text-[10px] font-bold ${t.confidence === "alta" ? "text-success" : t.confidence === "media" ? "text-warning" : "text-destructive"}`}>
+                            IA: {t.confidence}
+                          </span>
+                        )}
                         {t.data_status !== "confirmed" && (
                           <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded">
                             Não entra nos cálculos
