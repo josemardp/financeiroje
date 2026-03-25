@@ -250,6 +250,15 @@ export function buildMonthReading(
     }
   }
 
+  // Enriquecer com metas e reserva
+  if (goals && goals.atRisk.length > 0 && !attentionPoint) {
+    attentionPoint = `Meta "${goals.atRisk[0].name}" está com apenas ${goals.atRisk[0].progressPercent.toFixed(0)}% de progresso.`;
+  }
+
+  if (reserve && reserve.configured && reserve.coverageMonths < reserve.targetMonths && !attentionPoint) {
+    attentionPoint = `Reserva de emergência cobre ${reserve.coverageMonths.toFixed(1)} meses (meta: ${reserve.targetMonths}).`;
+  }
+
   return { positivePoint, attentionPoint, biggestPressure };
 }
 
