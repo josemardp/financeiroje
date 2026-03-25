@@ -49,7 +49,7 @@ export interface FinancialContext {
   previsaoCaixa: CashflowForecastResult | null;
   scoreFinanceiro: HealthScoreResult | null;
   recorrenciasAtivas: number;
-  alertasAtivos: { total: number; critical: number; warning: number; info: number };
+  alertasAtivos: { total: number; critical: number; warning: number; info: number; topAlerts: string[] };
   valoresFamiliares: string[];
   qualidadeDados: {
     semCategoria: number;
@@ -72,6 +72,7 @@ export interface FinancialContext {
     percentualDasDespesas: number;
     statusOrcamento: "dentro" | "acima";
     desvio?: number;
+    isPressuring: boolean;
   }>;
   impactoEmMetas: Array<{
     metaNome: string;

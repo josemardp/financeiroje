@@ -90,7 +90,7 @@ export default function AiAdvisor() {
     try {
       // PHASE 6: Simple intent detection (heuristic)
       const lowerInput = userText.toLowerCase();
-      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "generic" = "generic";
+      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "generic" = "generic";
       
       if (lowerInput.includes("vermelho") || lowerInput.includes("dívida") || lowerInput.includes("gastando demais") || lowerInput.includes("organizar")) {
         userIntentHint = "escape_red";
