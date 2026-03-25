@@ -305,6 +305,16 @@ export function buildNextMonthFocus(
     }
   }
 
+  // Metas em risco
+  if (goals && goals.atRisk.length > 0 && secondary.length < 2) {
+    secondary.push(`Reforçar contribuição para meta "${goals.atRisk[0].name}".`);
+  }
+
+  // Reserva abaixo da meta
+  if (reserve && reserve.configured && reserve.coverageMonths < reserve.targetMonths && secondary.length < 2) {
+    secondary.push(`Aumentar reserva de emergência (atual: ${reserve.coverageMonths.toFixed(1)} meses de ${reserve.targetMonths}).`);
+  }
+
   if (summary.savingsRate >= 15 && secondary.length === 0) {
     secondary.push("Considerar alocar parte da sobra para metas ou reserva.");
   }
