@@ -10,11 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { calculateMonthlySummary, filterOfficialTransactions, filterPendingTransactions } from "@/services/financeEngine";
-import type { TransactionRaw } from "@/services/financeEngine/types";
+import { calculateMonthlySummary, filterOfficialTransactions } from "@/services/financeEngine";
+import type { TransactionRaw, MonthlySummary } from "@/services/financeEngine/types";
 import {
   DollarSign, TrendingUp, TrendingDown, PiggyBank, ArrowLeftRight,
-  Plus, Bell, Landmark, Shield, AlertTriangle, Target,
+  Plus, Bell, Landmark, Shield, AlertTriangle,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -66,7 +66,7 @@ export default function Dashboard() {
   const { data: accounts } = useQuery({
     queryKey: ["dashboard-accounts", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("accounts").select("*").eq("ativo", true);
+      const { data } = await supabase.from("accounts").select("*").eq("ativa", true);
       return data || [];
     },
     enabled: !!user,
@@ -81,15 +81,24 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // Financial summary based on raw data
-  const summary = rawTransactions ? calculateMonthlySummary(rawTransactions) : null;
-  const summaryConfirmed = rawTransactions ? calculateMonthlySummary(filterOfficialTransactions(rawTransactions)) : null;
+  // Financial summaries via backend engine (async)
+  const { data: summary } = useQuery<MonthlySummary>({
+    queryKey: ["dashboard-summary", rawTransactions],
+    queryFn: () => calculateMonthlySummary(rawTransactions!),
+    enabled: !!rawTransactions && rawTransactions.length > 0,
+  });
+
+  const { data: summaryConfirmed } = useQuery<MonthlySummary>({
+    queryKey: ["dashboard-summary-confirmed", rawTransactions],
+    queryFn: () => calculateMonthlySummary(filterOfficialTransactions(rawTransactions!)),
+    enabled: !!rawTransactions && rawTransactions.length > 0,
+  });
 
   // Recent transactions (top 5)
   const recentTransactions = rawTransactions ? rawTransactions.slice(0, 5) : [];
 
   // Account balance summary
-  const totalAccountBalance = (accounts || []).reduce((acc: number, curr: any) => acc + Number(curr.saldo_atual || 0), 0);
+  const totalAccountBalance = (accounts || []).reduce((acc: number, curr: any) => acc + Number(curr.saldo_actual || curr.saldo_inicial || 0), 0);
 
   // Profile preferences for reserve
   const prefs = (profile?.preferences || {}) as any;
@@ -150,7 +159,6 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold font-mono">{formatCurrency(reserveValue)}</p>
-              {/* HARDENING: Coverage uses monthly EXPENSE, not income */}
               {summaryConfirmed && summaryConfirmed.totalExpense > 0 ? (
                 <p className="text-xs text-muted-foreground mt-1">
                   Cobertura: {(reserveValue / summaryConfirmed.totalExpense).toFixed(1)} meses de despesa
