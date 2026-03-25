@@ -3,7 +3,22 @@
  * Funções puras para gerar insights executivos a partir dos dados da engine.
  * Sem dependência de React/Supabase. Patch mínimo.
  */
-import type { MonthlySummary, BudgetDeviationResult, BudgetDeviationItem } from "./financeEngine/types";
+import type { MonthlySummary, BudgetDeviationResult, BudgetDeviationItem, GoalProgressResult } from "./financeEngine/types";
+
+// ─── Inputs opcionais de metas e reserva ─────────────────────────
+
+export interface GoalClosingInput {
+  atRisk: { name: string; progressPercent: number; monthlyNeeded: number | null }[];
+  totalActive: number;
+}
+
+export interface ReserveClosingInput {
+  currentValue: number;
+  targetMonths: number;
+  monthlyExpense: number;
+  coverageMonths: number;
+  configured: boolean;
+}
 
 // ─── Resumo Executivo ────────────────────────────────────────────
 
