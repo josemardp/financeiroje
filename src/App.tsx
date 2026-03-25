@@ -32,6 +32,7 @@ const MonthlyClosing = lazy(() => import("./pages/MonthlyClosing"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const Reports = lazy(() => import("./pages/Reports"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Portfolio = lazy(() => import("./pages/Portfolio"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -85,6 +86,7 @@ function AppRoutes() {
         <Route path="/captura" element={<Suspense fallback={<LazyFallback />}><SmartCapture /></Suspense>} />
         <Route path="/fechamento" element={<Suspense fallback={<LazyFallback />}><MonthlyClosing /></Suspense>} />
         <Route path="/relatorios" element={<Suspense fallback={<LazyFallback />}><Reports /></Suspense>} />
+        <Route path="/patrimonio" element={<Suspense fallback={<LazyFallback />}><Portfolio /></Suspense>} />
         <Route path="/configuracoes" element={<Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />
