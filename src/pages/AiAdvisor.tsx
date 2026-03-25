@@ -88,11 +88,24 @@ export default function AiAdvisor() {
     setIsStreaming(true);
 
     try {
-      // PHASE 6: Simple intent detection (heuristic)
+      // PHASE 7: Enhanced intent detection with recurring tracking modes
       const lowerInput = userText.toLowerCase();
-      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "generic" = "generic";
+      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "generic" = "generic";
       
-      if (lowerInput.includes("vermelho") || lowerInput.includes("dívida") || lowerInput.includes("gastando demais") || lowerInput.includes("organizar")) {
+      // Weekly review detection
+      if (lowerInput.includes("semana") || lowerInput.includes("semanal") || lowerInput.includes("como foi minha semana") || lowerInput.includes("o que revisar esta semana") || lowerInput.includes("saindo do controle")) {
+        userIntentHint = "weekly_review";
+      }
+      // Monthly focus detection
+      else if (lowerInput.includes("mês") || lowerInput.includes("mensal") || lowerInput.includes("foco do mês") || lowerInput.includes("qual meu foco") || lowerInput.includes("prioridade agora") || lowerInput.includes("restante do mês")) {
+        userIntentHint = "monthly_focus";
+      }
+      // Progress detection
+      else if (lowerInput.includes("melhorando") || lowerInput.includes("avancei") || lowerInput.includes("caminho certo") || lowerInput.includes("evoluindo") || lowerInput.includes("estou no caminho")) {
+        userIntentHint = "progress";
+      }
+      // Existing intents
+      else if (lowerInput.includes("vermelho") || lowerInput.includes("dívida") || lowerInput.includes("gastando demais") || lowerInput.includes("organizar")) {
         userIntentHint = "escape_red";
       } else if (lowerInput.includes("meta") || lowerInput.includes("alcançar") || lowerInput.includes("acelerar")) {
         userIntentHint = "goal";
