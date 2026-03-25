@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useScope } from "@/contexts/ScopeContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -18,18 +19,26 @@ import {
 
 export default function Dashboard() {
   const { user, profile } = useAuth();
+  const { currentScope, scopeLabel } = useScope();
 
   const { data: rawTransactions } = useQuery({
-    queryKey: ["dashboard-transactions", user?.id],
+    queryKey: ["dashboard-transactions", user?.id, currentScope],
     queryFn: async () => {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-      const { data } = await supabase
+      
+      let query = supabase
         .from("transactions")
         .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
-        .gte("data", startOfMonth).lte("data", endOfMonth)
-        .order("data", { ascending: false });
+        .gte("data", startOfMonth).lte("data", endOfMonth);
+      
+      if (currentScope !== "all") {
+        query = query.eq("scope", currentScope);
+      }
+      
+      const { data } = await query.order("data", { ascending: false });
+      
       return (data || []).map((t: any): TransactionRaw => ({
         id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data, descricao: t.descricao,
         categoria_id: t.categoria_id, categoria_nome: t.categories?.nome, categoria_icone: t.categories?.icone,
@@ -40,9 +49,15 @@ export default function Dashboard() {
   });
 
   const { data: unreadAlerts } = useQuery({
-    queryKey: ["dashboard-alerts", user?.id],
+    queryKey: ["dashboard-alerts", user?.id, currentScope],
     queryFn: async () => {
-      const { data } = await supabase.from("alerts").select("*").eq("lido", false).order("created_at", { ascending: false }).limit(5);
+      let query = supabase.from("alerts").select("*").eq("lido", false);
+      
+      if (currentScope !== "all") {
+        query = query.eq("scope", currentScope);
+      }
+      
+      const { data } = await query.order("created_at", { ascending: false }).limit(5);
       return data || [];
     },
     enabled: !!user,
@@ -51,77 +66,35 @@ export default function Dashboard() {
   const { data: accounts } = useQuery({
     queryKey: ["dashboard-accounts", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("accounts").select("*").eq("ativa", true);
+      const { data } = await supabase.from("accounts").select("*").eq("ativo", true);
       return data || [];
     },
     enabled: !!user,
   });
 
-  const { data: accountBalances } = useQuery({
-    queryKey: ["dashboard-account-balances", user?.id],
-    queryFn: async () => {
-      // PHASE 4.2: Align with engine rule — confirmed + null = official
-      const { data: txns } = await supabase
-        .from("transactions").select("account_id, tipo, valor, data_status")
-        .not("account_id", "is", null)
-        .or("data_status.eq.confirmed,data_status.is.null");
-      const map: Record<string, number> = {};
-      (txns || []).forEach((t: any) => {
-        const id = t.account_id;
-        if (!map[id]) map[id] = 0;
-        map[id] += t.tipo === "income" ? Number(t.valor) : -Number(t.valor);
-      });
-      return map;
-    },
-    enabled: !!user,
-  });
-
   const { data: goalsAtRisk } = useQuery({
-    queryKey: ["dashboard-goals-risk", user?.id],
+    queryKey: ["dashboard-goals", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("goals").select("id, nome, valor_alvo, valor_atual, prazo, prioridade").eq("ativo", true);
-      return (data || []).filter((g: any) => {
-        if (!g.prazo) return false;
-        const remaining = Number(g.valor_alvo) - Number(g.valor_atual || 0);
-        if (remaining <= 0) return false;
-        const deadline = new Date(g.prazo);
-        const now = new Date();
-        const monthsLeft = Math.max(0, (deadline.getFullYear() - now.getFullYear()) * 12 + (deadline.getMonth() - now.getMonth()));
-        return monthsLeft <= 3 && remaining > 0;
-      });
+      const { data } = await supabase.from("goals").select("*").eq("ativo", true).limit(5);
+      return data || [];
     },
     enabled: !!user,
   });
 
-  const { data: summary } = useQuery({
-    queryKey: ["dashboard-summary", rawTransactions],
-    queryFn: async () => {
-      if (!rawTransactions || rawTransactions.length === 0) return null;
-      return await calculateMonthlySummary(rawTransactions);
-    },
-    enabled: !!rawTransactions,
-  });
+  // Financial summary based on raw data
+  const summary = rawTransactions ? calculateMonthlySummary(rawTransactions) : null;
+  const summaryConfirmed = rawTransactions ? calculateMonthlySummary(filterOfficialTransactions(rawTransactions)) : null;
 
-  const officialTransactions = rawTransactions ? filterOfficialTransactions(rawTransactions) : [];
-  
-  const { data: summaryConfirmed } = useQuery({
-    queryKey: ["dashboard-summary-confirmed", officialTransactions],
-    queryFn: async () => {
-      if (!officialTransactions || officialTransactions.length === 0) return null;
-      return await calculateMonthlySummary(officialTransactions);
-    },
-    enabled: officialTransactions.length > 0,
-  });
+  // Recent transactions (top 5)
+  const recentTransactions = rawTransactions ? rawTransactions.slice(0, 5) : [];
 
-  const recentTransactions = rawTransactions?.slice(0, 8) || [];
+  // Account balance summary
+  const totalAccountBalance = (accounts || []).reduce((acc: number, curr: any) => acc + Number(curr.saldo_atual || 0), 0);
 
-  const totalAccountBalance = (accounts || []).reduce((sum: number, a: any) => {
-    return sum + Number(a.saldo_inicial) + (accountBalances?.[a.id] || 0);
-  }, 0);
-
+  // Profile preferences for reserve
   const prefs = (profile?.preferences || {}) as any;
-  const reserveValue = prefs.reserva_emergencia_valor || 0;
-  const reserveConfigured = reserveValue > 0 || prefs.reserva_emergencia_meses_meta;
+  const reserveValue = Number(prefs.reserva_emergencia_valor || 0);
+  const reserveConfigured = !!prefs.reserva_emergencia_valor;
 
   const isLoading = !rawTransactions;
   const hasData = summary && (summary.totalIncome > 0 || summary.totalExpense > 0);
@@ -129,7 +102,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <PageHeader title="Dashboard" description="Carregando dados..." />
+        <PageHeader title="Dashboard" description={`Visão geral (${scopeLabel})`} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}><CardContent className="p-5"><div className="h-20 bg-muted animate-pulse rounded-lg" /></CardContent></Card>
@@ -141,7 +114,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title={`Olá, ${profile?.nome || "Usuário"}`} description="Visão geral das suas finanças este mês">
+      <PageHeader title={`Olá, ${profile?.nome || "Usuário"}`} description={`Visão geral (${scopeLabel})`}>
         <Button asChild><Link to="/transacoes"><Plus className="h-4 w-4 mr-1" /> Nova transação</Link></Button>
       </PageHeader>
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useScope } from "@/contexts/ScopeContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -16,7 +17,7 @@ import { formatCurrency } from "@/lib/format";
 import { calculateBudgetDeviation } from "@/services/financeEngine";
 import type { BudgetRaw, TransactionRaw, BudgetStatus } from "@/services/financeEngine/types";
 import { toast } from "sonner";
-import { PiggyBank, Plus, Loader2, AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
+import { PiggyBank, Plus, Loader2, AlertTriangle, CheckCircle2, TrendingUp, Trash2 } from "lucide-react";
 
 const STATUS_CONFIG: Record<BudgetStatus, { label: string; className: string; icon: typeof CheckCircle2 }> = {
   ok: { label: "No limite", className: "text-success", icon: CheckCircle2 },
@@ -26,6 +27,7 @@ const STATUS_CONFIG: Record<BudgetStatus, { label: string; className: string; ic
 
 export default function Budget() {
   const { user } = useAuth();
+  const { currentScope, scopeLabel } = useScope();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -42,13 +44,19 @@ export default function Budget() {
   });
 
   const { data: budgets, isLoading: loadingBudgets } = useQuery({
-    queryKey: ["budgets", month, year],
+    queryKey: ["budgets", month, year, currentScope],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("budgets")
         .select("*, categories(nome, icone)")
         .eq("mes", month)
         .eq("ano", year);
+      
+      if (currentScope !== "all") {
+        query = query.eq("scope", currentScope);
+      }
+      
+      const { data } = await query;
       return (data || []).map((b: any): BudgetRaw => ({
         id: b.id,
         categoria_id: b.categoria_id,
@@ -64,15 +72,22 @@ export default function Budget() {
   });
 
   const { data: transactions } = useQuery({
-    queryKey: ["budget-transactions", month, year],
+    queryKey: ["budget-transactions", month, year, currentScope],
     queryFn: async () => {
       const startOfMonth = `${year}-${String(month).padStart(2, "0")}-01`;
       const endOfMonth = new Date(year, month, 0).toISOString().split("T")[0];
-      const { data } = await supabase
+      
+      let query = supabase
         .from("transactions")
         .select("id, valor, tipo, data, descricao, categoria_id, scope, data_status, source_type, confidence, e_mei, categories(nome, icone)")
         .gte("data", startOfMonth)
         .lte("data", endOfMonth);
+      
+      if (currentScope !== "all") {
+        query = query.eq("scope", currentScope);
+      }
+      
+      const { data } = await query;
       return (data || []).map((t: any): TransactionRaw => ({
         id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data, descricao: t.descricao,
         categoria_id: t.categoria_id, categoria_nome: t.categories?.nome, categoria_icone: t.categories?.icone,
@@ -99,127 +114,139 @@ export default function Budget() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budgets"] });
-      toast.success("Orçamento removido");
+      toast.success("Orçamento excluído");
     },
+    onError: () => toast.error("Erro ao excluir orçamento"),
   });
-
-  const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Orçamento" description="Planejado vs realizado por categoria">
+      <PageHeader title="Orçamento" description={`Planejamento de gastos mensais (${scopeLabel})`}>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-1" /> Novo orçamento</Button>
+            <Button className="gap-2"><Plus className="h-4 w-4" /> Novo orçamento</Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Novo Orçamento por Categoria</DialogTitle></DialogHeader>
-            <BudgetForm
-              categories={categories || []}
-              month={month}
-              year={year}
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Novo Orçamento</DialogTitle>
+            </DialogHeader>
+            <BudgetForm 
+              categories={categories || []} 
+              month={month} 
+              year={year} 
               onSuccess={() => {
                 setIsOpen(false);
                 queryClient.invalidateQueries({ queryKey: ["budgets"] });
-              }}
+              }} 
             />
           </DialogContent>
         </Dialog>
       </PageHeader>
 
-      {/* Month selector */}
-      <div className="flex gap-2 flex-wrap">
-        {MONTHS.map((m, i) => (
-          <Button
-            key={m}
-            variant={month === i + 1 ? "default" : "outline"}
-            size="sm"
-            onClick={() => setMonth(i + 1)}
-          >
-            {m}
-          </Button>
-        ))}
+      <div className="flex gap-4 items-end">
+        <div className="space-y-2">
+          <Label>Mês</Label>
+          <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 12 }).map((_, i) => (
+                <SelectItem key={i + 1} value={String(i + 1)}>
+                  {new Date(2024, i, 1).toLocaleString("pt-BR", { month: "long" })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Ano</Label>
+          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[2024, 2025, 2026].map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Summary KPIs */}
-      {deviation && deviation.items.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-xs text-muted-foreground uppercase">Planejado</p>
-              <p className="text-xl font-bold font-mono">{formatCurrency(deviation.totalPlanned)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-xs text-muted-foreground uppercase">Realizado</p>
-              <p className="text-xl font-bold font-mono">{formatCurrency(deviation.totalActual)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-xs text-muted-foreground uppercase">Desvio</p>
-              <p className={`text-xl font-bold font-mono ${deviation.totalDeviationAbsolute > 0 ? "text-destructive" : "text-success"}`}>
-                {deviation.totalDeviationAbsolute > 0 ? "+" : ""}{formatCurrency(deviation.totalDeviationAbsolute)}
-                <span className="text-sm ml-1">({deviation.totalDeviationPercent.toFixed(1)}%)</span>
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Budget items */}
       {loadingBudgets ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : !deviation || deviation.items.length === 0 ? (
-        <EmptyState
-          icon={PiggyBank}
-          title="Sem orçamento para este mês"
-          description="Defina limites por categoria para acompanhar o planejado vs realizado."
-        >
-          <Button onClick={() => setIsOpen(true)}><Plus className="h-4 w-4 mr-1" /> Criar orçamento</Button>
-        </EmptyState>
+        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      ) : !budgets || budgets.length === 0 ? (
+        <EmptyState icon={PiggyBank} title="Nenhum orçamento para este mês" description="Defina limites por categoria para controlar seus gastos." />
       ) : (
-        <div className="space-y-3">
-          {deviation.items.map((item) => {
-            const config = STATUS_CONFIG[item.status];
-            const StatusIcon = config.icon;
-            const usagePercent = item.planned > 0 ? Math.min(100, (item.actual / item.planned) * 100) : 0;
-            const budget = budgets?.find((b) => b.categoria_id === item.categoryId);
-
-            return (
-              <Card key={item.categoryId || "none"}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{item.categoryIcon}</span>
-                      <span className="font-medium text-sm">{item.categoryName}</span>
-                      <Badge variant="outline" className={`gap-1 text-xs ${config.className}`}>
-                        <StatusIcon className="h-3 w-3" />
-                        {config.label}
-                      </Badge>
+        <div className="grid gap-6">
+          {/* Summary Card */}
+          <Card className="bg-muted/30 border-dashed">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="text-center md:text-left">
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Planejado</p>
+                  <p className="text-3xl font-bold font-mono">{formatCurrency(deviation?.totalPlanned || 0)}</p>
+                </div>
+                <div className="h-12 w-px bg-border hidden md:block" />
+                <div className="text-center md:text-left">
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Realizado (Confirmado)</p>
+                  <p className="text-3xl font-bold font-mono">{formatCurrency(deviation?.totalActual || 0)}</p>
+                </div>
+                <div className="h-12 w-px bg-border hidden md:block" />
+                <div className="text-center md:text-left">
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Status Geral</p>
+                  {deviation && (
+                    <div className={`flex items-center gap-2 text-xl font-bold ${STATUS_CONFIG[deviation.overallStatus].className}`}>
+                      {(() => {
+                        const Icon = STATUS_CONFIG[deviation.overallStatus].icon;
+                        return <Icon className="h-6 w-6" />;
+                      })()}
+                      {STATUS_CONFIG[deviation.overallStatus].label}
                     </div>
-                    {budget && (
-                      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground"
-                        onClick={() => deleteMutation.mutate(budget.id)}>
-                        Remover
-                      </Button>
-                    )}
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Budget Items */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {deviation?.items.map((item) => (
+              <Card key={item.categoryId || "none"} className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{item.categoryIcon}</span>
+                      <div>
+                        <CardTitle className="text-base">{item.categoryName}</CardTitle>
+                        <p className="text-xs text-muted-foreground">Planejado: {formatCurrency(item.planned)}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        const b = budgets.find(x => x.categoria_id === item.categoryId);
+                        if (b) deleteMutation.mutate(b.id);
+                      }}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Progress value={usagePercent} className="h-2 mb-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Realizado: <span className="font-mono font-medium text-foreground">{formatCurrency(item.actual)}</span></span>
-                    <span>Planejado: <span className="font-mono font-medium text-foreground">{formatCurrency(item.planned)}</span></span>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">{formatCurrency(item.actual)} realizados</span>
+                    <span className={item.status === "exceeded" ? "text-destructive font-bold" : "text-muted-foreground"}>
+                      {item.deviationPercent.toFixed(0)}%
+                    </span>
                   </div>
-                  {item.deviationAbsolute !== 0 && (
-                    <p className={`text-xs mt-1 ${item.deviationAbsolute > 0 ? "text-destructive" : "text-success"}`}>
-                      Desvio: {item.deviationAbsolute > 0 ? "+" : ""}{formatCurrency(item.deviationAbsolute)} ({item.deviationPercent.toFixed(1)}%)
+                  <Progress value={Math.min(100, item.deviationPercent)} className={`h-2 ${
+                    item.status === "exceeded" ? "[&>div]:bg-destructive" : item.status === "warning" ? "[&>div]:bg-warning" : ""
+                  }`} />
+                  {item.suggestedActual > 0 && (
+                    <p className="text-[10px] text-muted-foreground italic">
+                      + {formatCurrency(item.suggestedActual)} em transações sugeridas/pendentes
                     </p>
                   )}
                 </CardContent>
               </Card>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -228,19 +255,21 @@ export default function Budget() {
 
 function BudgetForm({ categories, month, year, onSuccess }: { categories: any[]; month: number; year: number; onSuccess: () => void }) {
   const { user } = useAuth();
+  const { currentScope } = useScope();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState({ categoria_id: "", valor_planejado: "", scope: "private" });
+  const [form, setForm] = useState({
+    categoria_id: "",
+    valor_planejado: "",
+    scope: currentScope === "all" ? "private" : currentScope,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !form.valor_planejado || Number(form.valor_planejado) <= 0) {
-      toast.error("Preencha o valor corretamente");
-      return;
-    }
+    if (!user) return;
     setIsSubmitting(true);
     const { error } = await supabase.from("budgets").insert({
       user_id: user.id,
-      categoria_id: form.categoria_id || null,
+      categoria_id: form.categoria_id,
       valor_planejado: Number(form.valor_planejado),
       mes: month,
       ano: year,
@@ -249,7 +278,7 @@ function BudgetForm({ categories, month, year, onSuccess }: { categories: any[];
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });
     } else {
-      toast.success("Orçamento criado!");
+      toast.success("Orçamento definido!");
       onSuccess();
     }
     setIsSubmitting(false);
@@ -269,7 +298,7 @@ function BudgetForm({ categories, month, year, onSuccess }: { categories: any[];
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>Valor planejado (R$)</Label>
+        <Label>Valor Planejado (R$)</Label>
         <Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor_planejado}
           onChange={(e) => setForm((f) => ({ ...f, valor_planejado: e.target.value }))} required />
       </div>
@@ -280,14 +309,13 @@ function BudgetForm({ categories, month, year, onSuccess }: { categories: any[];
           <SelectContent>
             <SelectItem value="private">Pessoal</SelectItem>
             <SelectItem value="family">Família</SelectItem>
-            <SelectItem value="business">Negócio/MEI</SelectItem>
+            <SelectItem value="business">Negócio</SelectItem>
           </SelectContent>
         </Select>
       </div>
-      <p className="text-xs text-muted-foreground">Mês: {month}/{year}</p>
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-        Salvar orçamento
+        Definir orçamento
       </Button>
     </form>
   );
