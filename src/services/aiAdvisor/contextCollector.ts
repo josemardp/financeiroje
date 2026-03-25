@@ -126,7 +126,7 @@ export interface FinancialContext {
     nota: string;
     avisoAlucinacao: string;
   };
-  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "generic";
+  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "decision" | "generic";
   assinaturas?: {
     totalMensal: number;
     totalAnual: number;
@@ -150,6 +150,7 @@ export async function getFinancialContext(
   month?: number,
   year?: number
 ): Promise<FinancialContext> {
+  const scopeTyped = scope as "private" | "family" | "business";
   const now = new Date();
   const mes = month || now.getMonth() + 1;
   const ano = year || now.getFullYear();
@@ -167,21 +168,21 @@ export async function getFinancialContext(
       let q = supabase.from("transactions")
         .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
         .gte("data", startOfMonth).lte("data", endOfMonth);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
     (() => {
       let q = supabase.from("budgets")
         .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
         .eq("mes", mes).eq("ano", ano);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
     (() => {
       let q = supabase.from("recurring_transactions")
         .select("id, descricao, valor, tipo, frequencia, dia_mes, ativa, categoria_id, scope")
         .eq("ativa", true);
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
     supabase.from("loans").select("*").eq("ativo", true),
@@ -208,7 +209,7 @@ export async function getFinancialContext(
         .select("id, valor, tipo, data, data_status, categoria_id, categories(nome), scope")
         .gte("data", prevStart).lte("data", prevEnd)
         .or("data_status.eq.confirmed,data_status.is.null");
-      if (scope !== "all") q = q.eq("scope", scope);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
     // Fase 12: alertas do mês anterior (snapshot via lidos)
@@ -390,7 +391,7 @@ export async function getFinancialContext(
           categoria,
           totalGasto: data.total,
           percentualDasDespesas,
-          statusOrcamento: isOverBudget ? "acima" : "dentro",
+          statusOrcamento: (isOverBudget ? "acima" : "dentro") as "acima" | "dentro",
           desvio: budgetItem ? ((data.total - budgetItem.valor_planejado) / budgetItem.valor_planejado) * 100 : undefined,
           isPressuring,
         };
@@ -405,7 +406,7 @@ export async function getFinancialContext(
     const isSignificant = m.progressPercent > 50;
     
     // Classificação qualitativa baseada em fatos, não em projeção temporal frágil
-    let ritmo = "inicial";
+    let ritmo: "inicial" | "em andamento" | "avançado" = "inicial";
     if (isSignificant) ritmo = "avançado";
     else if (hasProgress) ritmo = "em andamento";
     
@@ -419,6 +420,23 @@ export async function getFinancialContext(
       hasProgress
     };
   });
+
+  // Pre-compute alertasAtivos and reservaEmergencia for use in nested functions
+  const alertasAtivos = {
+    total: alertResult.data?.length || 0,
+    critical: (alertResult.data || []).filter((a: any) => a.nivel === "critical").length,
+    warning: (alertResult.data || []).filter((a: any) => a.nivel === "warning").length,
+    info: (alertResult.data || []).filter((a: any) => a.nivel === "info").length,
+    topAlerts: (alertResult.data || []).slice(0, 3).map((a: any) => a.titulo),
+  };
+
+  const reservaEmergencia = reserveConfigured ? {
+    valor: reserveValue,
+    metaMeses: reserveMonthsTarget,
+    despesaMensalRef,
+    coberturaMeses: despesaMensalRef > 0 ? Math.round((reserveValue / despesaMensalRef) * 10) / 10 : null,
+    statusMeta: (!despesaMensalRef ? "ok" : reserveValue < (despesaMensalRef * reserveMonthsTarget) ? "abaixo" : "acima") as "abaixo" | "ok" | "acima",
+  } : null;
 
   // --- Fase 12: Memória de progresso (comparação honesta mês atual vs anterior) ---
 
@@ -609,25 +627,13 @@ export async function getFinancialContext(
     previsaoCaixa,
     scoreFinanceiro,
     recorrenciasAtivas: recurrings.length,
-    alertasAtivos: {
-      total: alertResult.data?.length || 0,
-      critical: (alertResult.data || []).filter(a => a.nivel === "critical").length,
-      warning: (alertResult.data || []).filter(a => a.nivel === "warning").length,
-      info: (alertResult.data || []).filter(a => a.nivel === "info").length,
-      topAlerts: (alertResult.data || []).slice(0, 3).map(a => a.titulo),
-    },
+    alertasAtivos,
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes, inconsistentes, impactoNaPrecisao },
     contas: accountsList,
     padroesPorCategoria,
     impactoEmMetas,
-    reservaEmergencia: reserveConfigured ? {
-      valor: reserveValue,
-      metaMeses: reserveMonthsTarget,
-      despesaMensalRef,
-      coberturaMeses: despesaMensalRef > 0 ? Math.round((reserveValue / despesaMensalRef) * 10) / 10 : null,
-      statusMeta: !despesaMensalRef ? "ok" : reserveValue < (despesaMensalRef * reserveMonthsTarget) ? "abaixo" : "acima",
-    } : null,
+    reservaEmergencia,
     preferenciasUsuario: userPrefs,
     userIntentHint: "generic",
     assinaturas: undefined, // Will be populated by caller if needed
