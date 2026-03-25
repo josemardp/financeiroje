@@ -1,5 +1,5 @@
 /**
- * FinanceAI — Fase 11 — Coleta de Contexto para IA Conselheira
+ * FinanceAI — Fase 3 — Coleta de Contexto para IA Conselheira
  * 
  * Responsabilidade: coletar dados financeiros reais do usuário
  * e montar um payload estruturado para envio à IA.
@@ -36,64 +36,6 @@ import type {
   GoalProgressResult,
   LoanSummary,
 } from "@/services/financeEngine/types";
-
-type ProgressSignalDirection = "improved" | "worsened" | "stable";
-type ProgressSignalKind = "pending" | "score" | "reserve" | "savings" | "goal";
-
-interface ProgressSignal {
-  kind: ProgressSignalKind;
-  direction: ProgressSignalDirection;
-  label: string;
-  detail: string;
-}
-
-interface ProgressSnapshot {
-  periodLabel: string;
-  source: "recent_period" | "last_review";
-  referenceDate?: string | null;
-  scoreGeral: number | null;
-  pendenciasCount: number;
-  coberturaReservaMeses: number | null;
-  taxaEconomia: number | null;
-  metasComProgresso: Array<{ nome: string; progressoPercent: number }>;
-}
-
-interface ProgressMemory {
-  available: boolean;
-  summary: string[];
-  limitations: string[];
-  currentSnapshot: ProgressSnapshot;
-  recentPeriodSnapshot: ProgressSnapshot | null;
-  lastReviewSnapshot: ProgressSnapshot | null;
-  improved: ProgressSignal[];
-  worsened: ProgressSignal[];
-  repeated: ProgressSignal[];
-}
-
-interface SubscriptionDecisionItem {
-  nome: string;
-  valorMensal: number;
-}
-
-interface SubscriptionSummary {
-  totalAtivas: number;
-  totalMensal: number;
-  principais: SubscriptionDecisionItem[];
-}
-
-interface DecisionGuidance {
-  prioridadeAtual: "protect_cash" | "advance_goal" | "review_recurring_costs" | "stabilize_month";
-  pressaoDoMes: "low" | "medium" | "high";
-  protegerCaixaAgora: boolean;
-  reservaDeveVirAntes: boolean;
-  sensibilidadeCompra: "low" | "medium" | "high";
-  pressaoCustoRecorrente: "low" | "medium" | "high";
-  cuidadoAntecipacaoDivida: "low" | "medium" | "high";
-  principalMotivo: string;
-  topMetaEmRisco: { nome: string; progressoAtual: number; faltante: number } | null;
-  sinais: string[];
-  oQueMudaria: string[];
-}
 
 export interface FinancialContext {
   periodo: { mes: number; ano: number };
@@ -141,9 +83,6 @@ export interface FinancialContext {
     isNew: boolean;
     hasProgress: boolean;
   }>;
-  progressoMemoria: ProgressMemory;
-  assinaturasResumo: SubscriptionSummary | null;
-  decisaoGuiada: DecisionGuidance;
   preferenciasUsuario: Record<string, unknown>;
   metadados: {
     dataColeta: string;
@@ -151,7 +90,18 @@ export interface FinancialContext {
     nota: string;
     avisoAlucinacao: string;
   };
-  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "decision" | "generic";
+  userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "generic";
+  assinaturas?: {
+    totalMensal: number;
+    totalAnual: number;
+    quantidadeAtiva: number;
+    assinaturaMaisCara: { nome_servico: string; valor_mensal: number } | null;
+    leaks: Array<{
+      type: string;
+      severity: string;
+      message: string;
+    }>;
+  };
 }
 
 export async function getFinancialContext(
@@ -166,38 +116,32 @@ export async function getFinancialContext(
   const startOfMonth = new Date(ano, mes - 1, 1).toISOString().split("T")[0];
   const endOfMonth = new Date(ano, mes, 0).toISOString().split("T")[0];
 
-  const previousMonthDate = new Date(ano, mes - 2, 1);
-  const previousMonth = previousMonthDate.getMonth() + 1;
-  const previousYear = previousMonthDate.getFullYear();
-  const prevStart = new Date(previousYear, previousMonth - 1, 1).toISOString().split("T")[0];
-  const prevEnd = new Date(previousYear, previousMonth, 0).toISOString().split("T")[0];
-
+  // Fetch all data in parallel
   const [
     txResult, budgetResult, recurringResult, loanResult,
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
-    subscriptionsResult, accountTxResult, prevTxResult, prevBudgetResult,
-    prevHealthScoreResult, lastReviewResult,
+    accountTxResult,
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
         .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
         .gte("data", startOfMonth).lte("data", endOfMonth);
-      if (scope !== "all") q = q.eq("scope", scope as any);
+      if (scope !== "all") q = q.eq("scope", scope);
       return q;
     })(),
     (() => {
       let q = supabase.from("budgets")
         .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
         .eq("mes", mes).eq("ano", ano);
-      if (scope !== "all") q = q.eq("scope", scope as any);
+      if (scope !== "all") q = q.eq("scope", scope);
       return q;
     })(),
     (() => {
       let q = supabase.from("recurring_transactions")
         .select("id, descricao, valor, tipo, frequencia, dia_mes, ativa, categoria_id, scope")
         .eq("ativa", true);
-      if (scope !== "all") q = q.eq("scope", scope as any);
+      if (scope !== "all") q = q.eq("scope", scope);
       return q;
     })(),
     supabase.from("loans").select("*").eq("ativo", true),
@@ -209,35 +153,14 @@ export async function getFinancialContext(
     supabase.from("family_values").select("descricao"),
     supabase.from("accounts").select("*").eq("ativa", true),
     supabase.from("profiles").select("preferences").eq("user_id", userId).single(),
-    (() => {
-      let q = supabase.from("subscriptions")
-        .select("nome_servico, valor_mensal, status, scope")
-        .eq("status", "active");
-      if (scope !== "all") q = q.eq("scope", scope as any);
-      return q;
-    })(),
+    // PHASE 4.2: Align with engine — confirmed + null = official
     supabase.from("transactions")
       .select("account_id, tipo, valor, data_status")
       .not("account_id", "is", null)
       .or("data_status.eq.confirmed,data_status.is.null"),
-    (() => {
-      let q = supabase.from("transactions")
-        .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
-        .gte("data", prevStart).lte("data", prevEnd);
-      if (scope !== "all") q = q.eq("scope", scope as any);
-      return q;
-    })(),
-    (() => {
-      let q = supabase.from("budgets")
-        .select("id, categoria_id, valor_planejado, mes, ano, scope, categories(nome, icone)")
-        .eq("mes", previousMonth).eq("ano", previousYear);
-      if (scope !== "all") q = q.eq("scope", scope as any);
-      return q;
-    })(),
-    supabase.from("health_scores").select("score_geral, mes, ano, created_at").eq("mes", previousMonth).eq("ano", previousYear).order("created_at", { ascending: false }).limit(1),
-    supabase.from("ai_messages").select("created_at, contexto_enviado").eq("user_id", userId).eq("role", "user").not("contexto_enviado", "is", null).order("created_at", { ascending: false }).limit(20),
   ]);
 
+  // Map raw data
   const rawTransactions: TransactionRaw[] = (txResult.data || []).map((t: any) => ({
     id: t.id,
     valor: Number(t.valor),
@@ -266,74 +189,44 @@ export async function getFinancialContext(
   }));
 
   const recurrings: RecurringRaw[] = (recurringResult.data || []).map((r: any) => ({
-    id: r.id,
-    descricao: r.descricao,
-    valor: Number(r.valor),
-    tipo: r.tipo,
-    frequencia: r.frequencia,
-    dia_mes: r.dia_mes,
-    ativa: r.ativa,
-    categoria_id: r.categoria_id,
-    scope: r.scope,
+    id: r.id, descricao: r.descricao, valor: Number(r.valor), tipo: r.tipo,
+    frequencia: r.frequencia, dia_mes: r.dia_mes, ativa: r.ativa,
+    categoria_id: r.categoria_id, scope: r.scope,
   }));
 
   const loans: LoanRaw[] = (loanResult.data || []).map((l: any) => ({
-    id: l.id,
-    nome: l.nome,
-    valor_original: Number(l.valor_original),
+    id: l.id, nome: l.nome, valor_original: Number(l.valor_original),
     saldo_devedor: l.saldo_devedor ? Number(l.saldo_devedor) : null,
     taxa_juros_mensal: l.taxa_juros_mensal ? Number(l.taxa_juros_mensal) : null,
     cet_anual: l.cet_anual ? Number(l.cet_anual) : null,
-    parcelas_total: l.parcelas_total,
-    parcelas_restantes: l.parcelas_restantes,
+    parcelas_total: l.parcelas_total, parcelas_restantes: l.parcelas_restantes,
     valor_parcela: l.valor_parcela ? Number(l.valor_parcela) : null,
-    metodo_amortizacao: l.metodo_amortizacao,
-    tipo: l.tipo,
-    credor: l.credor,
-    data_inicio: l.data_inicio,
-    ativo: l.ativo,
+    metodo_amortizacao: l.metodo_amortizacao, tipo: l.tipo,
+    credor: l.credor, data_inicio: l.data_inicio, ativo: l.ativo,
   }));
 
   const installments: InstallmentRaw[] = (installmentResult.data || []).map((i: any) => ({
-    id: i.id,
-    emprestimo_id: i.emprestimo_id,
-    numero: i.numero,
-    valor: Number(i.valor),
-    data_vencimento: i.data_vencimento,
-    data_pagamento: i.data_pagamento,
-    status: i.status,
+    id: i.id, emprestimo_id: i.emprestimo_id, numero: i.numero,
+    valor: Number(i.valor), data_vencimento: i.data_vencimento,
+    data_pagamento: i.data_pagamento, status: i.status,
   }));
 
   const amortizations: ExtraAmortizationRaw[] = (amortResult.data || []).map((a: any) => ({
-    id: a.id,
-    emprestimo_id: a.emprestimo_id,
-    valor: Number(a.valor),
-    data: a.data,
-    economia_juros_calculada: a.economia_juros_calculada ? Number(a.economia_juros_calculada) : null,
+    id: a.id, emprestimo_id: a.emprestimo_id, valor: Number(a.valor),
+    data: a.data, economia_juros_calculada: a.economia_juros_calculada ? Number(a.economia_juros_calculada) : null,
   }));
 
   const goals: GoalRaw[] = (goalResult.data || []).map((g: any) => ({
-    id: g.id,
-    nome: g.nome,
-    valor_alvo: Number(g.valor_alvo),
+    id: g.id, nome: g.nome, valor_alvo: Number(g.valor_alvo),
     valor_atual: g.valor_atual ? Number(g.valor_atual) : null,
-    prazo: g.prazo,
-    prioridade: g.prioridade,
-    ativo: g.ativo,
+    prazo: g.prazo, prioridade: g.prioridade, ativo: g.ativo,
   }));
 
   const contributions: GoalContributionRaw[] = (contribResult.data || []).map((c: any) => ({
-    id: c.id,
-    goal_id: c.goal_id,
-    valor: Number(c.valor),
-    data: c.data,
+    id: c.id, goal_id: c.goal_id, valor: Number(c.valor), data: c.data,
   }));
 
-  const subscriptions = (subscriptionsResult.data || []).map((s: any) => ({
-    nome: s.nome_servico,
-    valorMensal: Number(s.valor_mensal || 0),
-  }));
-
+  // Engine calculations — all deterministic
   const officialTxns = filterOfficialTransactions(rawTransactions);
   const pendingTxns = filterPendingTransactions(rawTransactions);
   const resumoMensal = rawTransactions.length > 0 ? calculateMonthlySummary(rawTransactions) : null;
@@ -349,6 +242,7 @@ export async function getFinancialContext(
 
   const metas = calculateGoalProgress(goals, contributions);
 
+  // Forecast — uses balance from confirmed data
   const saldoAtual = resumoConfirmado ? resumoConfirmado.balance : 0;
   const previsaoCaixa = recurrings.length > 0 || installments.length > 0
     ? calculateCashflowForecast({
@@ -359,25 +253,21 @@ export async function getFinancialContext(
       })
     : null;
 
+  // Health score
   const overdueInstallments = installments.filter(
     (i) => i.status !== "pago" && new Date(i.data_vencimento) < now
   ).length;
 
   const hasBudget = budgets.length > 0;
 
+  // User preferences & reserve
   const userPrefs = (profileResult.data?.preferences || {}) as Record<string, any>;
   const reserveValue = Number(userPrefs.reserva_emergencia_valor || 0);
   const reserveMonthsTarget = Number(userPrefs.reserva_emergencia_meses_meta || 6);
   const reserveConfigured = reserveValue > 0;
 
+  // HARDENING: Reserve coverage uses EXPENSE, not income
   const despesaMensalRef = resumoConfirmado?.totalExpense || 0;
-  const reservaEmergencia = reserveConfigured ? {
-    valor: reserveValue,
-    metaMeses: reserveMonthsTarget,
-    despesaMensalRef,
-    coberturaMeses: despesaMensalRef > 0 ? Math.round((reserveValue / despesaMensalRef) * 10) / 10 : null,
-    statusMeta: !despesaMensalRef ? "ok" : reserveValue < (despesaMensalRef * reserveMonthsTarget) ? "abaixo" : "acima",
-  } : null;
 
   const scoreFinanceiro = resumoConfirmado
     ? calculateHealthScore({
@@ -395,6 +285,7 @@ export async function getFinancialContext(
       })
     : null;
 
+  // Accounts — real balance = saldo_inicial + confirmed transactions
   const accountTxnMap: Record<string, number> = {};
   (accountTxResult.data || []).forEach((t: any) => {
     const id = t.account_id;
@@ -409,16 +300,18 @@ export async function getFinancialContext(
     saldo_atual: Number(a.saldo_inicial) + (accountTxnMap[a.id] || 0),
   }));
 
+  // Data quality quick scan
   const semCategoria = rawTransactions.filter((t) => !t.categoria_id).length;
   const sugeridosPendentes = pendingTxns.filter((t) => t.data_status === "suggested").length;
   const incompletosPendentes = pendingTxns.filter((t) => t.data_status === "incomplete").length;
   const inconsistentes = pendingTxns.filter((t) => t.data_status === "inconsistent").length;
   const totalQualityIssues = semCategoria + sugeridosPendentes + incompletosPendentes + inconsistentes;
-  const impactoNaPrecisao: "baixo" | "medio" | "alto" =
-    totalQualityIssues === 0 ? "baixo" :
-    totalQualityIssues < 5 ? "medio" :
+  const impactoNaPrecisao: "baixo" | "medio" | "alto" = 
+    totalQualityIssues === 0 ? "baixo" : 
+    totalQualityIssues < 5 ? "medio" : 
     "alto";
 
+  // Padrões por categoria (análise de concentração de gastos)
   const padroesPorCategoria = officialTxns.length > 0
     ? Object.entries(
         officialTxns.reduce((acc, t) => {
@@ -429,12 +322,14 @@ export async function getFinancialContext(
           return acc;
         }, {} as Record<string, { total: number; count: number }>)
       ).map(([categoria, data]) => {
-        const budgetItem = budgets.find((b) => b.categoria_nome === categoria);
+        const budgetItem = budgets.find(b => b.categoria_nome === categoria);
         const totalExpenses = resumoConfirmado?.totalExpense || 1;
         const isOverBudget = budgetItem && data.total > budgetItem.valor_planejado;
         const percentualDasDespesas = (data.total / totalExpenses) * 100;
-
-        const isPressuring = Boolean(isOverBudget) || percentualDasDespesas > 20;
+        
+        // PHASE 6: Refined pressure analysis
+        // A category "pressures" if it's over budget OR represents > 20% of expenses
+        const isPressuring = isOverBudget || percentualDasDespesas > 20;
 
         return {
           categoria,
@@ -448,150 +343,26 @@ export async function getFinancialContext(
       .sort((a, b) => b.totalGasto - a.totalGasto)
     : [];
 
-  const impactoEmMetas = metas.map((m) => {
+  // Impacto em metas (ritmo qualitativo e honesto)
+  const impactoEmMetas = metas.map(m => {
     const hasProgress = m.totalContributed > 0;
     const isNew = m.progressPercent < 5;
     const isSignificant = m.progressPercent > 50;
-
-    let ritmo: "inicial" | "em andamento" | "avançado" = "inicial";
+    
+    // Classificação qualitativa baseada em fatos, não em projeção temporal frágil
+    let ritmo = "inicial";
     if (isSignificant) ritmo = "avançado";
     else if (hasProgress) ritmo = "em andamento";
-
-    return {
-      metaNome: m.goalName,
+    
+    return { 
+      metaNome: m.goalName, 
       progressoAtual: m.progressPercent,
       ritmo,
       acumulado: m.totalContributed,
       faltante: m.remainingAmount,
       isNew,
-      hasProgress,
+      hasProgress
     };
-  });
-
-  const alertasAtivos = {
-    total: alertResult.data?.length || 0,
-    critical: (alertResult.data || []).filter((a) => a.nivel === "critical").length,
-    warning: (alertResult.data || []).filter((a) => a.nivel === "warning").length,
-    info: (alertResult.data || []).filter((a) => a.nivel === "info").length,
-    topAlerts: (alertResult.data || []).slice(0, 3).map((a) => a.titulo),
-  };
-
-  const assinaturasResumo: SubscriptionSummary | null = subscriptions.length > 0 ? {
-    totalAtivas: subscriptions.length,
-    totalMensal: subscriptions.reduce((sum, item) => sum + item.valorMensal, 0),
-    principais: [...subscriptions].sort((a, b) => b.valorMensal - a.valorMensal).slice(0, 3),
-  } : null;
-
-  const prevRawTransactions: TransactionRaw[] = (prevTxResult.data || []).map((t: any) => ({
-    id: t.id,
-    valor: Number(t.valor),
-    tipo: t.tipo,
-    data: t.data,
-    descricao: t.descricao,
-    categoria_id: t.categoria_id,
-    categoria_nome: t.categories?.nome,
-    categoria_icone: t.categories?.icone,
-    scope: t.scope,
-    data_status: t.data_status,
-    source_type: t.source_type,
-    confidence: t.confidence,
-    e_mei: t.e_mei,
-  }));
-
-  const prevBudgets: BudgetRaw[] = (prevBudgetResult.data || []).map((b: any) => ({
-    id: b.id,
-    categoria_id: b.categoria_id,
-    categoria_nome: b.categories?.nome,
-    categoria_icone: b.categories?.icone,
-    valor_planejado: Number(b.valor_planejado),
-    mes: b.mes,
-    ano: b.ano,
-    scope: b.scope,
-  }));
-
-  const prevOfficialTxns = filterOfficialTransactions(prevRawTransactions);
-  const prevPendingTxns = filterPendingTransactions(prevRawTransactions);
-  const prevResumoConfirmado = prevOfficialTxns.length > 0 ? calculateMonthlySummary(prevOfficialTxns) : null;
-  const prevOrcamento = prevBudgets.length > 0 ? calculateBudgetDeviation(prevBudgets, prevRawTransactions, previousMonth, previousYear) : null;
-  const prevReserveExpenseRef = prevResumoConfirmado?.totalExpense || 0;
-  const prevReserveCoverage = reserveConfigured && prevReserveExpenseRef > 0 ? Math.round((reserveValue / prevReserveExpenseRef) * 10) / 10 : null;
-  const prevScore = prevHealthScoreResult.data?.[0]?.score_geral != null
-    ? Number(prevHealthScoreResult.data[0].score_geral)
-    : (prevResumoConfirmado ? calculateHealthScore({
-        totalIncome: prevResumoConfirmado.totalIncome,
-        totalExpense: prevResumoConfirmado.totalExpense,
-        totalDebt: dividas?.totalSaldoDevedor || 0,
-        emergencyReserve: reserveValue,
-        emergencyReserveConfigured: reserveConfigured,
-        budgetConfigured: prevBudgets.length > 0,
-        budgetDeviation: prevOrcamento ? Math.max(0, prevOrcamento.totalDeviationPercent) : 0,
-        overdueInstallments,
-        totalInstallments: installments.length,
-        monthsWithData: 1,
-        totalMonthsPossible: 1,
-      }).scoreGeral : null);
-
-  const currentSnapshot: ProgressSnapshot = {
-    periodLabel: `${String(mes).padStart(2, "0")}/${ano}`,
-    source: "recent_period",
-    scoreGeral: scoreFinanceiro?.scoreGeral ?? null,
-    pendenciasCount: pendingTxns.length,
-    coberturaReservaMeses: reservaEmergencia?.coberturaMeses ?? null,
-    taxaEconomia: resumoConfirmado?.savingsRate ?? null,
-    metasComProgresso: impactoEmMetas.filter((m) => m.hasProgress).map((m) => ({ nome: m.metaNome, progressoPercent: m.progressoAtual })),
-  };
-
-  const recentPeriodSnapshot: ProgressSnapshot | null = (prevResumoConfirmado || prevPendingTxns.length > 0 || prevScore !== null)
-    ? {
-        periodLabel: `${String(previousMonth).padStart(2, "0")}/${previousYear}`,
-        source: "recent_period",
-        scoreGeral: prevScore,
-        pendenciasCount: prevPendingTxns.length,
-        coberturaReservaMeses: prevReserveCoverage,
-        taxaEconomia: prevResumoConfirmado?.savingsRate ?? null,
-        metasComProgresso: [],
-      }
-    : null;
-
-  const matchingReview = (lastReviewResult.data || []).find((row: any) => {
-    const ctx = row.contexto_enviado;
-    return ctx && ctx.escopo === scope && ctx.periodo?.mes === mes && ctx.periodo?.ano === ano;
-  });
-
-  const lastReviewSnapshot: ProgressSnapshot | null = matchingReview?.contexto_enviado
-    ? {
-        periodLabel: `${String(matchingReview.contexto_enviado.periodo?.mes || mes).padStart(2, "0")}/${matchingReview.contexto_enviado.periodo?.ano || ano}`,
-        source: "last_review",
-        referenceDate: matchingReview.created_at,
-        scoreGeral: matchingReview.contexto_enviado?.scoreFinanceiro?.scoreGeral ?? null,
-        pendenciasCount: matchingReview.contexto_enviado?.pendencias?.count ?? 0,
-        coberturaReservaMeses: matchingReview.contexto_enviado?.reservaEmergencia?.coberturaMeses ?? null,
-        taxaEconomia: matchingReview.contexto_enviado?.resumoConfirmado?.savingsRate ?? null,
-        metasComProgresso: (matchingReview.contexto_enviado?.impactoEmMetas || [])
-          .filter((m: any) => m?.hasProgress)
-          .map((m: any) => ({ nome: m.metaNome, progressoPercent: Number(m.progressoAtual) })),
-      }
-    : null;
-
-  const progressoMemoria = buildProgressMemory({
-    now,
-    current: currentSnapshot,
-    recentPeriod: recentPeriodSnapshot,
-    lastReview: lastReviewSnapshot,
-  });
-
-  const decisaoGuiada = buildDecisionGuidance({
-    resumoConfirmado,
-    orcamento,
-    alertasAtivos,
-    pendenciasCount: pendingTxns.length,
-    reservaEmergencia,
-    impactoEmMetas,
-    assinaturasResumo,
-    scoreFinanceiro,
-    padroesPorCategoria,
-    overdueInstallments,
-    dividas,
   });
 
   return {
@@ -614,344 +385,33 @@ export async function getFinancialContext(
     previsaoCaixa,
     scoreFinanceiro,
     recorrenciasAtivas: recurrings.length,
-    alertasAtivos,
+    alertasAtivos: {
+      total: alertResult.data?.length || 0,
+      critical: (alertResult.data || []).filter(a => a.nivel === "critical").length,
+      warning: (alertResult.data || []).filter(a => a.nivel === "warning").length,
+      info: (alertResult.data || []).filter(a => a.nivel === "info").length,
+      topAlerts: (alertResult.data || []).slice(0, 3).map(a => a.titulo),
+    },
     valoresFamiliares: (valuesResult.data || []).map((v: any) => v.descricao),
     qualidadeDados: { semCategoria, sugeridosPendentes, incompletosPendentes, inconsistentes, impactoNaPrecisao },
     contas: accountsList,
-    padroesPorCategoria: padroesPorCategoria as any,
-    impactoEmMetas: impactoEmMetas as any,
-    progressoMemoria: progressoMemoria as any,
-    assinaturasResumo,
-    decisaoGuiada,
-    reservaEmergencia,
+    padroesPorCategoria,
+    impactoEmMetas,
+    reservaEmergencia: reserveConfigured ? {
+      valor: reserveValue,
+      metaMeses: reserveMonthsTarget,
+      despesaMensalRef,
+      coberturaMeses: despesaMensalRef > 0 ? Math.round((reserveValue / despesaMensalRef) * 10) / 10 : null,
+      statusMeta: !despesaMensalRef ? "ok" : reserveValue < (despesaMensalRef * reserveMonthsTarget) ? "abaixo" : "acima",
+    } : null,
     preferenciasUsuario: userPrefs,
     userIntentHint: "generic",
+    assinaturas: undefined, // Will be populated by caller if needed
     metadados: {
       dataColeta: now.toISOString(),
-      versaoEngine: "11.0-guided-decision",
-      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmed + null (default oficial). A decisão guiada usa sinais já existentes do mês, metas, alertas, reserva, score, recorrências e assinaturas ativas quando houver.",
+      versaoEngine: "4.2-final",
+      nota: "Todos os valores numéricos foram calculados pela engine determinística. A IA deve apenas interpretar, nunca recalcular. Reserva usa despesa mensal para cobertura. Saldos de contas incluem transações confirmed + null (default oficial).",
       avisoAlucinacao: `PROTOCOLO ZERO-ALUCINAÇÃO: Esta IA foi treinada para NUNCA inventar dados. Se um valor não estiver neste contexto, ela não o criará. Se a qualidade dos dados for '${impactoNaPrecisao}', ela alertará o usuário. Sempre ancore as respostas nos números reais acima.`,
     },
   };
-}
-
-function buildProgressMemory(input: {
-  now: Date;
-  current: ProgressSnapshot;
-  recentPeriod: ProgressSnapshot | null;
-  lastReview: ProgressSnapshot | null;
-}): ProgressMemory {
-  const improved: ProgressSignal[] = [];
-  const worsened: ProgressSignal[] = [];
-  const repeated: ProgressSignal[] = [];
-  const summary: string[] = [];
-  const limitations: string[] = [];
-
-  if (!input.recentPeriod && !input.lastReview) {
-    limitations.push("Ainda não há base suficiente para comparar este momento com um período anterior ou com uma revisão anterior do mesmo escopo.");
-  }
-
-  const comparisonBase = input.lastReview || input.recentPeriod;
-
-  if (!comparisonBase) {
-    return {
-      available: false,
-      summary,
-      limitations,
-      currentSnapshot: input.current,
-      recentPeriodSnapshot: input.recentPeriod,
-      lastReviewSnapshot: input.lastReview,
-      improved,
-      worsened,
-      repeated,
-    };
-  }
-
-  compareNumeric(
-    input.current.pendenciasCount,
-    comparisonBase.pendenciasCount,
-    {
-      betterWhen: "lower",
-      kind: "pending",
-      improvedLabel: "Pendências reduziram",
-      worsenedLabel: "Pendências aumentaram",
-      repeatedLabel: "Pendências seguem no mesmo patamar",
-      format: (current, previous) => `${current} agora vs ${previous} na referência.`,
-    },
-    improved,
-    worsened,
-    repeated
-  );
-
-  if (input.current.scoreGeral !== null && comparisonBase.scoreGeral !== null) {
-    compareNumeric(
-      input.current.scoreGeral,
-      comparisonBase.scoreGeral,
-      {
-        betterWhen: "higher",
-        kind: "score",
-        improvedLabel: "Score financeiro melhorou",
-        worsenedLabel: "Score financeiro piorou",
-        repeatedLabel: "Score financeiro praticamente não mudou",
-        format: (current, previous) => `${Math.round(current)} agora vs ${Math.round(previous)} na referência.`,
-      },
-      improved,
-      worsened,
-      repeated,
-      1
-    );
-  } else {
-    limitations.push("Não foi possível comparar score financeiro com segurança em toda a base disponível.");
-  }
-
-  if (input.current.coberturaReservaMeses !== null && comparisonBase.coberturaReservaMeses !== null) {
-    compareNumeric(
-      input.current.coberturaReservaMeses,
-      comparisonBase.coberturaReservaMeses,
-      {
-        betterWhen: "higher",
-        kind: "reserve",
-        improvedLabel: "Cobertura da reserva melhorou",
-        worsenedLabel: "Cobertura da reserva piorou",
-        repeatedLabel: "Cobertura da reserva segue parecida",
-        format: (current, previous) => `${current.toFixed(1)} meses agora vs ${previous.toFixed(1)} na referência.`,
-      },
-      improved,
-      worsened,
-      repeated,
-      0.1
-    );
-  }
-
-  if (input.current.taxaEconomia !== null && comparisonBase.taxaEconomia !== null) {
-    compareNumeric(
-      input.current.taxaEconomia,
-      comparisonBase.taxaEconomia,
-      {
-        betterWhen: "higher",
-        kind: "savings",
-        improvedLabel: "Taxa de economia melhorou",
-        worsenedLabel: "Taxa de economia piorou",
-        repeatedLabel: "Taxa de economia segue parecida",
-        format: (current, previous) => `${current.toFixed(1)}% agora vs ${previous.toFixed(1)}% na referência.`,
-      },
-      improved,
-      worsened,
-      repeated,
-      0.5
-    );
-  }
-
-  const goalSignals = compareGoals(input.current.metasComProgresso, comparisonBase.metasComProgresso);
-  improved.push(...goalSignals.improved);
-  repeated.push(...goalSignals.repeated);
-
-  if (input.current.pendenciasCount > 0 && comparisonBase.pendenciasCount > 0) {
-    repeated.push({
-      kind: "pending",
-      direction: "stable",
-      label: "Pendências continuam exigindo revisão",
-      detail: "Ainda há pendências na referência e no momento atual, então a leitura continua parcialmente limitada.",
-    });
-  }
-
-  if (input.lastReview) {
-    summary.push(`Há base para comparar com a última revisão deste mesmo escopo em ${formatDate(input.lastReview.referenceDate)}.`);
-  }
-  if (input.recentPeriod) {
-    summary.push(`Também há base para comparar com o período recente ${input.recentPeriod.periodLabel}.`);
-  }
-  if (input.now.getDate() < 28) {
-    limitations.push("O mês atual ainda está em andamento, então a comparação com período anterior pode mudar até o fechamento.");
-  }
-
-  return {
-    available: improved.length + worsened.length + repeated.length > 0,
-    summary,
-    limitations,
-    currentSnapshot: input.current,
-    recentPeriodSnapshot: input.recentPeriod,
-    lastReviewSnapshot: input.lastReview,
-    improved,
-    worsened,
-    repeated,
-  };
-}
-
-function buildDecisionGuidance(input: {
-  resumoConfirmado: MonthlySummary | null;
-  orcamento: BudgetDeviationResult | null;
-  alertasAtivos: { total: number; critical: number; warning: number; info: number; topAlerts: string[] };
-  pendenciasCount: number;
-  reservaEmergencia: FinancialContext["reservaEmergencia"];
-  impactoEmMetas: FinancialContext["impactoEmMetas"];
-  assinaturasResumo: SubscriptionSummary | null;
-  scoreFinanceiro: HealthScoreResult | null;
-  padroesPorCategoria: FinancialContext["padroesPorCategoria"];
-  overdueInstallments: number;
-  dividas: LoanSummary | null;
-}): DecisionGuidance {
-  let pressureScore = 0;
-  if ((input.resumoConfirmado?.balance ?? 0) < 0) pressureScore += 2;
-  if ((input.resumoConfirmado?.savingsRate ?? 0) <= 0) pressureScore += 1;
-  if ((input.orcamento?.totalDeviationPercent ?? 0) > 0) pressureScore += 1;
-  if (input.alertasAtivos.critical > 0) pressureScore += 1;
-  if (input.reservaEmergencia?.statusMeta === "abaixo") pressureScore += 1;
-  if ((input.scoreFinanceiro?.scoreGeral ?? 100) < 60) pressureScore += 1;
-
-  const pressaoDoMes: DecisionGuidance["pressaoDoMes"] = pressureScore >= 4 ? "high" : pressureScore >= 2 ? "medium" : "low";
-  const topMetaEmRisco = [...input.impactoEmMetas]
-    .filter((meta) => meta.progressoAtual < 80)
-    .sort((a, b) => a.progressoAtual - b.progressoAtual)[0];
-
-  const protegerCaixaAgora =
-    pressaoDoMes === "high" ||
-    (input.reservaEmergencia?.statusMeta === "abaixo" && (input.alertasAtivos.critical > 0 || (input.resumoConfirmado?.balance ?? 0) <= 0));
-
-  const reservaDeveVirAntes =
-    input.reservaEmergencia?.statusMeta === "abaixo" && (pressaoDoMes !== "low" || input.alertasAtivos.critical > 0);
-
-  const sensibilidadeCompra: DecisionGuidance["sensibilidadeCompra"] = protegerCaixaAgora
-    ? "high"
-    : input.pendenciasCount > 0 || pressaoDoMes === "medium" || input.padroesPorCategoria.some((item) => item.isPressuring)
-    ? "medium"
-    : "low";
-
-  const pressaoCustoRecorrente: DecisionGuidance["pressaoCustoRecorrente"] =
-    input.assinaturasResumo && input.assinaturasResumo.totalAtivas > 0
-      ? protegerCaixaAgora || pressaoDoMes === "high"
-        ? "high"
-        : pressaoDoMes === "medium"
-        ? "medium"
-        : "low"
-      : "low";
-
-  const cuidadoAntecipacaoDivida: DecisionGuidance["cuidadoAntecipacaoDivida"] =
-    input.overdueInstallments > 0 || protegerCaixaAgora || input.reservaEmergencia?.statusMeta === "abaixo"
-      ? "high"
-      : input.dividas?.totalSaldoDevedor
-      ? "medium"
-      : "low";
-
-  let prioridadeAtual: DecisionGuidance["prioridadeAtual"] = "stabilize_month";
-  if (protegerCaixaAgora || reservaDeveVirAntes) prioridadeAtual = "protect_cash";
-  else if (pressaoCustoRecorrente === "high") prioridadeAtual = "review_recurring_costs";
-  else if (topMetaEmRisco) prioridadeAtual = "advance_goal";
-
-  const sinais: string[] = [];
-  if ((input.resumoConfirmado?.balance ?? 0) < 0) sinais.push("O mês confirmado está negativo.");
-  if (input.reservaEmergencia?.statusMeta === "abaixo") sinais.push("A reserva ainda está abaixo da meta configurada.");
-  if (input.alertasAtivos.critical > 0) sinais.push(`Há ${input.alertasAtivos.critical} alerta(s) crítico(s) ativo(s).`);
-  if (topMetaEmRisco) sinais.push(`A meta mais sensível agora é "${topMetaEmRisco.metaNome}".`);
-  if (pressaoCustoRecorrente !== "low" && input.assinaturasResumo) sinais.push(`Assinaturas ativas somam R$ ${input.assinaturasResumo.totalMensal.toFixed(2)} por mês.`);
-  if (sinais.length === 0) sinais.push("O mês atual não mostra sinal forte de pressão crítica.");
-
-  let principalMotivo = "Hoje a leitura do mês está relativamente estável.";
-  if (prioridadeAtual === "protect_cash") {
-    principalMotivo = "Com os dados atuais, proteger caixa é mais importante do que adicionar novo compromisso.";
-  } else if (prioridadeAtual === "review_recurring_costs") {
-    principalMotivo = "Os custos recorrentes merecem revisão antes de ampliar gastos opcionais.";
-  } else if (prioridadeAtual === "advance_goal") {
-    principalMotivo = `Há espaço maior para priorizar a meta "${topMetaEmRisco?.metaNome || "principal"}" do que abrir outro peso agora.`;
-  }
-
-  const oQueMudaria = [
-    input.pendenciasCount > 0 ? "Com as pendências resolvidas, a leitura da decisão ficaria mais confiável." : null,
-    input.reservaEmergencia?.statusMeta === "abaixo" ? "Se a reserva estivesse no nível configurado, a decisão ficaria menos conservadora." : null,
-    topMetaEmRisco ? `Se a meta "${topMetaEmRisco.metaNome}" deixasse de estar pressionada, sobraria mais espaço para outra prioridade.` : null,
-    pressaoDoMes === "high" ? "Se o mês deixasse de estar pressionado, a decisão poderia aceitar mais risco." : null,
-  ].filter(Boolean).slice(0, 2) as string[];
-
-  return {
-    prioridadeAtual,
-    pressaoDoMes,
-    protegerCaixaAgora,
-    reservaDeveVirAntes,
-    sensibilidadeCompra,
-    pressaoCustoRecorrente,
-    cuidadoAntecipacaoDivida,
-    principalMotivo,
-    topMetaEmRisco: topMetaEmRisco ? {
-      nome: topMetaEmRisco.metaNome,
-      progressoAtual: topMetaEmRisco.progressoAtual,
-      faltante: topMetaEmRisco.faltante,
-    } : null,
-    sinais,
-    oQueMudaria,
-  };
-}
-
-function compareGoals(
-  current: Array<{ nome: string; progressoPercent: number }>,
-  previous: Array<{ nome: string; progressoPercent: number }>
-): { improved: ProgressSignal[]; repeated: ProgressSignal[] } {
-  const improved: ProgressSignal[] = [];
-  const repeated: ProgressSignal[] = [];
-
-  const previousMap = new Map(previous.map((item) => [item.nome, item.progressoPercent]));
-  current.forEach((goal) => {
-    const previousValue = previousMap.get(goal.nome);
-    if (previousValue === undefined) return;
-    if (goal.progressoPercent > previousValue + 0.5) {
-      improved.push({
-        kind: "goal",
-        direction: "improved",
-        label: `Meta "${goal.nome}" avançou`,
-        detail: `${goal.progressoPercent.toFixed(1)}% agora vs ${previousValue.toFixed(1)}% na referência.`,
-      });
-    } else {
-      repeated.push({
-        kind: "goal",
-        direction: "stable",
-        label: `Meta "${goal.nome}" segue quase no mesmo ponto`,
-        detail: `${goal.progressoPercent.toFixed(1)}% agora vs ${previousValue.toFixed(1)}% na referência.`,
-      });
-    }
-  });
-
-  return { improved, repeated };
-}
-
-function compareNumeric(
-  current: number,
-  previous: number,
-  config: {
-    betterWhen: "higher" | "lower";
-    kind: ProgressSignalKind;
-    improvedLabel: string;
-    worsenedLabel: string;
-    repeatedLabel: string;
-    format: (current: number, previous: number) => string;
-  },
-  improved: ProgressSignal[],
-  worsened: ProgressSignal[],
-  repeated: ProgressSignal[],
-  tolerance: number = 0
-) {
-  const diff = current - previous;
-  if (Math.abs(diff) <= tolerance) {
-    repeated.push({
-      kind: config.kind,
-      direction: "stable",
-      label: config.repeatedLabel,
-      detail: config.format(current, previous),
-    });
-    return;
-  }
-
-  const isImproved = config.betterWhen === "higher" ? diff > 0 : diff < 0;
-  const target = isImproved ? improved : worsened;
-  target.push({
-    kind: config.kind,
-    direction: isImproved ? "improved" : "worsened",
-    label: isImproved ? config.improvedLabel : config.worsenedLabel,
-    detail: config.format(current, previous),
-  });
-}
-
-function formatDate(value?: string | null): string {
-  if (!value) return "data não identificada";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "data não identificada";
-  return date.toLocaleDateString("pt-BR");
 }
