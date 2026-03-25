@@ -102,6 +102,8 @@ export default function AiAdvisor() {
         userIntentHint = "purchase";
       } else if (lowerInput.includes("cortar") || lowerInput.includes("errando") || lowerInput.includes("atacar")) {
         userIntentHint = "cutting";
+      } else if (lowerInput.includes("checklist") || lowerInput.includes("revisar") || lowerInput.includes("priorizar") || lowerInput.includes("organize") || lowerInput.includes("passos") || lowerInput.includes("fazer agora")) {
+        userIntentHint = "checklist";
       }
 
       // Collect financial context with explicit scope
