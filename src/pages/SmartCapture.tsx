@@ -361,9 +361,9 @@ export default function SmartCapture() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Escopo de Destino</Label>
-                    <Select value={editForm.scope} onValueChange={v => setEditForm(f => ({ ...f, scope: v }))}>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Escopo</Label>
+                    <Select value={editForm.scope} onValueChange={v => setEditForm(f => ({ ...f, scope: v as "private" | "family" | "business" }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="private">Pessoal</SelectItem>
