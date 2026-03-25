@@ -151,9 +151,6 @@ export async function getFinancialContext(
   year?: number
 ): Promise<FinancialContext> {
   const scopeTyped = scope as "private" | "family" | "business";
-  month?: number,
-  year?: number
-): Promise<FinancialContext> {
   const now = new Date();
   const mes = month || now.getMonth() + 1;
   const ano = year || now.getFullYear();
