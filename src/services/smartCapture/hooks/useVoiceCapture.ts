@@ -1,49 +1,6 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-declare global {
-  interface Window {
-    webkitSpeechRecognition?: new () => SpeechRecognition;
-    SpeechRecognition?: new () => SpeechRecognition;
-  }
-
-  interface SpeechRecognitionEvent extends Event {
-    results: SpeechRecognitionResultList;
-  }
-
-  interface SpeechRecognitionErrorEvent extends Event {
-    error: string;
-  }
-
-  interface SpeechRecognition extends EventTarget {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    maxAlternatives: number;
-    onresult: ((event: SpeechRecognitionEvent) => void) | null;
-    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-    onend: (() => void) | null;
-    start(): void;
-    stop(): void;
-  }
-
-  interface SpeechRecognitionResultList {
-    [index: number]: SpeechRecognitionResult;
-    length: number;
-  }
-
-  interface SpeechRecognitionResult {
-    [index: number]: SpeechRecognitionAlternative;
-    isFinal: boolean;
-    length: number;
-  }
-
-  interface SpeechRecognitionAlternative {
-    transcript: string;
-    confidence: number;
-  }
-}
-
 export interface VoiceCaptureResult {
   text: string;
   confidence: number;
@@ -81,7 +38,7 @@ export function useVoiceCapture() {
       const recognition = createRecognition();
       recognitionRef.current = recognition;
 
-      recognition.onresult = (event) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         const first = event.results?.[0]?.[0];
         if (!first) return;
 
@@ -91,7 +48,7 @@ export function useVoiceCapture() {
         });
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         toast.error("Erro na transcrição de voz", {
           description: event.error || "Falha ao interpretar o áudio.",
         });
