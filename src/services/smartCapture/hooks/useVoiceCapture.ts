@@ -1,62 +1,21 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-declare global {
-  interface Window {
-    webkitSpeechRecognition?: new () => SpeechRecognition;
-    SpeechRecognition?: new () => SpeechRecognition;
-  }
-
-  interface SpeechRecognitionEvent extends Event {
-    results: SpeechRecognitionResultList;
-  }
-
-  interface SpeechRecognitionErrorEvent extends Event {
-    error: string;
-  }
-
-  interface SpeechRecognition extends EventTarget {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    maxAlternatives: number;
-    onresult: ((event: SpeechRecognitionEvent) => void) | null;
-    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-    onend: (() => void) | null;
-    start(): void;
-    stop(): void;
-  }
-
-  interface SpeechRecognitionResultList {
-    [index: number]: SpeechRecognitionResult;
-    length: number;
-  }
-
-  interface SpeechRecognitionResult {
-    [index: number]: SpeechRecognitionAlternative;
-    isFinal: boolean;
-    length: number;
-  }
-
-  interface SpeechRecognitionAlternative {
-    transcript: string;
-    confidence: number;
-  }
-}
-
 export interface VoiceCaptureResult {
   text: string;
   confidence: number;
 }
 
 export function useVoiceCapture() {
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [result, setResult] = useState<VoiceCaptureResult | null>(null);
 
   const createRecognition = () => {
-    const RecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const RecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!RecognitionCtor) {
       throw new Error("Reconhecimento de voz não suportado neste navegador.");
@@ -81,7 +40,8 @@ export function useVoiceCapture() {
       const recognition = createRecognition();
       recognitionRef.current = recognition;
 
-      recognition.onresult = (event) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onresult = (event: any) => {
         const first = event.results?.[0]?.[0];
         if (!first) return;
 
@@ -91,7 +51,8 @@ export function useVoiceCapture() {
         });
       };
 
-      recognition.onerror = (event) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onerror = (event: any) => {
         toast.error("Erro na transcrição de voz", {
           description: event.error || "Falha ao interpretar o áudio.",
         });
