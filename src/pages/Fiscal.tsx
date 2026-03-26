@@ -45,9 +45,10 @@ export default function Fiscal() {
       const { data, error } = await supabase
         .from("transactions")
         .select(`
-          id, valor, tipo, data, scope, data_status, e_dedutivel, categoria_fiscal, ano_fiscal
+          id, valor, tipo, data, scope, data_status, e_mei, categoria_id
         `)
-        .or(`ano_fiscal.eq.${fiscalYear},and(data.gte.${fiscalYear}-01-01,data.lte.${fiscalYear}-12-31)`);
+        .gte("data", `${fiscalYear}-01-01`)
+        .lte("data", `${fiscalYear}-12-31`);
 
       if (error) throw error;
       return data || [];
