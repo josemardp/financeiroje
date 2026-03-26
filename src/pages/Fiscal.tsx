@@ -12,6 +12,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,9 +46,10 @@ export default function Fiscal() {
       const { data, error } = await supabase
         .from("transactions")
         .select(`
-          id, valor, tipo, data, scope, data_status, e_dedutivel, categoria_fiscal, ano_fiscal
+          id, valor, tipo, data, scope, data_status, e_mei, categoria_id
         `)
-        .or(`ano_fiscal.eq.${fiscalYear},and(data.gte.${fiscalYear}-01-01,data.lte.${fiscalYear}-12-31)`);
+        .gte("data", `${fiscalYear}-01-01`)
+        .lte("data", `${fiscalYear}-12-31`);
 
       if (error) throw error;
       return data || [];
@@ -296,7 +298,7 @@ export default function Fiscal() {
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {doc.ano_fiscal}
                       </Badge>
-                      {doc.e_dedutivel && (
+                      {(doc.document_type === 'recibo_medico' || doc.document_type === 'recibo_educacao') && (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700 hover:bg-green-100">
                           Dedutível
                         </Badge>
@@ -312,5 +314,3 @@ export default function Fiscal() {
     </div>
   );
 }
-
-import { Button } from "@/components/ui/button";
