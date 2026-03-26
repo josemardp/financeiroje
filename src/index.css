@@ -131,6 +131,15 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
   }
+
+  /* Smooth transitions for dark mode */
+  html {
+    transition: color-scheme 0.3s;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
 }
 
 @layer components {
@@ -148,5 +157,20 @@
   }
   .data-badge-estimated {
     @apply bg-[hsl(var(--status-estimated)/0.1)] text-[hsl(var(--status-estimated))] border-[hsl(var(--status-estimated)/0.3)];
+  }
+
+  /* Premium scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
   }
 }
