@@ -38,6 +38,15 @@ type MirrorFormState = {
   source_type: string;
 };
 
+function normalizeLearningText(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function SmartCapture() {
   const { user } = useAuth();
   const { currentScope, scopeLabel } = useScope();
@@ -166,40 +175,69 @@ export default function SmartCapture() {
 
     setIsSaving(true);
 
+    const originalInput = parsed?.textoOriginal || textInput;
     const validationNotes = JSON.stringify({
-      original_input: parsed?.textoOriginal || textInput,
+      original_input: originalInput,
       extracted_payload: extractedSnapshot,
       reviewed_payload: reviewedSnapshot,
     });
 
-    const { error } = await supabase.from("transactions").insert({
+    const { data: insertedTransaction, error } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: user.id,
+        valor: Number(editForm.valor),
+        tipo: editForm.tipo as any,
+        categoria_id: editForm.categoria_id || null,
+        descricao: editForm.descricao,
+        data: editForm.data,
+        scope: editForm.scope as any,
+        data_status: "confirmed" as any,
+        source_type: editForm.source_type as any,
+        confidence: parsed?.confianca as any || "media",
+        created_by: user.id,
+        updated_by: user.id,
+        validation_notes: validationNotes,
+      })
+      .select("id")
+      .single();
+
+    if (error || !insertedTransaction) {
+      toast.error("Erro ao salvar", { description: error?.message || "Falha ao salvar transação." });
+      setIsSaving(false);
+      return;
+    }
+
+    const { error: learningError } = await supabase.from("smart_capture_learning").insert({
       user_id: user.id,
-      valor: Number(editForm.valor),
-      tipo: editForm.tipo as any,
-      categoria_id: editForm.categoria_id || null,
-      descricao: editForm.descricao,
-      data: editForm.data,
-      scope: editForm.scope as any,
-      data_status: "confirmed" as any,
+      transaction_id: insertedTransaction.id,
+      source_text: originalInput,
+      normalized_text: normalizeLearningText(originalInput),
       source_type: editForm.source_type as any,
-      confidence: parsed?.confianca as any || "media",
-      created_by: user.id,
-      updated_by: user.id,
-      validation_notes: validationNotes,
+      suggested_payload: extractedSnapshot || {},
+      final_payload: reviewedSnapshot || {},
+      category_id: editForm.categoria_id || null,
+      transaction_type: editForm.tipo as any,
+      scope: editForm.scope as any,
+      confidence_before: parsed?.confianca as any || "media",
     });
 
-    if (error) {
-      toast.error("Erro ao salvar", { description: error.message });
+    if (learningError) {
+      toast.warning("Transação salva, mas o aprendizado não foi registrado", {
+        description: learningError.message,
+      });
     } else {
-      toast.success("Transação confirmada e registrada", {
+      toast.success("Transação confirmada e aprendizado registrado", {
         description: `Salva no escopo: ${editForm.scope === 'private' ? 'Pessoal' : editForm.scope === 'family' ? 'Família' : 'Negócio'}.`,
       });
-      setParsed(null);
-      setTextInput("");
-      setReviewConfirmed(false);
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
     }
+
+    setParsed(null);
+    setTextInput("");
+    setReviewConfirmed(false);
+    queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["smart-capture-learning"] });
     setIsSaving(false);
   };
 
