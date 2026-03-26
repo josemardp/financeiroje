@@ -37,6 +37,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 const mainNav = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -72,16 +74,23 @@ export function AppSidebar() {
   const location = useLocation();
   const { profile, signOut } = useAuth();
 
+  const initials = (profile?.nome || "U")
+    .split(" ")
+    .map((w: string) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
+        <Link to="/" className="flex items-center gap-2.5 group">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary shadow-lg shadow-sidebar-primary/20 transition-transform group-hover:scale-105">
             <Brain className="h-5 w-5 text-sidebar-primary-foreground" />
           </div>
           <div>
-            <span className="text-base font-bold text-sidebar-foreground">FinanceAI</span>
-            <span className="block text-[10px] text-sidebar-foreground/50 leading-none">v3.7</span>
+            <span className="text-base font-bold text-sidebar-foreground tracking-tight">FinanceAI</span>
+            <span className="block text-[10px] text-sidebar-foreground/40 leading-none font-mono">v3.8 • premium</span>
           </div>
         </Link>
       </SidebarHeader>
@@ -105,16 +114,22 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8 border border-sidebar-border">
+            <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-bold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-sidebar-foreground truncate">{profile?.nome || "Usuário"}</p>
-            <p className="text-xs text-sidebar-foreground/50 truncate">{profile?.email}</p>
+            <p className="text-[11px] text-sidebar-foreground/40 truncate">{profile?.email}</p>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={signOut}
-            className="text-sidebar-foreground/50 hover:text-sidebar-foreground shrink-0"
+            className="text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 h-8 w-8"
+            title="Sair"
           >
             <LogOut className="h-4 w-4" />
           </Button>
