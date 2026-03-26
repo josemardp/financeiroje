@@ -133,7 +133,7 @@ describe("generateAlerts", () => {
 
   it("generates alert for low savings rate", () => {
     const alerts = generateAlerts({ ...baseInput, savingsRate: 5 });
-    expect(alerts.some(a => a.tipo === "economia_baixa")).toBe(true);
+    expect(alerts.some(a => a.tipo === "fluxo_caixa")).toBe(true);
   });
 
   it("generates alert for exceeded budget", () => {
@@ -152,7 +152,7 @@ describe("generateAlerts", () => {
 
   it("generates alert for suggested pending", () => {
     const alerts = generateAlerts({ ...baseInput, suggestedCount: 3 });
-    expect(alerts.some(a => a.tipo === "suggested_pendentes")).toBe(true);
+    expect(alerts.some(a => a.tipo === "qualidade")).toBe(true);
   });
 
   it("does NOT generate reserve alert when reserve is not configured", () => {
@@ -162,7 +162,7 @@ describe("generateAlerts", () => {
 
   it("generates reserve alert ONLY when configured", () => {
     const alerts = generateAlerts({ ...baseInput, emergencyReserveConfigured: true, emergencyReserve: 500 });
-    expect(alerts.some(a => a.tipo === "reserva_insuficiente")).toBe(true);
+    expect(alerts.some(a => a.tipo === "reserva")).toBe(true);
   });
 });
 
