@@ -298,7 +298,7 @@ export default function Fiscal() {
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {doc.ano_fiscal}
                       </Badge>
-                      {doc.e_dedutivel && (
+                      {(doc.document_type === 'recibo_medico' || doc.document_type === 'recibo_educacao') && (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700 hover:bg-green-100">
                           Dedutível
                         </Badge>
