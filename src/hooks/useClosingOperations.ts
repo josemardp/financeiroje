@@ -29,7 +29,7 @@ export function useClosingOperations() {
         try {
           const { data, error } = await supabase
             .from("monthly_closings")
-            .select("status, fechado_em, fechado_por, reaberto_em, reaberto_por")
+            .select("status, fechado_em, fechado_por")
             .eq("mes", month)
             .eq("ano", year)
             .maybeSingle();
@@ -50,8 +50,6 @@ export function useClosingOperations() {
             isLocked: data.status === "closed",
             closedAt: data.fechado_em,
             closedBy: data.fechado_por,
-            reopenedAt: data.reaberto_em,
-            reopenedBy: data.reaberto_por,
           };
         } catch (err) {
           console.error("Erro ao obter status do período:", err);
@@ -94,9 +92,10 @@ export function useClosingOperations() {
               .eq("id", existing.id);
             if (error) throw error;
           } else {
+            const userId = (await supabase.auth.getUser()).data.user?.id;
             const { error } = await supabase
               .from("monthly_closings")
-              .insert(closingPayload);
+              .insert({ ...closingPayload, user_id: userId! });
             if (error) throw error;
           }
 

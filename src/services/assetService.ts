@@ -52,7 +52,7 @@ export interface NetWorthSummary {
 // ─── CRUD de Ativos ──────────────────────────────────────────
 
 export async function getAssets(): Promise<Asset[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('assets')
     .select('*')
     .eq('ativo', true)
@@ -63,7 +63,7 @@ export async function getAssets(): Promise<Asset[]> {
 }
 
 export async function createAsset(asset: Partial<Asset>): Promise<Asset> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('assets')
     .insert(asset)
     .select()
@@ -74,7 +74,7 @@ export async function createAsset(asset: Partial<Asset>): Promise<Asset> {
 }
 
 export async function updateAsset(id: string, updates: Partial<Asset>): Promise<Asset> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('assets')
     .update(updates)
     .eq('id', id)
@@ -86,7 +86,7 @@ export async function updateAsset(id: string, updates: Partial<Asset>): Promise<
 }
 
 export async function deleteAsset(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('assets')
     .update({ ativo: false })
     .eq('id', id);
@@ -97,7 +97,7 @@ export async function deleteAsset(id: string): Promise<void> {
 // ─── Histórico e Valorização ──────────────────────────────────
 
 export async function getAssetValuations(assetId: string): Promise<AssetValuation[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('asset_valuations')
     .select('*')
     .eq('asset_id', assetId)
@@ -114,7 +114,7 @@ export async function getNetWorthSummary(): Promise<NetWorthSummary> {
   const assets = await getAssets();
   
   // 2. Obter Saldos de Contas (Accounts)
-  const { data: accounts, error: accError } = await supabase
+  const { data: accounts, error: accError } = await (supabase as any)
     .from('accounts')
     .select('saldo_atual');
   if (accError) throw accError;
