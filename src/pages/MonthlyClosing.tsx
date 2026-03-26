@@ -59,7 +59,7 @@ export default function MonthlyClosing() {
   const { data: auditTrail = [] } = useQuery({
     queryKey: ["audit-trail", selectedMonth, selectedYear],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("audit_logs")
         .select("*")
         .in("context", ["Fechamento Mensal Realizado", "Reabertura de Período Auditada"])
