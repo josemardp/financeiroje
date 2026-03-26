@@ -1,57 +1,127 @@
-import { useState, useRef } from "react";
-import { VoiceAdapter, VoiceTranscriptionResult } from "../adapters/VoiceAdapter";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+    SpeechRecognition?: new () => SpeechRecognition;
+  }
+
+  interface SpeechRecognitionEvent extends Event {
+    results: SpeechRecognitionResultList;
+  }
+
+  interface SpeechRecognitionErrorEvent extends Event {
+    error: string;
+  }
+
+  interface SpeechRecognition extends EventTarget {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    maxAlternatives: number;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+    onend: (() => void) | null;
+    start(): void;
+    stop(): void;
+  }
+
+  interface SpeechRecognitionResultList {
+    [index: number]: SpeechRecognitionResult;
+    length: number;
+  }
+
+  interface SpeechRecognitionResult {
+    [index: number]: SpeechRecognitionAlternative;
+    isFinal: boolean;
+    length: number;
+  }
+
+  interface SpeechRecognitionAlternative {
+    transcript: string;
+    confidence: number;
+  }
+}
+
+export interface VoiceCaptureResult {
+  text: string;
+  confidence: number;
+}
+
 export function useVoiceCapture() {
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [result, setResult] = useState<VoiceTranscriptionResult | null>(null);
-  
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const [result, setResult] = useState<VoiceCaptureResult | null>(null);
+
+  const createRecognition = () => {
+    const RecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!RecognitionCtor) {
+      throw new Error("Reconhecimento de voz não suportado neste navegador.");
+    }
+
+    const recognition = new RecognitionCtor();
+    recognition.lang = "pt-BR";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    return recognition;
+  };
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Captura de microfone indisponível neste navegador.");
+      }
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const recognition = createRecognition();
+      recognitionRef.current = recognition;
+
+      recognition.onresult = (event) => {
+        const first = event.results?.[0]?.[0];
+        if (!first) return;
+
+        setResult({
+          text: first.transcript.trim(),
+          confidence: Number.isFinite(first.confidence) && first.confidence > 0 ? first.confidence : 0.85,
+        });
       };
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
-        setIsTranscribing(true);
-        try {
-          const transcription = await VoiceAdapter.transcribe(audioBlob);
-          setResult(transcription);
-        } catch (error) {
-          toast.error("Erro na transcrição de voz");
-          console.error(error);
-        } finally {
-          setIsTranscribing(false);
-        }
+      recognition.onerror = (event) => {
+        toast.error("Erro na transcrição de voz", {
+          description: event.error || "Falha ao interpretar o áudio.",
+        });
+        setIsRecording(false);
+        setIsTranscribing(false);
       };
 
-      mediaRecorder.start();
+      recognition.onend = () => {
+        setIsRecording(false);
+        setIsTranscribing(false);
+      };
+
+      setResult(null);
       setIsRecording(true);
-      toast.info("Gravando áudio...");
+      setIsTranscribing(true);
+      recognition.start();
+      toast.info("Gravando e transcrevendo em tempo real...");
     } catch (error) {
-      toast.error("Permissão de microfone negada");
-      console.error(error);
+      toast.error("Captura de voz indisponível", {
+        description: error instanceof Error ? error.message : "Falha ao acessar o microfone.",
+      });
+      setIsRecording(false);
+      setIsTranscribing(false);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
       setIsRecording(false);
-      // Stop all tracks to release the microphone
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     }
   };
 
@@ -67,6 +137,6 @@ export function useVoiceCapture() {
     result,
     startRecording,
     stopRecording,
-    resetVoice
+    resetVoice,
   };
 }
