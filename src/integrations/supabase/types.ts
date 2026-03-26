@@ -22,6 +22,7 @@ export type Database = {
           icone: string | null
           id: string
           nome: string
+          saldo_atual: number | null
           saldo_inicial: number
           scope: Database["public"]["Enums"]["scope_type"] | null
           tipo: string
@@ -35,6 +36,7 @@ export type Database = {
           icone?: string | null
           id?: string
           nome: string
+          saldo_atual?: number | null
           saldo_inicial?: number
           scope?: Database["public"]["Enums"]["scope_type"] | null
           tipo?: string
@@ -48,6 +50,7 @@ export type Database = {
           icone?: string | null
           id?: string
           nome?: string
+          saldo_atual?: number | null
           saldo_inicial?: number
           scope?: Database["public"]["Enums"]["scope_type"] | null
           tipo?: string
@@ -166,9 +169,93 @@ export type Database = {
         }
         Relationships: []
       }
+      asset_valuations: {
+        Row: {
+          asset_id: string
+          created_at: string
+          data_referencia: string
+          id: string
+          valor: number
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          data_referencia?: string
+          id?: string
+          valor: number
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          data_referencia?: string
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_valuations_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          data_aquisicao: string | null
+          detalhes: Json | null
+          id: string
+          instituicao: string | null
+          liquidez: string | null
+          nome: string
+          tipo: string
+          updated_at: string
+          user_id: string
+          valor_aquisicao: number
+          valor_atual: number
+          vencimento: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          data_aquisicao?: string | null
+          detalhes?: Json | null
+          id?: string
+          instituicao?: string | null
+          liquidez?: string | null
+          nome: string
+          tipo?: string
+          updated_at?: string
+          user_id: string
+          valor_aquisicao?: number
+          valor_atual?: number
+          vencimento?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          data_aquisicao?: string | null
+          detalhes?: Json | null
+          id?: string
+          instituicao?: string | null
+          liquidez?: string | null
+          nome?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+          valor_aquisicao?: number
+          valor_atual?: number
+          vencimento?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
+          context: string | null
           created_at: string
           id: string
           new_data: Json | null
@@ -179,6 +266,7 @@ export type Database = {
         }
         Insert: {
           action: string
+          context?: string | null
           created_at?: string
           id?: string
           new_data?: Json | null
@@ -189,6 +277,7 @@ export type Database = {
         }
         Update: {
           action?: string
+          context?: string | null
           created_at?: string
           id?: string
           new_data?: Json | null
@@ -677,6 +766,36 @@ export type Database = {
         }
         Relationships: []
       }
+      mei_settings: {
+        Row: {
+          alerta_threshold_percent: number | null
+          ano_referencia: number
+          created_at: string
+          id: string
+          limite_anual: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alerta_threshold_percent?: number | null
+          ano_referencia: number
+          created_at?: string
+          id?: string
+          limite_anual?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alerta_threshold_percent?: number | null
+          ano_referencia?: number
+          created_at?: string
+          id?: string
+          limite_anual?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       monthly_closings: {
         Row: {
           ano: number
@@ -686,6 +805,9 @@ export type Database = {
           id: string
           mes: number
           pendencias: Json | null
+          reaberto_em: string | null
+          reaberto_por: string | null
+          reabertura_motivo: string | null
           resumo: string | null
           saldo: number | null
           status: Database["public"]["Enums"]["closing_status"] | null
@@ -702,6 +824,9 @@ export type Database = {
           id?: string
           mes: number
           pendencias?: Json | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          reabertura_motivo?: string | null
           resumo?: string | null
           saldo?: number | null
           status?: Database["public"]["Enums"]["closing_status"] | null
@@ -718,6 +843,9 @@ export type Database = {
           id?: string
           mes?: number
           pendencias?: Json | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          reabertura_motivo?: string | null
           resumo?: string | null
           saldo?: number | null
           status?: Database["public"]["Enums"]["closing_status"] | null
