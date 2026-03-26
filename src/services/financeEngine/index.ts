@@ -2,18 +2,23 @@
  * FinanceAI — Engine Determinística
  * Ponto de entrada único para todas as funções de cálculo financeiro.
  *
- * SPRINT 1: Todas as funções críticas agora consomem o BACKEND por padrão.
+ * SPRINT 1+: Todas as funções críticas consomem o BACKEND por padrão.
  */
 
 import { backendEngine } from "./backend";
 
-// ─── Cálculos Financeiros (Agora via Backend/Edge Functions) ─────
+// ─── Cálculos Financeiros (via Backend/Edge Functions) ───────────
 export const calculateMonthlySummary = backendEngine.calculateMonthlySummary;
 export const calculateBudgetDeviation = backendEngine.calculateBudgetDeviation;
 export const calculateHealthScore = backendEngine.calculateHealthScore;
 export const calculateCashflowForecast = backendEngine.calculateCashflowForecast;
 export const calculateGoalProgress = backendEngine.calculateGoalProgress;
 export const calculateLoanIndicators = backendEngine.calculateLoanIndicators;
+export const calculateMeiSummary = backendEngine.calculateMeiSummary;
+export const calculateFiscalSummary = backendEngine.calculateFiscalSummary;
+export const calculateSubscriptionSummary = backendEngine.calculateSubscriptionSummary;
+export const calculateDebtStrategies = backendEngine.calculateDebtStrategies;
+export const calculateFinancialCalendar = backendEngine.calculateFinancialCalendar;
 
 // ─── Filtros de Status ───────────────────────────────────────────
 export {
@@ -27,7 +32,7 @@ export {
 // ─── Tipos Base ──────────────────────────────────────────────────
 export type * from "./types";
 
-// ─── Schemas de Validação (Zod) ─────────────────────────────────
+// ─── Schemas de Validação (Zod) ──────────────────────────────────
 export {
   DataStatusEnum,
   ScopeEnum,
@@ -57,7 +62,7 @@ export {
   LoanSummarySchema,
 } from "./schemas";
 
-// ─── Mapeadores de Dados ────────────────────────────────────────
+// ─── Mapeadores de Dados ─────────────────────────────────────────
 export {
   mapTransaction,
   mapTransactions,
@@ -78,7 +83,7 @@ export {
   mapFinancialDataBatch,
 } from "./mappers";
 
-// ─── Contratos de Saída Padronizados ────────────────────────────
+// ─── Contratos de Saída Padronizados ─────────────────────────────
 export type {
   DataMetadata,
   MonthlyReport,
@@ -92,7 +97,7 @@ export type {
   MonthlyClosingReport,
 } from "./contracts";
 
-// ─── Utilitários de Metadados ───────────────────────────────────
+// ─── Utilitários de Metadados ────────────────────────────────────
 export {
   createMetadata,
   updateMetadata,
