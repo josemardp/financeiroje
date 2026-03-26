@@ -42,7 +42,7 @@ export default function Business() {
         .from("transactions")
         .select(`
           id, valor, tipo, data, scope, data_status, e_mei, categoria_id,
-          categories(nome, is_business_cost)
+          categories(nome, e_mei)
         `)
         .eq("scope", "business")
         .gte("data", `${currentYear}-01-01`)
@@ -53,7 +53,7 @@ export default function Business() {
       return (data || []).map(t => ({
         ...t,
         categoria_nome: (t.categories as any)?.nome,
-        categoria_is_business_cost: (t.categories as any)?.is_business_cost
+        categoria_is_business_cost: (t.categories as any)?.e_mei ?? false
       }));
     }
   });
