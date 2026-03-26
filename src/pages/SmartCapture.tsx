@@ -208,36 +208,15 @@ export default function SmartCapture() {
       return;
     }
 
-    const { error: learningError } = await supabase.from("smart_capture_learning").insert({
-      user_id: user.id,
-      transaction_id: insertedTransaction.id,
-      source_text: originalInput,
-      normalized_text: normalizeLearningText(originalInput),
-      source_type: editForm.source_type as any,
-      suggested_payload: extractedSnapshot || {},
-      final_payload: reviewedSnapshot || {},
-      category_id: editForm.categoria_id || null,
-      transaction_type: editForm.tipo as any,
-      scope: editForm.scope as any,
-      confidence_before: parsed?.confianca as any || "media",
+    toast.success("Transação confirmada e registrada", {
+      description: `Salva no escopo: ${editForm.scope === 'private' ? 'Pessoal' : editForm.scope === 'family' ? 'Família' : 'Negócio'}.`,
     });
-
-    if (learningError) {
-      toast.warning("Transação salva, mas o aprendizado não foi registrado", {
-        description: learningError.message,
-      });
-    } else {
-      toast.success("Transação confirmada e aprendizado registrado", {
-        description: `Salva no escopo: ${editForm.scope === 'private' ? 'Pessoal' : editForm.scope === 'family' ? 'Família' : 'Negócio'}.`,
-      });
-    }
 
     setParsed(null);
     setTextInput("");
     setReviewConfirmed(false);
     queryClient.invalidateQueries({ queryKey: ["transactions"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
-    queryClient.invalidateQueries({ queryKey: ["smart-capture-learning"] });
     setIsSaving(false);
   };
 
