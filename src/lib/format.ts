@@ -40,6 +40,7 @@ export function formatMonthYear(month: number, year: number): string {
   }).format(date);
 }
 
+// Mantido exportado para componentes de auditoria e fechamento em builds remotos.
 export function formatTime(date: string | Date): string {
   return new Intl.DateTimeFormat(LOCALE, {
     hour: "2-digit",
