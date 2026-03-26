@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Settings, Shield, Bell, User, Loader2 } from "lucide-react";
+import { Settings, Shield, Bell, User, Loader2, Palette, Moon, Sun, Monitor } from "lucide-react";
 
 interface FinancialPreferences {
   reserva_emergencia_valor?: number;
@@ -27,6 +27,7 @@ interface FinancialPreferences {
 
 export default function SettingsPage() {
   const { user, profile, refreshProfile } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [nome, setNome] = useState("");
   const [prefs, setPrefs] = useState<FinancialPreferences>({
@@ -65,9 +66,41 @@ export default function SettingsPage() {
     setSaving(false);
   };
 
+  const themeOptions = [
+    { value: "light", label: "Claro", icon: Sun },
+    { value: "dark", label: "Escuro", icon: Moon },
+    { value: "system", label: "Sistema", icon: Monitor },
+  ] as const;
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Configurações" description="Perfil, preferências financeiras e alertas" />
+    <div className="space-y-6 animate-fade-in max-w-2xl">
+      <PageHeader title="Configurações" description="Perfil, aparência, preferências financeiras e alertas" />
+
+      {/* Appearance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><Palette className="h-4 w-4" /> Aparência</CardTitle>
+          <CardDescription>Escolha como o FinanceAI aparece para você</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-3">
+            {themeOptions.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                  theme === value
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border hover:border-muted-foreground/30"
+                }`}
+              >
+                <Icon className={`h-5 w-5 ${theme === value ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`text-sm font-medium ${theme === value ? "text-primary" : "text-muted-foreground"}`}>{label}</span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Profile */}
       <Card>
@@ -90,7 +123,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><Shield className="h-4 w-4" /> Reserva de Emergência</CardTitle>
-          <CardDescription>Configure sua reserva para que o sistema avalie corretamente sua saúde financeira</CardDescription>
+          <CardDescription>Configure sua reserva para avaliação da saúde financeira</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -154,7 +187,7 @@ export default function SettingsPage() {
             { key: "alertas_metas", label: "Alertas de metas em risco" },
           ].map(({ key, label }) => (
             <div key={key} className="flex items-center justify-between">
-              <Label>{label}</Label>
+              <Label className="font-normal">{label}</Label>
               <Switch checked={prefs[key as keyof FinancialPreferences] as boolean ?? true}
                 onCheckedChange={v => setPrefs(p => ({ ...p, [key]: v }))} />
             </div>
@@ -162,7 +195,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={saving} className="w-full">
+      <Button onClick={handleSave} disabled={saving} className="w-full h-12 text-base">
         {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
         Salvar configurações
       </Button>
