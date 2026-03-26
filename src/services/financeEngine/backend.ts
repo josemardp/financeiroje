@@ -44,5 +44,5 @@ export const backendEngine = {
     callEngine<MonthlySummary>("calculate-monthly-summary", { transactions }),
 
   calculateMeiSummary: (transactions: TransactionRaw[], annualLimit: number) =>
-    callEngine<MeiSummary>("calculate-mei-summary", { transactions, annualLimit }),
+    callEngine<Record<string, any>>("calculate-mei-summary", { transactions, annualLimit }),
 };
