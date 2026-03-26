@@ -49,6 +49,7 @@ const mainNav = [
 ];
 
 const financeNav = [
+  { title: "Calendário Financeiro", icon: CalendarDays, href: "/calendario" },
   { title: "Patrimônio & Investimentos", icon: PieChart, href: "/patrimonio" },
   { title: "Dívidas", icon: CreditCard, href: "/dividas" },
   { title: "Metas & Sonhos", icon: Target, href: "/metas" },
@@ -80,7 +81,7 @@ export function AppSidebar() {
           </div>
           <div>
             <span className="text-base font-bold text-sidebar-foreground">FinanceAI</span>
-            <span className="block text-[10px] text-sidebar-foreground/50 leading-none">v3.0</span>
+            <span className="block text-[10px] text-sidebar-foreground/50 leading-none">v3.7</span>
           </div>
         </Link>
       </SidebarHeader>
@@ -109,7 +110,12 @@ export function AppSidebar() {
             <p className="text-sm font-medium text-sidebar-foreground truncate">{profile?.nome || "Usuário"}</p>
             <p className="text-xs text-sidebar-foreground/50 truncate">{profile?.email}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={signOut} className="text-sidebar-foreground/50 hover:text-sidebar-foreground shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={signOut}
+            className="text-sidebar-foreground/50 hover:text-sidebar-foreground shrink-0"
+          >
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
@@ -118,7 +124,15 @@ export function AppSidebar() {
   );
 }
 
-function NavGroup({ label, items, currentPath }: { label: string; items: typeof mainNav; currentPath: string }) {
+function NavGroup({
+  label,
+  items,
+  currentPath,
+}: {
+  label: string;
+  items: typeof mainNav;
+  currentPath: string;
+}) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>

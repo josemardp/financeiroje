@@ -13,7 +13,6 @@ import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
-// Lazy-loaded pages to reduce initial bundle
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Budget = lazy(() => import("./pages/Budget"));
 const Recurring = lazy(() => import("./pages/Recurring"));
@@ -35,6 +34,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Business = lazy(() => import("./pages/Business"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
+const FinancialCalendar = lazy(() => import("./pages/FinancialCalendar"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -46,6 +46,7 @@ const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -53,6 +54,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
   if (!user) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 }
@@ -61,7 +63,10 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<ErrorBoundary><Auth /></ErrorBoundary>} />
-      <Route path="/reset-password" element={<ErrorBoundary><Suspense fallback={<LazyFallback />}><ResetPassword /></Suspense></ErrorBoundary>} />
+      <Route
+        path="/reset-password"
+        element={<ErrorBoundary><Suspense fallback={<LazyFallback />}><ResetPassword /></Suspense></ErrorBoundary>}
+      />
       <Route
         element={
           <ProtectedRoute>
@@ -91,6 +96,7 @@ function AppRoutes() {
         <Route path="/patrimonio" element={<Suspense fallback={<LazyFallback />}><Portfolio /></Suspense>} />
         <Route path="/negocio" element={<Suspense fallback={<LazyFallback />}><Business /></Suspense>} />
         <Route path="/fiscal" element={<Suspense fallback={<LazyFallback />}><Fiscal /></Suspense>} />
+        <Route path="/calendario" element={<Suspense fallback={<LazyFallback />}><FinancialCalendar /></Suspense>} />
         <Route path="/configuracoes" element={<Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />
