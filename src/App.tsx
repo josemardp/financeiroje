@@ -34,6 +34,7 @@ const Reports = lazy(() => import("./pages/Reports"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Business = lazy(() => import("./pages/Business"));
+const Fiscal = lazy(() => import("./pages/Fiscal"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -89,6 +90,7 @@ function AppRoutes() {
         <Route path="/relatorios" element={<Suspense fallback={<LazyFallback />}><Reports /></Suspense>} />
         <Route path="/patrimonio" element={<Suspense fallback={<LazyFallback />}><Portfolio /></Suspense>} />
         <Route path="/negocio" element={<Suspense fallback={<LazyFallback />}><Business /></Suspense>} />
+        <Route path="/fiscal" element={<Suspense fallback={<LazyFallback />}><Fiscal /></Suspense>} />
         <Route path="/configuracoes" element={<Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />

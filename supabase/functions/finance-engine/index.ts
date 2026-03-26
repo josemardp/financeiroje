@@ -21,6 +21,10 @@ interface TransactionRaw {
   scope: "private" | "family" | "business" | null;
   data_status: string | null;
   e_mei?: boolean | null;
+  papel_negocio?: "receita_operacional" | "custo_direto" | "despesa_operacional" | "tributo" | "retirada" | "investimento" | "financeiro" | null;
+  e_dedutivel?: boolean | null;
+  categoria_fiscal?: string | null;
+  ano_fiscal?: number | null;
 }
 
 interface BudgetRaw {
@@ -339,13 +343,39 @@ function calculateMeiSummary(transactions: TransactionRaw[], annualLimit: number
   let receitaBruta = 0;
   let custosOperacionais = 0;
   let despesasIndiretas = 0;
+  let tributos = 0;
+  let retiradas = 0;
   
   businessTxns.forEach(t => {
     const valor = Number(t.valor) || 0;
-    if (t.tipo === "income") {
+    
+    // 1. Priorizar nova classificação papel_negocio
+    if (t.papel_negocio) {
+      switch (t.papel_negocio) {
+        case 'receita_operacional':
+          receitaBruta += valor;
+          break;
+        case 'custo_direto':
+          custosOperacionais += valor;
+          break;
+        case 'despesa_operacional':
+          despesasIndiretas += valor;
+          break;
+        case 'tributo':
+          tributos += valor;
+          break;
+        case 'retirada':
+          retiradas += valor;
+          break;
+        default:
+          if (t.tipo === 'income') receitaBruta += valor;
+          else despesasIndiretas += valor;
+      }
+    } 
+    // 2. Fallback para e_mei (Sprint 5)
+    else if (t.tipo === "income") {
       receitaBruta += valor;
     } else {
-      // Se a categoria for marcada como custo ou se o campo e_mei for true (custo direto)
       if (t.categoria_is_business_cost || t.e_mei) {
         custosOperacionais += valor;
       } else {
@@ -365,6 +395,8 @@ function calculateMeiSummary(transactions: TransactionRaw[], annualLimit: number
     receitaBruta: round2(receitaBruta),
     custosOperacionais: round2(custosOperacionais),
     despesasIndiretas: round2(despesasIndiretas),
+    tributos: round2(tributos),
+    retiradas: round2(retiradas),
     lucroOperacional: round2(lucroOperacional),
     margemLucro: receitaBruta > 0 ? round2((lucroOperacional / receitaBruta) * 100) : 0,
     percentualLimite: round2(percentualLimite),
@@ -372,6 +404,56 @@ function calculateMeiSummary(transactions: TransactionRaw[], annualLimit: number
     valorRestanteLimite: round2(Math.max(0, annualLimit - receitaBruta)),
     alertLevel,
     businessTransactionCount: businessTxns.length
+  };
+}
+
+/** Fiscal / IRPF Summary Calculation */
+function calculateFiscalSummary(transactions: TransactionRaw[], year: number) {
+  const yearTxns = transactions.filter(t => {
+    const txnYear = t.ano_fiscal || new Date(t.data).getFullYear();
+    return txnYear === year;
+  });
+
+  const income = yearTxns.filter(t => t.tipo === 'income');
+  const expense = yearTxns.filter(t => t.tipo === 'expense');
+
+  // Deduções por categoria
+  const deductions: Record<string, number> = {
+    saude: 0,
+    educacao: 0,
+    previdencia: 0,
+    dependentes: 0,
+    outros: 0
+  };
+
+  expense.filter(t => t.e_dedutivel).forEach(t => {
+    const cat = (t.categoria_fiscal || '').toLowerCase();
+    if (cat.includes('saude') || cat.includes('médic')) deductions.saude += t.valor;
+    else if (cat.includes('educa')) deductions.educacao += t.valor;
+    else if (cat.includes('previ')) deductions.previdencia += t.valor;
+    else deductions.outros += t.valor;
+  });
+
+  const totalIncome = income.reduce((s, t) => s + t.valor, 0);
+  const totalDeductions = Object.values(deductions).reduce((s, v) => s + v, 0);
+  
+  // Comparativo Simplificado vs Completo
+  // Simplificado: 20% de desconto padrão limitado a um teto (ex: ~R$ 16k)
+  const standardDiscount = Math.min(totalIncome * 0.20, 16754.34); 
+  const baseSimplificada = Math.max(0, totalIncome - standardDiscount);
+  const baseCompleta = Math.max(0, totalIncome - totalDeductions);
+
+  return {
+    year,
+    totalIncome: round2(totalIncome),
+    totalDeductions: round2(totalDeductions),
+    deductionsByCategory: deductions,
+    standardDiscount: round2(standardDiscount),
+    baseSimplificada: round2(baseSimplificada),
+    baseCompleta: round2(baseCompleta),
+    melhorOpcao: baseSimplificada <= baseCompleta ? 'simplificada' : 'completa',
+    taxableIncomeCount: income.length,
+    deductibleExpenseCount: expense.filter(t => t.e_dedutivel).length
   };
 }
 
@@ -470,6 +552,9 @@ serve(async (req) => {
         break;
       case "calculate-mei-summary":
         result = calculateMeiSummary(data.transactions, data.annualLimit);
+        break;
+      case "calculate-fiscal-summary":
+        result = calculateFiscalSummary(data.transactions, data.year);
         break;
       default:
         throw new Error(`Operação inválida: ${operation}`);
