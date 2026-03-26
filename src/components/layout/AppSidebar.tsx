@@ -42,6 +42,7 @@ const mainNav = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
   { title: "Transações", icon: ArrowLeftRight, href: "/transacoes" },
   { title: "Negócio / MEI", icon: Briefcase, href: "/negocio" },
+  { title: "Fiscal / IRPF", icon: FileText, href: "/fiscal" },
   { title: "Contas", icon: Landmark, href: "/contas" },
   { title: "Orçamento", icon: PiggyBank, href: "/orcamento" },
   { title: "Recorrências", icon: CalendarDays, href: "/recorrencias" },

@@ -57,6 +57,10 @@ export interface TransactionRaw {
   confidence: string | null;
   e_mei: boolean | null;
   categoria_is_business_cost?: boolean | null;
+  papel_negocio?: "receita_operacional" | "custo_direto" | "despesa_operacional" | "tributo" | "retirada" | "investimento" | "financeiro" | null;
+  e_dedutivel?: boolean | null;
+  categoria_fiscal?: string | null;
+  ano_fiscal?: number | null;
 }
 
 export interface BudgetRaw {
@@ -152,6 +156,8 @@ export interface MeiSummary {
   receitaBruta: number;
   custosOperacionais: number;
   despesasIndiretas: number;
+  tributos: number;
+  retiradas: number;
   lucroOperacional: number;
   margemLucro: number;
   percentualLimite: number;
@@ -159,6 +165,19 @@ export interface MeiSummary {
   valorRestanteLimite: number;
   alertLevel: "info" | "warning" | "critical";
   businessTransactionCount: number;
+}
+
+export interface FiscalSummary {
+  year: number;
+  totalIncome: number;
+  totalDeductions: number;
+  deductionsByCategory: Record<string, number>;
+  standardDiscount: number;
+  baseSimplificada: number;
+  baseCompleta: number;
+  melhorOpcao: "simplificada" | "completa";
+  taxableIncomeCount: number;
+  deductibleExpenseCount: number;
 }
 
 export interface CategoryAmount {

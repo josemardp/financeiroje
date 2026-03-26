@@ -5,7 +5,9 @@ import type {
   CashflowForecastInput, CashflowForecastResult,
   GoalRaw, GoalContributionRaw, GoalProgressResult,
   LoanRaw, InstallmentRaw, LoanSummary,
-  MonthlySummary
+  MonthlySummary,
+  MeiSummary,
+  FiscalSummary
 } from "./types";
 
 /**
@@ -44,5 +46,8 @@ export const backendEngine = {
     callEngine<MonthlySummary>("calculate-monthly-summary", { transactions }),
 
   calculateMeiSummary: (transactions: TransactionRaw[], annualLimit: number) =>
-    callEngine<Record<string, any>>("calculate-mei-summary", { transactions, annualLimit }),
+    callEngine<MeiSummary>("calculate-mei-summary", { transactions, annualLimit }),
+
+  calculateFiscalSummary: (transactions: TransactionRaw[], year: number) =>
+    callEngine<FiscalSummary>("calculate-fiscal-summary", { transactions, year }),
 };
