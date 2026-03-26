@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ScopeProvider } from "@/contexts/ScopeContext";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import Auth from "./pages/Auth";
@@ -38,7 +39,10 @@ const FinancialCalendar = lazy(() => import("./pages/FinancialCalendar"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
-    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    <div className="flex flex-col items-center gap-3">
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <span className="text-xs text-muted-foreground">Carregando módulo...</span>
+    </div>
   </div>
 );
 
@@ -49,8 +53,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full border-2 border-muted" />
+            <Loader2 className="h-12 w-12 animate-spin text-primary absolute inset-0" />
+          </div>
+          <span className="text-sm text-muted-foreground">Autenticando...</span>
+        </div>
       </div>
     );
   }
@@ -105,19 +115,21 @@ function AppRoutes() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <ScopeProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
-      </ScopeProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <ThemeProvider defaultTheme="system" storageKey="financeai-theme">
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ScopeProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </TooltipProvider>
+        </ScopeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
