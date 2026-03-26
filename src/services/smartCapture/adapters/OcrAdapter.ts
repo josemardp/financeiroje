@@ -1,8 +1,10 @@
 /**
  * FinanceAI — OCR Adapter
- * OCR real em client-side via Tesseract.js.
+ * Chama a edge function smart-capture-ocr e devolve resultado compatível com o SmartCapture.
  * O resultado nunca é persistido automaticamente.
  */
+
+import { supabase } from "@/integrations/supabase/client";
 
 export interface OcrExtractionResult {
   text: string;
@@ -14,46 +16,112 @@ export interface OcrExtractionResult {
   };
 }
 
-function extractMetadata(text: string) {
-  const totalMatch =
-    text.match(/(?:valor\s+total|total)\s*[:\-]?\s*R?\$?\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?)/i) ||
-    text.match(/R\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?)/i);
-
-  const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-  const merchantMatch = text
-    .split("\n")
-    .map((line) => line.trim())
-    .find((line) => line.length > 4 && !/\b(cnpj|cpf|data|total|valor)\b/i.test(line));
-
-  const totalAmount = totalMatch
-    ? Number.parseFloat(totalMatch[1].replace(/\./g, "").replace(",", "."))
-    : undefined;
-
-  const date = dateMatch
-    ? `${dateMatch[3].length === 2 ? `20${dateMatch[3]}` : dateMatch[3]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[1].padStart(2, "0")}`
-    : undefined;
-
-  return {
-    merchantName: merchantMatch,
-    totalAmount,
-    date,
+type OcrEdgeResponse = {
+  extracted_fields?: {
+    valor?: number | null;
+    tipo?: string | null;
+    data?: string | null;
+    categoria?: string | null;
+    descricao?: string | null;
+    moeda?: string | null;
+    confidence?: string | number | null;
+    warnings?: string[] | null;
   };
+  confidence?: string | number | null;
+  warnings?: string[] | null;
+  raw_text?: string | null;
+  source?: string | null;
+  origin?: string | null;
+};
+
+function blobToBase64(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Falha ao converter arquivo para base64."));
+        return;
+      }
+      const [, base64 = ""] = result.split(",");
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Falha ao ler arquivo para OCR."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function normalizeConfidence(value: string | number | null | undefined) {
+  if (typeof value === "number") {
+    if (value > 1) return Number((value / 100).toFixed(2));
+    return Number(value.toFixed(2));
+  }
+
+  switch (value) {
+    case "alta":
+      return 0.9;
+    case "media":
+      return 0.7;
+    case "baixa":
+      return 0.4;
+    default:
+      return 0.6;
+  }
+}
+
+function buildRawText(payload: OcrEdgeResponse) {
+  if (payload.raw_text?.trim()) {
+    return payload.raw_text.trim();
+  }
+
+  const fields = payload.extracted_fields;
+  if (!fields) return "";
+
+  return [
+    fields.descricao,
+    fields.valor != null ? `R$ ${fields.valor}` : null,
+    fields.data,
+    fields.categoria,
+    ...(fields.warnings || []),
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .trim();
 }
 
 export class OcrAdapter {
   static async extract(imageFile: File | Blob): Promise<OcrExtractionResult> {
-    const Tesseract = await import("tesseract.js");
-    const result = await Tesseract.recognize(imageFile, "por+eng");
-    const text = result.data.text.trim();
+    const mimeType = imageFile.type || "application/octet-stream";
+    const base64 = await blobToBase64(imageFile);
+
+    const { data, error } = await supabase.functions.invoke("smart-capture-ocr", {
+      body: {
+        file_base64: base64,
+        mime_type: mimeType,
+        file_name: imageFile instanceof File ? imageFile.name : "smart-capture-file",
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message || "Falha ao processar OCR na edge function.");
+    }
+
+    const payload = (data || {}) as OcrEdgeResponse;
+    const fields = payload.extracted_fields || {};
+    const text = buildRawText(payload);
 
     if (!text) {
-      throw new Error("Nenhum texto legível foi encontrado na imagem.");
+      throw new Error("Nenhum texto legível foi retornado pela edge function de OCR.");
     }
 
     return {
       text,
-      confidence: Number((result.data.confidence / 100).toFixed(2)),
-      metadata: extractMetadata(text),
+      confidence: normalizeConfidence(fields.confidence ?? payload.confidence),
+      metadata: {
+        merchantName: fields.descricao || undefined,
+        totalAmount: typeof fields.valor === "number" ? fields.valor : undefined,
+        date: fields.data || undefined,
+      },
     };
   }
 }
