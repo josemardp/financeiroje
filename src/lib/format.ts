@@ -1,3 +1,4 @@
+// FinanceAI — Format utilities
 import { LOCALE, CURRENCY } from "./constants";
 
 export function formatCurrency(value: number): string {
