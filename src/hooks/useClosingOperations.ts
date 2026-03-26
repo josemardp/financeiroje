@@ -185,7 +185,7 @@ export function useClosingOperations() {
       queryKey: ["audit-trail", month, year],
       queryFn: async () => {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await (supabase as any)
             .from("audit_logs")
             .select("*")
             .in("context", [
