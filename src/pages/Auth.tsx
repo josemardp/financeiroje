@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { MIN_PASSWORD_LENGTH, validatePasswordStrength } from "@/lib/authSecurity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +60,14 @@ export default function Auth() {
         <p className="text-center text-xs text-muted-foreground">
           Seus dados são protegidos com criptografia e isolamento por usuário.
         </p>
+
+        <p className="text-center text-xs text-muted-foreground">
+          Ao continuar, você concorda com o tratamento necessário para autenticação e pode consultar nossa{" "}
+          <Link to="/privacidade" className="font-medium text-primary underline underline-offset-4">
+            Política de Privacidade
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );
@@ -75,7 +84,7 @@ function LoginForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean; s
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(email.trim(), password);
     if (error) {
       toast.error("Erro ao entrar", { description: error.message });
     }
@@ -85,7 +94,7 @@ function LoginForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean; s
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setSendingReset(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) {
@@ -152,12 +161,15 @@ function RegisterForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      toast.error("Senha deve ter no mínimo 6 caracteres");
+
+    const passwordError = validatePasswordStrength(password);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
+
     setIsSubmitting(true);
-    const { error } = await signUp(email, password, nome);
+    const { error } = await signUp(email.trim(), password, nome.trim());
     if (error) {
       toast.error("Erro ao criar conta", { description: error.message });
     } else {
@@ -179,7 +191,10 @@ function RegisterForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean
         </div>
         <div className="space-y-2">
           <Label htmlFor="register-password">Senha</Label>
-          <Input id="register-password" type="password" placeholder="Mínimo 6 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <Input id="register-password" type="password" placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`} value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <p className="text-xs text-muted-foreground">
+            Use pelo menos {MIN_PASSWORD_LENGTH} caracteres, com letra e número.
+          </p>
         </div>
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

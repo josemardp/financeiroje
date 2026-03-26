@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { MIN_PASSWORD_LENGTH, validatePasswordStrength } from "@/lib/authSecurity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,6 @@ export default function ResetPassword() {
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if we arrived via a recovery link (Supabase sets session automatically)
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -26,7 +26,6 @@ export default function ResetPassword() {
       }
     };
 
-    // Listen for PASSWORD_RECOVERY event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsValidSession(true);
@@ -43,8 +42,9 @@ export default function ResetPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (password.length < 6) {
-      toast.error("Senha deve ter no mínimo 6 caracteres");
+    const passwordError = validatePasswordStrength(password);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
 
@@ -63,7 +63,6 @@ export default function ResetPassword() {
       });
     } else {
       toast.success("Senha redefinida com sucesso!");
-      // Sign out so user logs in with new password
       await supabase.auth.signOut();
       navigate("/auth", { replace: true });
     }
@@ -129,7 +128,7 @@ export default function ResetPassword() {
               Nova senha
             </CardTitle>
             <CardDescription>
-              Escolha uma senha segura com no mínimo 6 caracteres.
+              Escolha uma senha segura com no mínimo {MIN_PASSWORD_LENGTH} caracteres, contendo letra e número.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -139,7 +138,7 @@ export default function ResetPassword() {
                 <Input
                   id="new-password"
                   type="password"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

@@ -36,6 +36,7 @@ const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Business = lazy(() => import("./pages/Business"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
 const FinancialCalendar = lazy(() => import("./pages/FinancialCalendar"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -76,6 +77,10 @@ function AppRoutes() {
       <Route
         path="/reset-password"
         element={<ErrorBoundary><Suspense fallback={<LazyFallback />}><ResetPassword /></Suspense></ErrorBoundary>}
+      />
+      <Route
+        path="/privacidade"
+        element={<ErrorBoundary><Suspense fallback={<LazyFallback />}><PrivacyPolicy /></Suspense></ErrorBoundary>}
       />
       <Route
         element={
