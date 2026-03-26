@@ -1004,12 +1004,21 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          annual_amount: number | null
+          billing_day: number | null
           categoria_id: string | null
           created_at: string
           data_cobranca: number | null
+          detection_method: string | null
+          frequency: string | null
           id: string
+          last_amount: number | null
+          last_charge_date: string | null
+          next_charge_date: string | null
           nome_servico: string
           observacoes: string | null
+          origin: string | null
+          renewal_date: string | null
           scope: Database["public"]["Enums"]["scope_type"] | null
           status: Database["public"]["Enums"]["subscription_status"] | null
           updated_at: string
@@ -1017,12 +1026,21 @@ export type Database = {
           valor_mensal: number
         }
         Insert: {
+          annual_amount?: number | null
+          billing_day?: number | null
           categoria_id?: string | null
           created_at?: string
           data_cobranca?: number | null
+          detection_method?: string | null
+          frequency?: string | null
           id?: string
+          last_amount?: number | null
+          last_charge_date?: string | null
+          next_charge_date?: string | null
           nome_servico: string
           observacoes?: string | null
+          origin?: string | null
+          renewal_date?: string | null
           scope?: Database["public"]["Enums"]["scope_type"] | null
           status?: Database["public"]["Enums"]["subscription_status"] | null
           updated_at?: string
@@ -1030,12 +1048,21 @@ export type Database = {
           valor_mensal: number
         }
         Update: {
+          annual_amount?: number | null
+          billing_day?: number | null
           categoria_id?: string | null
           created_at?: string
           data_cobranca?: number | null
+          detection_method?: string | null
+          frequency?: string | null
           id?: string
+          last_amount?: number | null
+          last_charge_date?: string | null
+          next_charge_date?: string | null
           nome_servico?: string
           observacoes?: string | null
+          origin?: string | null
+          renewal_date?: string | null
           scope?: Database["public"]["Enums"]["scope_type"] | null
           status?: Database["public"]["Enums"]["subscription_status"] | null
           updated_at?: string
