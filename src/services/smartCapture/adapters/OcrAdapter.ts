@@ -1,7 +1,7 @@
 /**
  * FinanceAI — OCR Adapter
- * Responsável por extrair texto de imagens (fotos de recibos/comprovantes).
- * Preparado para integração com Google Vision ou similar.
+ * OCR real em client-side via Tesseract.js.
+ * O resultado nunca é persistido automaticamente.
  */
 
 export interface OcrExtractionResult {
@@ -14,31 +14,46 @@ export interface OcrExtractionResult {
   };
 }
 
+function extractMetadata(text: string) {
+  const totalMatch =
+    text.match(/(?:valor\s+total|total)\s*[:\-]?\s*R?\$?\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?)/i) ||
+    text.match(/R\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?)/i);
+
+  const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  const merchantMatch = text
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.length > 4 && !/\b(cnpj|cpf|data|total|valor)\b/i.test(line));
+
+  const totalAmount = totalMatch
+    ? Number.parseFloat(totalMatch[1].replace(/\./g, "").replace(",", "."))
+    : undefined;
+
+  const date = dateMatch
+    ? `${dateMatch[3].length === 2 ? `20${dateMatch[3]}` : dateMatch[3]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[1].padStart(2, "0")}`
+    : undefined;
+
+  return {
+    merchantName: merchantMatch,
+    totalAmount,
+    date,
+  };
+}
+
 export class OcrAdapter {
-  /**
-   * Extrai texto de um arquivo de imagem (File/Blob).
-   * Atualmente implementa um mock/fallback que simula a extração.
-   */
   static async extract(imageFile: File | Blob): Promise<OcrExtractionResult> {
-    console.log("Processando imagem:", imageFile.size);
-    
-    // Simulação de processamento pesado
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    // TODO: Implementar chamada real para API (ex: Google Cloud Vision ou Tesseract.js)
-    // const formData = new FormData();
-    // formData.append("image", imageFile);
-    // const response = await fetch("api/ocr", { method: "POST", body: formData });
-    
-    // Fallback/Mock para demonstração do fluxo
+    const Tesseract = await import("tesseract.js");
+    const result = await Tesseract.recognize(imageFile, "por+eng");
+    const text = result.data.text.trim();
+
+    if (!text) {
+      throw new Error("Nenhum texto legível foi encontrado na imagem.");
+    }
+
     return {
-      text: "RESTAURANTE SABOR REAL\nCNPJ: 12.345.678/0001-90\nVALOR TOTAL: R$ 89,90\nDATA: 25/03/2026",
-      confidence: 0.88,
-      metadata: {
-        merchantName: "Restaurante Sabor Real",
-        totalAmount: 89.90,
-        date: "2026-03-25"
-      }
+      text,
+      confidence: Number((result.data.confidence / 100).toFixed(2)),
+      metadata: extractMetadata(text),
     };
   }
 }
