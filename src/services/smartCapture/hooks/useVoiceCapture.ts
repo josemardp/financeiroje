@@ -1,6 +1,11 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+  }
+}
 export interface VoiceCaptureResult {
   text: string;
   confidence: number;
