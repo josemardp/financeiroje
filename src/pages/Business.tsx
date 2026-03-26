@@ -62,7 +62,7 @@ export default function Business() {
   const { data: meiSettings } = useQuery({
     queryKey: ["mei-settings", currentYear],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("mei_settings")
         .select("*")
         .eq("ano_referencia", currentYear)
