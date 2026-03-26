@@ -59,7 +59,7 @@ export default function MonthlyClosing() {
   const { data: auditTrail = [] } = useQuery({
     queryKey: ["audit-trail", selectedMonth, selectedYear],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("audit_logs")
         .select("*")
         .in("context", ["Fechamento Mensal Realizado", "Reabertura de Período Auditada"])
@@ -258,8 +258,8 @@ export default function MonthlyClosing() {
     isLocked: closing?.status === "closed",
     closedAt: closing?.fechado_em,
     closedBy: closing?.fechado_por,
-    reopenedAt: closing?.reaberto_em,
-    reopenedBy: closing?.reaberto_por,
+    reopenedAt: (closing as any)?.reaberto_em,
+    reopenedBy: (closing as any)?.reaberto_por,
   };
 
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -424,7 +424,7 @@ export default function MonthlyClosing() {
           )}
 
           {/* Audit Trail */}
-          <AuditTrail entries={auditTrail} isLoading={false} />
+          <AuditTrail entries={auditTrail as any} isLoading={false} />
 
           {/* Actions */}
           <div className="flex gap-3">

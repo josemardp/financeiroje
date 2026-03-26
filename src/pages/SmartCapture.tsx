@@ -290,7 +290,7 @@ export default function SmartCapture() {
               </div>
               <div className="flex gap-2">
                 <DataStatusBadge status="suggested" />
-                <Badge variant={parsed.confianca === "alta" ? "success" : parsed.confianca === "media" ? "warning" : "destructive"}>
+                <Badge variant={parsed.confianca === "alta" ? "default" : parsed.confianca === "media" ? "secondary" : "destructive"}>
                   IA: {parsed.confianca}
                 </Badge>
               </div>

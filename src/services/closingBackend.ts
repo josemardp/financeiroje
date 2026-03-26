@@ -62,8 +62,8 @@ export async function getPeriodClosingStatus(
 ): Promise<PeriodLockInfo | null> {
   try {
     const { data, error } = await supabase.functions.invoke("closing-operations", {
-      method: "GET",
-      queries: { action: "status", month: month.toString(), year: year.toString() },
+      method: "POST",
+      body: { action: "status", month, year },
     });
 
     if (error) throw error;
@@ -181,7 +181,7 @@ export async function getTransactionAuditTrail(
     if (error) throw error;
 
     // Filtrar por período (verificando new_data.data ou old_data.data)
-    return (data || []).filter((entry: AuditLogEntry) => {
+    return (data || []).filter((entry: any) => {
       const dataStr = entry.new_data?.data || entry.old_data?.data;
       if (!dataStr) return false;
 
