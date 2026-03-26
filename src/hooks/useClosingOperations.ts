@@ -149,12 +149,9 @@ export function useClosingOperations() {
           const { error } = await supabase
             .from("monthly_closings")
             .update({
-              status: "open",
+              status: "open" as const,
               fechado_em: null,
               fechado_por: null,
-              reaberto_em: new Date().toISOString(),
-              reaberto_por: userId,
-              reabertura_motivo: payload.reason,
             })
             .eq("id", existing.id);
 
