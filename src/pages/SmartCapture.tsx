@@ -21,40 +21,54 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataStatusBadge } from "@/components/shared/DataStatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
-import { 
-  Mic, Camera, Type, Send, Check, X, Edit, AlertCircle, 
+import {
+  Mic, Camera, Type, Send, Check, Edit, AlertCircle,
   Loader2, Trash2, Save, FileText, Image as ImageIcon, Sparkles
 } from "lucide-react";
 
 type CaptureMode = "text" | "voice" | "photo";
 
+type MirrorFormState = {
+  valor: string;
+  tipo: string;
+  descricao: string;
+  data: string;
+  categoria_id: string;
+  scope: string;
+  source_type: string;
+};
+
 export default function SmartCapture() {
   const { user } = useAuth();
   const { currentScope, scopeLabel } = useScope();
   const queryClient = useQueryClient();
-  
+
   const [mode, setMode] = useState<CaptureMode>("text");
   const [textInput, setTextInput] = useState("");
   const [parsed, setParsed] = useState<ParsedTransaction | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
-  // Custom hooks for Voice and OCR
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
+
   const { isRecording, isTranscribing, result: voiceResult, startRecording, stopRecording, resetVoice } = useVoiceCapture();
   const { isProcessing: isOcrProcessing, result: ocrResult, processImage, resetOcr } = useOcrCapture();
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Editable fields for mirror mode
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<MirrorFormState>({
     valor: "",
-    tipo: "expense" as string,
+    tipo: "expense",
     descricao: "",
     data: "",
     categoria_id: "",
     scope: "private",
     source_type: "free_text",
   });
+
+  const updateEditForm = (updater: (current: MirrorFormState) => MirrorFormState) => {
+    setEditForm((current) => updater(current));
+    setReviewConfirmed(false);
+  };
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -64,7 +78,6 @@ export default function SmartCapture() {
     },
   });
 
-  // Handle transcription result
   useEffect(() => {
     if (voiceResult) {
       setTextInput(voiceResult.text);
@@ -73,23 +86,49 @@ export default function SmartCapture() {
     }
   }, [voiceResult]);
 
-  // Handle OCR result
   useEffect(() => {
     if (ocrResult) {
-      handleParse(ocrResult.text, "ocr");
+      const extractedText = ocrResult.text;
+      setTextInput(extractedText);
+      handleParse(extractedText, "photo_ocr");
       resetOcr();
     }
   }, [ocrResult]);
 
+  const extractedSnapshot = parsed
+    ? {
+        valor: parsed.valor,
+        tipo: parsed.tipo,
+        descricao: parsed.descricao,
+        data: parsed.data,
+        categoriaSugerida: parsed.categoriaSugerida,
+        escopo: parsed.escopo,
+        confianca: parsed.confianca,
+        textoOriginal: parsed.textoOriginal,
+      }
+    : null;
+
+  const reviewedSnapshot = parsed
+    ? {
+        valor: editForm.valor ? Number(editForm.valor) : null,
+        tipo: editForm.tipo,
+        descricao: editForm.descricao,
+        data: editForm.data,
+        categoria_id: editForm.categoria_id || null,
+        scope: editForm.scope,
+        source_type: editForm.source_type,
+      }
+    : null;
+
   const handleParse = (input: string, source: string = "free_text") => {
     const textToParse = input || textInput;
     if (!textToParse.trim()) return;
-    
+
     const result = parseTransactionText(textToParse);
     setParsed(result);
     setIsEditing(false);
-    
-    // Initialize form with parsed data and respect current global scope
+    setReviewConfirmed(false);
+
     setEditForm({
       valor: result.valor?.toString() || "",
       tipo: result.tipo,
@@ -100,16 +139,15 @@ export default function SmartCapture() {
       source_type: source,
     });
 
-    // Try to match suggested category
     if (result.categoriaSugerida && categories) {
       const match = categories.find((c: any) =>
         c.nome.toLowerCase().includes(result.categoriaSugerida!.toLowerCase())
       );
       if (match) {
-        setEditForm(f => ({ ...f, categoria_id: match.id }));
+        setEditForm((current) => ({ ...current, categoria_id: match.id }));
       }
     }
-    
+
     toast.success("Dados extraídos com sucesso!", {
       description: "Revise no Modo Espelho abaixo."
     });
@@ -120,7 +158,19 @@ export default function SmartCapture() {
       toast.error("Valor inválido");
       return;
     }
+
+    if (!reviewConfirmed) {
+      toast.error("Confirme explicitamente a revisão antes de salvar");
+      return;
+    }
+
     setIsSaving(true);
+
+    const validationNotes = JSON.stringify({
+      original_input: parsed?.textoOriginal || textInput,
+      extracted_payload: extractedSnapshot,
+      reviewed_payload: reviewedSnapshot,
+    });
 
     const { error } = await supabase.from("transactions").insert({
       user_id: user.id,
@@ -130,21 +180,23 @@ export default function SmartCapture() {
       descricao: editForm.descricao,
       data: editForm.data,
       scope: editForm.scope as any,
-      data_status: "suggested" as any,
+      data_status: "confirmed" as any,
       source_type: editForm.source_type as any,
       confidence: parsed?.confianca as any || "media",
       created_by: user.id,
-      validation_notes: `Texto original: "${parsed?.textoOriginal || textInput}"`,
+      updated_by: user.id,
+      validation_notes: validationNotes,
     });
 
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });
     } else {
-      toast.success("Transação registrada como sugerida", {
+      toast.success("Transação confirmada e registrada", {
         description: `Salva no escopo: ${editForm.scope === 'private' ? 'Pessoal' : editForm.scope === 'family' ? 'Família' : 'Negócio'}.`,
       });
       setParsed(null);
       setTextInput("");
+      setReviewConfirmed(false);
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
     }
@@ -154,6 +206,7 @@ export default function SmartCapture() {
   const handleDiscard = () => {
     setParsed(null);
     setTextInput("");
+    setReviewConfirmed(false);
     toast.info("Captura descartada");
   };
 
@@ -171,27 +224,26 @@ export default function SmartCapture() {
         description={`Modo Espelho ativo — Escopo atual: ${scopeLabel}`}
       />
 
-      {/* Mode selector */}
       <div className="flex flex-wrap gap-2">
-        <Button 
-          variant={mode === "text" ? "default" : "outline"} 
-          size="sm" 
+        <Button
+          variant={mode === "text" ? "default" : "outline"}
+          size="sm"
           onClick={() => setMode("text")}
           className="transition-all"
         >
           <Type className="h-4 w-4 mr-2" /> Texto Livre
         </Button>
-        <Button 
-          variant={mode === "voice" ? "default" : "outline"} 
-          size="sm" 
+        <Button
+          variant={mode === "voice" ? "default" : "outline"}
+          size="sm"
           onClick={() => setMode("voice")}
           className="transition-all"
         >
-          <Mic className="h-4 w-4 mr-2" /> Voz (Beta)
+          <Mic className="h-4 w-4 mr-2" /> Voz
         </Button>
-        <Button 
-          variant={mode === "photo" ? "default" : "outline"} 
-          size="sm" 
+        <Button
+          variant={mode === "photo" ? "default" : "outline"}
+          size="sm"
           onClick={() => setMode("photo")}
           className="transition-all"
         >
@@ -199,7 +251,6 @@ export default function SmartCapture() {
         </Button>
       </div>
 
-      {/* Input Areas */}
       {!parsed && (
         <Card className="border-primary/20 shadow-sm">
           <CardHeader>
@@ -257,16 +308,16 @@ export default function SmartCapture() {
                   <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : "Selecione uma foto ou recibo"}</p>
                   <p className="text-sm text-muted-foreground">Formatos suportados: JPG, PNG. Extração via OCR inteligente.</p>
                 </div>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  ref={fileInputRef} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  ref={fileInputRef}
                   onChange={handleFileUpload}
                   disabled={isOcrProcessing}
                 />
-                <Button 
-                  onClick={() => fileInputRef.current?.click()} 
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
                   disabled={isOcrProcessing}
                   variant="outline"
                   size="lg"
@@ -279,7 +330,6 @@ export default function SmartCapture() {
         </Card>
       )}
 
-      {/* Modo Espelho — Confirmation Card */}
       {parsed && (
         <Card className="border-2 border-primary shadow-lg animate-in zoom-in-95 duration-200">
           <CardHeader className="bg-primary/5 border-b pb-4">
@@ -297,13 +347,12 @@ export default function SmartCapture() {
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
-            {/* Metadata Badges */}
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary" className="gap-1">
                 <FileText className="h-3 w-3" /> Origem: {editForm.source_type === "free_text" ? "Texto Livre" : editForm.source_type === "voice" ? "Voz" : "OCR/Foto"}
               </Badge>
               <Badge variant="secondary" className="gap-1">
-                <Check className="h-3 w-3" /> Estado: Sugerida
+                <Check className="h-3 w-3" /> Estado: Confirmar manualmente
               </Badge>
               <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
                 <Sparkles className="h-3 w-3" /> Escopo: {editForm.scope === 'private' ? 'Pessoal' : editForm.scope === 'family' ? 'Família' : 'Negócio'}
@@ -320,17 +369,28 @@ export default function SmartCapture() {
               </div>
             )}
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-xl border bg-muted/20 p-4 space-y-2">
+                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Payload extraído</p>
+                <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(extractedSnapshot, null, 2)}</pre>
+              </div>
+              <div className="rounded-xl border bg-muted/20 p-4 space-y-2">
+                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Payload revisado</p>
+                <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(reviewedSnapshot, null, 2)}</pre>
+              </div>
+            </div>
+
             {isEditing ? (
               <div className="grid gap-4 p-4 bg-muted/30 rounded-xl border">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Valor (R$)</Label>
                     <Input type="number" step="0.01" value={editForm.valor}
-                      onChange={e => setEditForm(f => ({ ...f, valor: e.target.value }))} className="font-mono text-lg" />
+                      onChange={e => updateEditForm(f => ({ ...f, valor: e.target.value }))} className="font-mono text-lg" />
                   </div>
                   <div className="space-y-2">
                     <Label>Tipo</Label>
-                    <Select value={editForm.tipo} onValueChange={v => setEditForm(f => ({ ...f, tipo: v }))}>
+                    <Select value={editForm.tipo} onValueChange={v => updateEditForm(f => ({ ...f, tipo: v }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="expense">Despesa</SelectItem>
@@ -342,17 +402,17 @@ export default function SmartCapture() {
                 <div className="space-y-2">
                   <Label>Descrição</Label>
                   <Input value={editForm.descricao}
-                    onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} />
+                    onChange={e => updateEditForm(f => ({ ...f, descricao: e.target.value }))} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Data</Label>
                     <Input type="date" value={editForm.data}
-                      onChange={e => setEditForm(f => ({ ...f, data: e.target.value }))} />
+                      onChange={e => updateEditForm(f => ({ ...f, data: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label>Categoria</Label>
-                    <Select value={editForm.categoria_id} onValueChange={v => setEditForm(f => ({ ...f, categoria_id: v }))}>
+                    <Select value={editForm.categoria_id} onValueChange={v => updateEditForm(f => ({ ...f, categoria_id: v }))}>
                       <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                       <SelectContent>
                         {(categories || []).map((c: any) => (
@@ -363,7 +423,7 @@ export default function SmartCapture() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Escopo</Label>
-                    <Select value={editForm.scope} onValueChange={v => setEditForm(f => ({ ...f, scope: v as "private" | "family" | "business" }))}>
+                    <Select value={editForm.scope} onValueChange={v => updateEditForm(f => ({ ...f, scope: v as "private" | "family" | "business" }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="private">Pessoal</SelectItem>
@@ -384,13 +444,26 @@ export default function SmartCapture() {
                 <InfoRow label="Escopo de Destino" value={editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"} isScope />
               </div>
             )}
+
+            <label className="flex items-start gap-3 rounded-xl border bg-muted/20 p-4 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+                checked={reviewConfirmed}
+                onChange={(e) => setReviewConfirmed(e.target.checked)}
+              />
+              <div>
+                <p className="text-sm font-medium">Confirmo explicitamente que revisei os dados extraídos e os dados revisados antes de salvar.</p>
+                <p className="text-xs text-muted-foreground">Sem essa confirmação, a persistência é bloqueada.</p>
+              </div>
+            </label>
           </CardContent>
           <CardFooter className="bg-muted/10 border-t p-6 flex flex-wrap gap-3">
-            <Button onClick={handleSave} disabled={isSaving || !editForm.valor} className="flex-1 min-w-[200px] h-12 text-lg">
+            <Button onClick={handleSave} disabled={isSaving || !editForm.valor || !reviewConfirmed} className="flex-1 min-w-[200px] h-12 text-lg">
               {isSaving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Save className="h-5 w-5 mr-2" />}
               Confirmar e Salvar
             </Button>
-            <Button variant="outline" onClick={() => setIsEditing(!isEditing)} className="h-12">
+            <Button variant="outline" onClick={() => { setIsEditing(!isEditing); setReviewConfirmed(false); }} className="h-12">
               <Edit className="h-4 w-4 mr-2" /> {isEditing ? "Ver Resumo" : "Ajustar Dados"}
             </Button>
             <Button variant="ghost" onClick={handleDiscard} className="h-12 text-destructive hover:text-destructive hover:bg-destructive/10">
