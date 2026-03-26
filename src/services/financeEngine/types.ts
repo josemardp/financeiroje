@@ -100,7 +100,7 @@ export interface LoanRaw {
   tipo: string | null;
   credor: string | null;
   data_inicio: string | null;
-  scope: "private" | "family" | "business" | null;
+  scope?: "private" | "family" | "business" | null;
   ativo: boolean | null;
 }
 
