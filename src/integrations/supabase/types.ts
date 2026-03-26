@@ -374,6 +374,39 @@ export type Database = {
           tipo?: string | null
           updated_at?: string
           user_id?: string | null
+          papel_negocio_padrao?: Database["public"]["Enums"]["business_role"] | null
+          e_dedutivel_padrao?: boolean | null
+          categoria_fiscal_padrao?: string | null
+        }
+        Relationships: []
+      }
+      fiscal_settings: {
+        Row: {
+          ano_calendario: number
+          created_at: string
+          id: string
+          is_mei: boolean | null
+          regime_preferencial: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ano_calendario: number
+          created_at?: string
+          id?: string
+          is_mei?: boolean | null
+          regime_preferencial?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ano_calendario?: number
+          created_at?: string
+          id?: string
+          is_mei?: boolean | null
+          regime_preferencial?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -959,6 +992,7 @@ export type Database = {
           updated_at: string
           user_id: string
           valor: number
+          papel_negocio?: Database["public"]["Enums"]["business_role"] | null
         }
         Insert: {
           ativa?: boolean | null
@@ -975,6 +1009,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           valor: number
+          papel_negocio?: Database["public"]["Enums"]["business_role"] | null
         }
         Update: {
           ativa?: boolean | null
@@ -991,6 +1026,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           valor?: number
+          papel_negocio?: Database["public"]["Enums"]["business_role"] | null
         }
         Relationships: [
           {
@@ -1076,6 +1112,10 @@ export type Database = {
           user_id: string
           validation_notes: string | null
           valor: number
+          papel_negocio: Database["public"]["Enums"]["business_role"] | null
+          e_dedutivel: boolean | null
+          categoria_fiscal: string | null
+          ano_fiscal: number | null
         }
         Insert: {
           account_id?: string | null
@@ -1100,6 +1140,10 @@ export type Database = {
           user_id: string
           validation_notes?: string | null
           valor: number
+          papel_negocio?: Database["public"]["Enums"]["business_role"] | null
+          e_dedutivel?: boolean | null
+          categoria_fiscal?: string | null
+          ano_fiscal?: number | null
         }
         Update: {
           account_id?: string | null
@@ -1124,6 +1168,10 @@ export type Database = {
           user_id?: string
           validation_notes?: string | null
           valor?: number
+          papel_negocio?: Database["public"]["Enums"]["business_role"] | null
+          e_dedutivel?: boolean | null
+          categoria_fiscal?: string | null
+          ano_fiscal?: number | null
         }
         Relationships: [
           {
@@ -1160,12 +1208,17 @@ export type Database = {
       ai_message_role: "user" | "assistant" | "system"
       alert_level: "critical" | "warning" | "info" | "opportunity"
       amortization_method: "price" | "sac"
-      closing_status: "open" | "reviewing" | "closed"
+      business_role:
+        | "receita_operacional"
+        | "custo_direto"
+        | "despesa_operacional"
+        | "tributo"
+        | "retirada"
+        | "investimento"
+        | "financeiro"
+      closing_status: "open" | "closed"
       confidence_level: "alta" | "media" | "baixa"
-      data_status:
-        | "confirmed"
-        | "suggested"
-        | "incomplete"
+      data_status: "confirmed" | "suggested" | "incomplete" | "missing" | "estimated"| "incomplete"
         | "inconsistent"
         | "missing"
         | "estimated"
