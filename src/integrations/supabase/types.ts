@@ -1154,7 +1154,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_familia_id: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
       ai_message_role: "user" | "assistant" | "system"
