@@ -46,10 +46,10 @@ export default function Fiscal() {
       const { data, error } = await supabase
         .from("transactions")
         .select(`
-          id, valor, tipo, data, scope, data_status, e_mei, categoria_id
+          id, valor, tipo, data, scope, data_status, e_dedutivel, categoria_fiscal, ano_fiscal, papel_negocio
         `)
-        .gte("data", `${fiscalYear}-01-01`)
-        .lte("data", `${fiscalYear}-12-31`);
+        .or(`ano_fiscal.eq.${fiscalYear},and(data.gte.${fiscalYear}-01-01,data.lte.${fiscalYear}-12-31)`)
+        .in("scope", ["private", "family"]); // Isolamento de escopo fiscal (PF)
 
       if (error) throw error;
       return data || [];
@@ -298,7 +298,7 @@ export default function Fiscal() {
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {doc.ano_fiscal}
                       </Badge>
-                      {(doc.document_type === 'recibo_medico' || doc.document_type === 'recibo_educacao') && (
+                      {doc.e_dedutivel && (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700 hover:bg-green-100">
                           Dedutível
                         </Badge>
