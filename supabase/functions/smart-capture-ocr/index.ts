@@ -218,6 +218,12 @@ Regras:
     const rawOpenAiBody = await openAiResponse.text();
 
     if (!openAiResponse.ok) {
+      if (openAiResponse.status === 429) {
+        return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: "Rate limit excedido, tente novamente em alguns instantes." }, 429);
+      }
+      if (openAiResponse.status === 402) {
+        return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: "Créditos insuficientes no gateway de IA." }, 402);
+      }
       return jsonResponse(
         {
           ok: false,
