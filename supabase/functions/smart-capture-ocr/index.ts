@@ -158,13 +158,13 @@ serve(async (req) => {
       );
     }
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
       return jsonResponse(
         {
           ok: false,
           code: "OCR_NOT_CONFIGURED",
-          message: "OPENAI_API_KEY não configurada.",
+          message: "LOVABLE_API_KEY não configurada.",
         },
         500
       );
@@ -194,21 +194,21 @@ Regras:
 - Considere contexto brasileiro.
 `.trim();
 
-    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+    const openAiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "google/gemini-2.5-flash",
         temperature: 0,
-        input: [
+        messages: [
           {
             role: "user",
             content: [
-              { type: "input_text", text: prompt },
-              { type: "input_image", image_base64: file_base64 },
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: `data:${mime_type};base64,${file_base64}` } },
             ],
           },
         ],
@@ -218,6 +218,12 @@ Regras:
     const rawOpenAiBody = await openAiResponse.text();
 
     if (!openAiResponse.ok) {
+      if (openAiResponse.status === 429) {
+        return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: "Rate limit excedido, tente novamente em alguns instantes." }, 429);
+      }
+      if (openAiResponse.status === 402) {
+        return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: "Créditos insuficientes no gateway de IA." }, 402);
+      }
       return jsonResponse(
         {
           ok: false,
@@ -242,7 +248,7 @@ Regras:
       );
     }
 
-    const modelText = extractOutputText(openAiJson);
+    const modelText = openAiJson?.choices?.[0]?.message?.content ?? extractOutputText(openAiJson);
     const parsed = extractJsonObject(modelText);
 
     if (!parsed) {
@@ -302,7 +308,7 @@ Regras:
       },
       confidence: normalizeConfidence(parsed.confidence),
       warnings,
-      source: "openai-responses",
+      source: "lovable-ai-gateway",
       origin: file_name || "smart-capture-file",
     });
   } catch (err) {
