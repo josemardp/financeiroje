@@ -38,6 +38,8 @@ type MirrorFormState = {
   source_type: string;
 };
 
+const SUPPORTED_OCR_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"] as const;
+
 function normalizeLearningText(text: string) {
   return text
     .normalize("NFD")
@@ -229,9 +231,23 @@ export default function SmartCapture() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      processImage(file);
+
+    if (!file) return;
+
+    const isSupported = SUPPORTED_OCR_IMAGE_TYPES.includes(
+      file.type as (typeof SUPPORTED_OCR_IMAGE_TYPES)[number]
+    );
+
+    if (!isSupported) {
+      toast.error("Formato ainda não suportado neste OCR", {
+        description: "Use JPG ou PNG. PDF, Word e Excel ainda não estão liberados neste fluxo.",
+      });
+      e.target.value = "";
+      return;
     }
+
+    processImage(file);
+    e.target.value = "";
   };
 
   return (
@@ -322,12 +338,12 @@ export default function SmartCapture() {
                   {isOcrProcessing ? <Loader2 className="h-12 w-12 text-primary animate-spin" /> : <ImageIcon className="h-12 w-12 text-muted-foreground" />}
                 </div>
                 <div className="text-center px-4">
-                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : "Selecione uma foto ou recibo"}</p>
-                  <p className="text-sm text-muted-foreground">Formatos suportados: JPG, PNG. Extração via OCR inteligente.</p>
+                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : "Selecione uma foto, print ou recibo em imagem"}</p>
+                  <p className="text-sm text-muted-foreground">Formatos suportados agora: JPG e PNG. PDF, Word e Excel ainda não estão liberados neste fluxo.</p>
                 </div>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
