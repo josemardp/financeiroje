@@ -87,18 +87,22 @@ function toTrimmedString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function normalizeTipo(value: unknown, descricao: string | null): "income" | "expense" {
+function normalizeTipo(value: unknown, descricao: string | null): "income" | "expense" | null {
   if (value === "income" || value === "expense") {
     return value;
   }
 
   const source = `${value ?? ""} ${descricao ?? ""}`.toLowerCase();
 
-  if (/\b(recebi|receita|entrou|sal[aá]rio|renda|ganho|pix recebido)\b/.test(source)) {
+  if (/\b(recebi|receita|entrou|sal[aá]rio|renda|ganho|pix recebido|transferência recebida|depósito|crédito recebido)\b/.test(source)) {
     return "income";
   }
 
-  return "expense";
+  if (/\b(compra|débito|pix enviado|pagamento|ifood|uber|mercado|farmácia|gasto|despesa)\b/.test(source)) {
+    return "expense";
+  }
+
+  return null;
 }
 
 function normalizeConfidence(value: unknown): "alta" | "media" | "baixa" {
@@ -174,16 +178,21 @@ serve(async (req) => {
 Você é um especialista em extração de dados financeiros brasileiros.
 Analise a imagem de comprovante, recibo, nota fiscal, cupom ou print financeiro.
 
-Extraia com precisão:
-1. VALOR: O valor total real da transação. Ignore valores de troco ou parciais. Se houver múltiplos valores, identifique o 'Total', 'Valor Pago', 'Valor do PIX' ou 'Valor da Compra'.
-2. DATA: A data da transação no formato YYYY-MM-DD. Priorize a data do evento, não de vencimento ou processamento futuro.
-3. TIPO: 'income' para recebimentos (PIX recebido, salário, depósito) ou 'expense' para gastos (pagamentos, compras, transferências enviadas).
-4. DESCRIÇÃO: Nome limpo do estabelecimento ou pessoa. Remova ruídos como 'PAG*', 'SAO PAULO', '0001/01', etc. Ex: 'IFOOD *RESTAURANTE' -> 'Ifood'.
-5. CATEGORIA: Sugira uma categoria baseada no contexto (Alimentação, Transporte, Saúde, Moradia, Renda, Assinaturas, Educação, etc).
-6. CONFIDENCE: 'alta', 'media' ou 'baixa' baseado na clareza da imagem e certeza dos dados.
-7. WARNINGS: Liste ambiguidades (ex: 'mais de um valor encontrado', 'data ilegível').
+Extraia com precisão máxima:
+1. VALOR: O valor principal da transação.
+   - Heurística de prioridade: 'Total', 'Valor Total', 'Valor Pago', 'Valor do PIX', 'Valor da Compra'.
+   - Ignore: códigos, NSU, parcelas isoladas, troco, taxas menores se houver um total claro.
+   - Se houver múltiplos valores e o total não for óbvio, escolha o mais provável e adicione warning "valor principal escolhido entre múltiplos candidatos".
+2. DATA: A data da transação (YYYY-MM-DD). Priorize a data do evento real. Evite vencimentos futuros se houver data de emissão/pagamento.
+3. TIPO: 'income' (recebimentos, pix recebido, salário) ou 'expense' (gastos, compras, pagamentos). Se for ambíguo, use null e adicione warning "tipo inferido por contexto".
+4. DESCRIÇÃO: Nome humano e limpo.
+   - Remova ruídos: PAG*, SAO PAULO, 0001, etc.
+   - Transforme: "PAG*IFOOD" -> "Ifood", "PIX RECEBIDO JOAO" -> "Pix recebido de Joao".
+5. CATEGORIA: Sugira uma (Alimentação, Transporte, Saúde, Moradia, Renda, Assinaturas, Educação, Vestuário, Pet, Contas, Dívidas).
+6. CONFIDENCE: 'alta' (valor e data claros), 'media' (alguma inferência necessária), 'baixa' (ilegal ou muito ambíguo).
+7. WARNINGS: Liste problemas reais: "mais de um valor encontrado", "mais de uma data encontrada", "OCR com baixa legibilidade", "descrição parcialmente limpa".
 
-Responda SOMENTE com JSON válido, sem markdown:
+Responda SOMENTE com JSON válido:
 {
   "valor": number | null,
   "tipo": "income" | "expense" | null,
@@ -193,14 +202,8 @@ Responda SOMENTE com JSON válido, sem markdown:
   "moeda": "BRL",
   "confidence": "alta" | "media" | "baixa",
   "warnings": string[],
-  "raw_text": "Texto completo extraído da imagem para auditoria"
+  "raw_text": "Texto bruto completo extraído para auditoria"
 }
-
-Regras Cruciais:
-- Se o valor não for óbvio, use null e adicione um warning.
-- Se a data não for óbvia, use null.
-- Mantenha o texto original completo no campo "raw_text".
-- Foco total em padrões brasileiros (R$, PIX, Cupom Fiscal).
 `.trim();
 
     const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -227,17 +230,11 @@ Regras Cruciais:
     const rawOpenAiBody = await openAiResponse.text();
 
     if (!openAiResponse.ok) {
-      if (openAiResponse.status === 429) {
-        return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: "Rate limit excedido, tente novamente em alguns instantes." }, 429);
-      }
-      if (openAiResponse.status === 402) {
-        return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: "Créditos insuficientes no gateway de IA." }, 402);
-      }
       return jsonResponse(
         {
           ok: false,
           code: "UPSTREAM_OCR_ERROR",
-          message: `Falha no provedor OCR (${openAiResponse.status}). ${rawOpenAiBody.slice(0, 400)}`,
+          message: `Falha no provedor OCR (${openAiResponse.status}).`,
         },
         502
       );
@@ -247,56 +244,21 @@ Regras Cruciais:
     try {
       openAiJson = JSON.parse(rawOpenAiBody);
     } catch {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "UPSTREAM_OCR_ERROR",
-          message: "O provedor OCR respondeu com JSON inválido.",
-        },
-        502
-      );
+      return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: "JSON inválido do provedor." }, 502);
     }
 
-    const modelText = openAiJson?.choices?.[0]?.message?.content ?? extractOutputText(openAiJson);
+    const modelText = openAiJson?.choices?.[0]?.message?.content ?? "";
     const parsed = extractJsonObject(modelText);
 
     if (!parsed) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "INVALID_EDGE_PAYLOAD",
-          message: "O modelo não retornou JSON utilizável.",
-        },
-        502
-      );
+      return jsonResponse({ ok: false, code: "INVALID_EDGE_PAYLOAD", message: "O modelo não retornou JSON." }, 502);
     }
 
     const descricao = toTrimmedString(parsed.descricao);
     const valor = toNullableNumber(parsed.valor);
     const data = toTrimmedString(parsed.data);
     const categoria = toTrimmedString(parsed.categoria);
-    const rawText =
-      toTrimmedString(parsed.raw_text) ||
-      [
-        descricao,
-        valor != null ? `R$ ${valor}` : null,
-        data,
-        categoria,
-      ]
-        .filter(Boolean)
-        .join("\n")
-        .trim();
-
-    if (!rawText) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "INVALID_EDGE_PAYLOAD",
-          message: "O OCR respondeu sem texto utilizável.",
-        },
-        502
-      );
-    }
+    const rawText = toTrimmedString(parsed.raw_text) || "Texto não extraído";
 
     const warnings = Array.isArray(parsed.warnings)
       ? parsed.warnings.filter((item: unknown) => typeof item === "string")
