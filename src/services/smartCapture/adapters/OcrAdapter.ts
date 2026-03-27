@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { cleanDescription } from "../textParser";
 
 export interface OcrExtractionResult {
   text: string;
@@ -13,6 +14,10 @@ export interface OcrExtractionResult {
     merchantName?: string;
     totalAmount?: number;
     date?: string;
+    tipo?: "income" | "expense";
+    categoria?: string;
+    warnings?: string[];
+    moeda?: string;
   };
 }
 
@@ -229,13 +234,20 @@ export class OcrAdapter {
       );
     }
 
+    // Refine description with deterministic rules
+    const refinedDescription = fields.descricao ? cleanDescription(String(fields.descricao)) : undefined;
+
     return {
       text,
       confidence: normalizeConfidence(fields.confidence ?? successPayload.confidence),
       metadata: {
-        merchantName: toTrimmedString(fields.descricao) || undefined,
+        merchantName: refinedDescription || toTrimmedString(fields.descricao) || undefined,
         totalAmount: toNullableNumber(fields.valor) ?? undefined,
         date: toTrimmedString(fields.data) || undefined,
+        tipo: (fields.tipo === "income" || fields.tipo === "expense") ? fields.tipo : "expense",
+        categoria: toTrimmedString(fields.categoria) || undefined,
+        warnings: fields.warnings || successPayload.warnings || [],
+        moeda: toTrimmedString(fields.moeda) || "BRL",
       },
     };
   }
