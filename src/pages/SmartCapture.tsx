@@ -101,7 +101,7 @@ export default function SmartCapture() {
     if (ocrResult) {
       const extractedText = ocrResult.text;
       setTextInput(extractedText);
-      handleParse(extractedText, "photo_ocr");
+      handleParse(extractedText, "photo_ocr", ocrResult.metadata);
       resetOcr();
     }
   }, [ocrResult]);
@@ -131,11 +131,22 @@ export default function SmartCapture() {
       }
     : null;
 
-  const handleParse = (input: string, source: string = "free_text") => {
+  const handleParse = (input: string, source: string = "free_text", ocrMetadata?: any) => {
     const textToParse = input || textInput;
     if (!textToParse.trim()) return;
 
     const result = parseTransactionText(textToParse);
+    
+    // Se for OCR, sobrepor com metadados do LLM que são mais precisos para imagens
+    if (source === "photo_ocr" && ocrMetadata) {
+      if (ocrMetadata.totalAmount !== undefined) result.valor = ocrMetadata.totalAmount;
+      if (ocrMetadata.date) result.data = ocrMetadata.date;
+      if (ocrMetadata.merchantName) result.descricao = ocrMetadata.merchantName;
+      if (ocrMetadata.tipo) result.tipo = ocrMetadata.tipo;
+      if (ocrMetadata.categoria) result.categoriaSugerida = ocrMetadata.categoria;
+      if (ocrMetadata.warnings) result.warnings = [...(result.warnings || []), ...ocrMetadata.warnings];
+    }
+
     setParsed(result);
     setIsEditing(false);
     setReviewConfirmed(false);
@@ -208,6 +219,26 @@ export default function SmartCapture() {
       toast.error("Erro ao salvar", { description: error?.message || "Falha ao salvar transação." });
       setIsSaving(false);
       return;
+    }
+
+    // Registro para aprendizado futuro
+    try {
+      await supabase.from("smart_capture_learning").insert({
+        user_id: user.id,
+        transaction_id: insertedTransaction.id,
+        source_text: originalInput,
+        normalized_text: normalizeLearningText(originalInput),
+        source_type: editForm.source_type,
+        suggested_payload: extractedSnapshot,
+        final_payload: reviewedSnapshot,
+        category_id: editForm.categoria_id || null,
+        transaction_type: editForm.tipo,
+        scope: editForm.scope,
+        confidence_before: parsed?.confianca || "media",
+        confirmation_method: "mirror_confirmed"
+      });
+    } catch (learnErr) {
+      console.error("Erro ao registrar aprendizado:", learnErr);
     }
 
     toast.success("Transação confirmada e registrada", {
@@ -396,8 +427,22 @@ export default function SmartCapture() {
               <div className="flex items-center gap-2 text-sm text-warning bg-warning/10 rounded-lg px-4 py-3">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <div>
-                  <p className="font-semibold">Campos não detectados</p>
-                  <p className="text-xs">A IA não encontrou com clareza: {parsed.camposFaltantes.join(", ")}</p>
+                  <p className="font-semibold text-amber-700">Campos não detectados</p>
+                  <p className="text-xs text-amber-600">A IA não encontrou com clareza: {parsed.camposFaltantes.join(", ")}</p>
+                </div>
+              </div>
+            )}
+
+            {parsed.warnings && parsed.warnings.length > 0 && (
+              <div className="flex items-start gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Atenção na extração</p>
+                  <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+                    {parsed.warnings.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             )}

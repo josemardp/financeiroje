@@ -171,9 +171,19 @@ serve(async (req) => {
     }
 
     const prompt = `
-Você vai analisar uma imagem de comprovante, recibo, nota simples ou print financeiro.
+Você é um especialista em extração de dados financeiros brasileiros.
+Analise a imagem de comprovante, recibo, nota fiscal, cupom ou print financeiro.
 
-Responda SOMENTE com JSON válido, sem markdown, sem explicações, com este formato:
+Extraia com precisão:
+1. VALOR: O valor total real da transação. Ignore valores de troco ou parciais. Se houver múltiplos valores, identifique o 'Total', 'Valor Pago', 'Valor do PIX' ou 'Valor da Compra'.
+2. DATA: A data da transação no formato YYYY-MM-DD. Priorize a data do evento, não de vencimento ou processamento futuro.
+3. TIPO: 'income' para recebimentos (PIX recebido, salário, depósito) ou 'expense' para gastos (pagamentos, compras, transferências enviadas).
+4. DESCRIÇÃO: Nome limpo do estabelecimento ou pessoa. Remova ruídos como 'PAG*', 'SAO PAULO', '0001/01', etc. Ex: 'IFOOD *RESTAURANTE' -> 'Ifood'.
+5. CATEGORIA: Sugira uma categoria baseada no contexto (Alimentação, Transporte, Saúde, Moradia, Renda, Assinaturas, Educação, etc).
+6. CONFIDENCE: 'alta', 'media' ou 'baixa' baseado na clareza da imagem e certeza dos dados.
+7. WARNINGS: Liste ambiguidades (ex: 'mais de um valor encontrado', 'data ilegível').
+
+Responda SOMENTE com JSON válido, sem markdown:
 {
   "valor": number | null,
   "tipo": "income" | "expense" | null,
@@ -183,15 +193,14 @@ Responda SOMENTE com JSON válido, sem markdown, sem explicações, com este for
   "moeda": "BRL",
   "confidence": "alta" | "media" | "baixa",
   "warnings": string[],
-  "raw_text": string
+  "raw_text": "Texto completo extraído da imagem para auditoria"
 }
 
-Regras:
-- Se não tiver certeza do valor, use null.
-- Se não tiver certeza da data, use null.
-- Se não tiver certeza do tipo, use null.
-- Sempre tente preencher "raw_text" com o texto lido da imagem.
-- Considere contexto brasileiro.
+Regras Cruciais:
+- Se o valor não for óbvio, use null e adicione um warning.
+- Se a data não for óbvia, use null.
+- Mantenha o texto original completo no campo "raw_text".
+- Foco total em padrões brasileiros (R$, PIX, Cupom Fiscal).
 `.trim();
 
     const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
