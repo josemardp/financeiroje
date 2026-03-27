@@ -1,7 +1,6 @@
 /**
- * FinanceAI — OCR Adapter
+ * FinanceAI — OCR Adapter (Fase 2)
  * Fluxo atual: somente imagem JPG/PNG.
- * PDF, DOCX e Excel ficam explicitamente fora deste fluxo por enquanto.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +13,7 @@ export interface OcrExtractionResult {
     merchantName?: string;
     totalAmount?: number;
     date?: string;
-    tipo?: "income" | "expense";
+    tipo?: "income" | "expense" | null;
     categoria?: string;
     warnings?: string[];
     moeda?: string;
@@ -175,7 +174,7 @@ function buildRawText(payload: OcrEdgeSuccessResponse) {
   }
 
   const fields = payload.extracted_fields;
-  if (!fields) return "";
+  if (!fields) return "Texto não extraído";
 
   return [
     toTrimmedString(fields.descricao),
@@ -227,15 +226,14 @@ export class OcrAdapter {
     const fields = successPayload.extracted_fields || {};
     const text = buildRawText(successPayload);
 
-    if (!text) {
-      throw new OcrCaptureError(
-        "INVALID_EDGE_PAYLOAD",
-        "A edge function não retornou texto utilizável."
-      );
-    }
-
     // Refine description with deterministic rules
     const refinedDescription = fields.descricao ? cleanDescription(String(fields.descricao)) : undefined;
+
+    // Tipo amigável sem forçar expense
+    let tipo: "income" | "expense" | null = null;
+    if (fields.tipo === "income" || fields.tipo === "expense") {
+      tipo = fields.tipo;
+    }
 
     return {
       text,
@@ -244,7 +242,7 @@ export class OcrAdapter {
         merchantName: refinedDescription || toTrimmedString(fields.descricao) || undefined,
         totalAmount: toNullableNumber(fields.valor) ?? undefined,
         date: toTrimmedString(fields.data) || undefined,
-        tipo: (fields.tipo === "income" || fields.tipo === "expense") ? fields.tipo : "expense",
+        tipo,
         categoria: toTrimmedString(fields.categoria) || undefined,
         warnings: fields.warnings || successPayload.warnings || [],
         moeda: toTrimmedString(fields.moeda) || "BRL",

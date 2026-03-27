@@ -207,7 +207,7 @@ export default function SmartCapture() {
         scope: editForm.scope as any,
         data_status: "confirmed" as any,
         source_type: editForm.source_type as any,
-        confidence: parsed?.confianca as any || "media",
+        confidence: (parsed?.confianca || "media") as any,
         created_by: user.id,
         updated_by: user.id,
         validation_notes: validationNotes,
@@ -221,20 +221,20 @@ export default function SmartCapture() {
       return;
     }
 
-    // Registro para aprendizado futuro
+    // Registro para aprendizado futuro (Fase 2)
     try {
       await supabase.from("smart_capture_learning").insert({
         user_id: user.id,
         transaction_id: insertedTransaction.id,
         source_text: originalInput,
         normalized_text: normalizeLearningText(originalInput),
-        source_type: editForm.source_type,
-        suggested_payload: extractedSnapshot,
-        final_payload: reviewedSnapshot,
+        source_type: editForm.source_type as any,
+        suggested_payload: extractedSnapshot as any,
+        final_payload: reviewedSnapshot as any,
         category_id: editForm.categoria_id || null,
-        transaction_type: editForm.tipo,
-        scope: editForm.scope,
-        confidence_before: parsed?.confianca || "media",
+        transaction_type: editForm.tipo as any,
+        scope: editForm.scope as any,
+        confidence_before: (parsed?.confianca || "media") as any,
         confirmation_method: "mirror_confirmed"
       });
     } catch (learnErr) {

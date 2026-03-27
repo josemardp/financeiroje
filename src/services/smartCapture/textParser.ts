@@ -1,5 +1,5 @@
 /**
- * FinanceAI — Captura Inteligente: Parser de Texto Livre
+ * FinanceAI — Captura Inteligente: Parser de Texto Livre e OCR (Fase 2)
  * 
  * Extrai dados estruturados de texto livre ou OCR.
  * Resultado SEMPRE tem status "suggested" — nunca salva automaticamente.
@@ -8,7 +8,7 @@
 
 export interface ParsedTransaction {
   valor: number | null;
-  tipo: "income" | "expense";
+  tipo: "income" | "expense" | null;
   descricao: string;
   data: string; // ISO date
   categoriaSugerida: string | null;
@@ -21,12 +21,12 @@ export interface ParsedTransaction {
 }
 
 /**
- * Limpa descrições de ruídos comuns em comprovantes brasileiros.
+ * Limpa descrições de ruídos comuns em comprovantes brasileiros e torna mais humana.
  */
 export function cleanDescription(text: string): string {
   if (!text) return "";
   
-  return text
+  let cleaned = text
     .replace(/\b(PAG\*|COMPRA\s*|SAO\s*PAULO|SAO\s*JOSE|CURITIBA|BRASILIA|RJ|SP|MG|PR|RS|SC|BA|PE|CE|AM|PA|GO|DF)\b/gi, "")
     .replace(/\d{2,}\/\d{2,}(?:\/\d{2,4})?/g, "") // remove datas
     .replace(/\b\d{4,}\b/g, "") // remove sequencias longas de numeros (IDs)
@@ -36,6 +36,26 @@ export function cleanDescription(text: string): string {
     .replace(/[\/\-\*]/g, " ") // remove caracteres especiais de separação
     .replace(/\s+/g, " ")
     .trim();
+
+  // Transformações amigáveis
+  if (/^ifood/i.test(cleaned)) cleaned = "Ifood";
+  if (/^uber/i.test(cleaned)) cleaned = "Uber";
+  if (/^99/i.test(cleaned)) cleaned = "99 App";
+  if (/pix recebido/i.test(cleaned)) {
+    const nome = cleaned.replace(/pix recebido/i, "").trim();
+    cleaned = nome ? `Pix recebido de ${nome}` : "Pix recebido";
+  }
+  if (/pix enviado/i.test(cleaned)) {
+    const nome = cleaned.replace(/pix enviado/i, "").trim();
+    cleaned = nome ? `Pix enviado para ${nome}` : "Pix enviado";
+  }
+
+  // Capitalização amigável
+  return cleaned
+    .toLowerCase()
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 /**
@@ -48,63 +68,86 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const camposFaltantes: string[] = [];
   const warnings: string[] = [];
 
-  // Extract valor - melhorado para padrões BR
-  // Tenta primeiro o padrão R$ 1.234,56 ou 1234,56
-  const valorBrRegex = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})/i;
-  // Tenta o padrão 1234.56
-  const valorEnRegex = /(?:R\$\s*)?(\d{1,}\.\d{2})/i;
-  // Tenta apenas o número com vírgula
-  const valorSimpleBrRegex = /(?:\s|^)(\d{1,},\d{2})(?:\s|$)/i;
+  // 1. Escolha Inteligente de Valor
+  const valorCandidates: number[] = [];
+  const valorBrRegex = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+  const valorEnRegex = /(?:R\$\s*)?(\d{1,}\.\d{2})/gi;
+  
+  let match;
+  while ((match = valorBrRegex.exec(text)) !== null) {
+    valorCandidates.push(parseFloat(match[1].replace(/\./g, "").replace(",", ".")));
+  }
+  while ((match = valorEnRegex.exec(text)) !== null) {
+    valorCandidates.push(parseFloat(match[1]));
+  }
 
   let valor: number | null = null;
-  const matchBr = text.match(valorBrRegex);
-  const matchEn = text.match(valorEnRegex);
-  const matchSimpleBr = text.match(valorSimpleBrRegex);
+  if (valorCandidates.length > 0) {
+    // Se houver múltiplos, tenta buscar palavras-chave próximas (heurística simples)
+    const lowerText = text.toLowerCase();
+    const priorities = ["total", "valor pago", "pix", "compra"];
+    let foundPriority = false;
 
-  if (matchBr) {
-    valor = parseFloat(matchBr[1].replace(/\./g, "").replace(",", "."));
-  } else if (matchEn) {
-    valor = parseFloat(matchEn[1]);
-  } else if (matchSimpleBr) {
-    valor = parseFloat(matchSimpleBr[1].replace(",", "."));
+    for (const p of priorities) {
+      if (lowerText.includes(p)) {
+        // Pega o valor mais provável (geralmente o maior ou o último após a palavra)
+        valor = Math.max(...valorCandidates);
+        foundPriority = true;
+        break;
+      }
+    }
+
+    if (!foundPriority) {
+      valor = valorCandidates[valorCandidates.length - 1]; // Pega o último como fallback
+    }
+
+    if (new Set(valorCandidates).size > 1) {
+      warnings.push("valor principal escolhido entre múltiplos candidatos");
+    }
   }
 
   if (!valor) camposFaltantes.push("valor");
 
-  // Detect tipo
+  // 2. Escolha Inteligente de Tipo
   const incomePatterns = /\b(entrou|receb[ei]|sal[aá]rio|renda|freelance|receita|ganho|ganh[ei]|pix recebido|transferência recebida|depósito)\b/i;
   const expensePatterns = /\b(gastei|paguei|comprei|gast[oa]|pagamento|compra|pix enviado|débito|crédito|ifood|uber|mercado|farmácia)\b/i;
   
-  let tipo: "income" | "expense" = "expense";
+  let tipo: "income" | "expense" | null = null;
   if (incomePatterns.test(text)) {
     tipo = "income";
   } else if (expensePatterns.test(text)) {
     tipo = "expense";
+  } else {
+    warnings.push("tipo inferido por contexto");
+    tipo = "expense"; // Fallback seguro para despesa, mas marcado como inferido
   }
 
-  // Detect date
+  // 3. Escolha Inteligente de Data
   let data = today;
-  if (/\bhoje\b/i.test(text)) {
-    data = today;
-  } else if (/\bontem\b/i.test(text)) {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    data = d.toISOString().split("T")[0];
-  } else {
-    // Formato DD/MM/YYYY ou DD/MM/YY ou DD/MM
-    const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
-    if (dateMatch) {
-      const day = parseInt(dateMatch[1]);
-      const month = parseInt(dateMatch[2]);
-      let year = dateMatch[3] ? (dateMatch[3].length === 2 ? 2000 + parseInt(dateMatch[3]) : parseInt(dateMatch[3])) : new Date().getFullYear();
-      
-      if (month > 0 && month <= 12 && day > 0 && day <= 31) {
-        data = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      }
+  const dateCandidates: string[] = [];
+  const dateRegex = /(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/g;
+  
+  while ((match = dateRegex.exec(text)) !== null) {
+    const day = parseInt(match[1]);
+    const month = parseInt(match[2]);
+    let year = match[3] ? (match[3].length === 2 ? 2000 + parseInt(match[3]) : parseInt(match[3])) : new Date().getFullYear();
+    if (month > 0 && month <= 12 && day > 0 && day <= 31) {
+      dateCandidates.push(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
     }
   }
 
-  // Detect category hints
+  if (dateCandidates.length > 0) {
+    // Prioriza a primeira data encontrada (geralmente data da transação)
+    // Evita datas futuras
+    const validDates = dateCandidates.filter(d => d <= today);
+    data = validDates.length > 0 ? validDates[0] : dateCandidates[0];
+    
+    if (new Set(dateCandidates).size > 1) {
+      warnings.push("mais de uma data encontrada");
+    }
+  }
+
+  // 4. Categorização e Descrição
   const categoryHints: Record<string, string> = {
     "mercado|supermercado|feira|atacadão|pão de açúcar|carrefour|extra|assai": "Alimentação",
     "aluguel|condom[ií]nio|iptu|quinto andar": "Moradia",
@@ -124,20 +167,11 @@ export function parseTransactionText(input: string): ParsedTransaction {
   for (const [pattern, cat] of Object.entries(categoryHints)) {
     if (new RegExp(pattern, "i").test(text)) {
       categoriaSugerida = cat;
+      warnings.push("categoria inferida por heurística");
       break;
     }
   }
 
-  // Detect scope
-  let escopo: ParsedTransaction["escopo"] = "private";
-  if (/\b(mei|empresa|negócio|nota fiscal|cnpj|embalagem|fornecedor|cliente|serviço prestado)\b/i.test(text)) {
-    escopo = "business";
-    observacoes.push("Detectado como transação de negócio/MEI");
-  } else if (/\b(família|casa|filh[oa]|esposa|marido|compras casa)\b/i.test(text)) {
-    escopo = "family";
-  }
-
-  // Build description (remove extracted numeric values and common noises)
   let rawDesc = text
     .replace(/R\$\s*\d+[.,]?\d*/gi, "")
     .replace(/\d+[.,]?\d*\s*reais/gi, "")
@@ -148,25 +182,33 @@ export function parseTransactionText(input: string): ParsedTransaction {
     .trim();
 
   let descricao = cleanDescription(rawDesc);
-  
   if (!descricao || descricao.length < 2) {
     descricao = text.substring(0, 50);
+    warnings.push("descrição parcialmente limpa");
   }
 
-  // Confidence
-  const confianca: ParsedTransaction["confianca"] = 
-    valor && categoriaSugerida && data !== today ? "alta" :
-    valor ? "media" : "baixa";
+  // 5. Lógica de Confiança Real
+  let confianca: ParsedTransaction["confianca"] = "baixa";
+  const hasStrongValue = valor !== null;
+  const hasStrongDate = dateCandidates.length > 0;
+  const hasStrongDesc = descricao.length > 3 && !warnings.includes("descrição parcialmente limpa");
+  const hasLowAmbiguity = warnings.length <= 1;
+
+  if (hasStrongValue && hasStrongDate && hasStrongDesc && hasLowAmbiguity) {
+    confianca = "alta";
+  } else if (hasStrongValue && (hasStrongDate || hasStrongDesc)) {
+    confianca = "media";
+  }
 
   if (!categoriaSugerida) camposFaltantes.push("categoria");
 
   return {
     valor,
     tipo,
-    descricao: descricao.charAt(0).toUpperCase() + descricao.slice(1),
+    descricao,
     data,
     categoriaSugerida,
-    escopo,
+    escopo: "private",
     confianca,
     textoOriginal: text,
     observacoes,
