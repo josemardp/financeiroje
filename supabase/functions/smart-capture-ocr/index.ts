@@ -1,6 +1,5 @@
-// Edge Function: smart-capture-ocr
+// Edge Function: smart-capture-ocr (Fase 3)
 // Fluxo atual: somente imagem JPG/PNG
-// PDF, DOCX e Excel ficam explicitamente fora deste fluxo por enquanto
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -17,34 +16,6 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
     status,
     headers: corsHeaders,
   });
-}
-
-function extractOutputText(result: any): string {
-  if (typeof result?.output_text === "string" && result.output_text.trim()) {
-    return result.output_text.trim();
-  }
-
-  if (Array.isArray(result?.output_text)) {
-    const joined = result.output_text.filter((item: unknown) => typeof item === "string").join("\n").trim();
-    if (joined) return joined;
-  }
-
-  if (Array.isArray(result?.output)) {
-    const collected = result.output
-      .flatMap((outputItem: any) => (Array.isArray(outputItem?.content) ? outputItem.content : []))
-      .map((contentItem: any) => {
-        if (typeof contentItem?.text === "string") return contentItem.text;
-        if (typeof contentItem?.text?.value === "string") return contentItem.text.value;
-        return "";
-      })
-      .filter(Boolean)
-      .join("\n")
-      .trim();
-
-    if (collected) return collected;
-  }
-
-  return "";
 }
 
 function extractJsonObject(text: string): Record<string, unknown> | null {
@@ -87,35 +58,18 @@ function toTrimmedString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function normalizeTipo(value: unknown, descricao: string | null): "income" | "expense" | null {
-  if (value === "income" || value === "expense") {
-    return value;
-  }
-
-  const source = `${value ?? ""} ${descricao ?? ""}`.toLowerCase();
-
-  if (/\b(recebi|receita|entrou|sal[aá]rio|renda|ganho|pix recebido|transferência recebida|depósito|crédito recebido)\b/.test(source)) {
-    return "income";
-  }
-
-  if (/\b(compra|débito|pix enviado|pagamento|ifood|uber|mercado|farmácia|gasto|despesa)\b/.test(source)) {
-    return "expense";
-  }
-
+function normalizeTipo(value: unknown): "income" | "expense" | null {
+  if (value === "income" || value === "expense") return value;
   return null;
 }
 
+function normalizeEscopo(value: unknown): "private" | "family" | "business" {
+  if (value === "private" || value === "family" || value === "business") return value;
+  return "private";
+}
+
 function normalizeConfidence(value: unknown): "alta" | "media" | "baixa" {
-  if (typeof value === "string") {
-    if (value === "alta" || value === "media" || value === "baixa") return value;
-  }
-
-  if (typeof value === "number") {
-    if (value >= 0.85) return "alta";
-    if (value >= 0.6) return "media";
-    return "baixa";
-  }
-
+  if (value === "alta" || value === "media" || value === "baixa") return value;
   return "media";
 }
 
@@ -127,70 +81,42 @@ serve(async (req) => {
   try {
     const auth = req.headers.get("Authorization");
     if (!auth || !auth.startsWith("Bearer ")) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "AUTH_REQUIRED",
-          message: "Não autorizado.",
-        },
-        401
-      );
+      return jsonResponse({ ok: false, code: "AUTH_REQUIRED", message: "Não autorizado." }, 401);
     }
 
     const body = await req.json();
     const { file_base64, mime_type, file_name } = body ?? {};
 
     if (!file_base64 || !mime_type) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "INVALID_EDGE_PAYLOAD",
-          message: "Payload inválido.",
-        },
-        400
-      );
+      return jsonResponse({ ok: false, code: "INVALID_EDGE_PAYLOAD", message: "Payload inválido." }, 400);
     }
 
     if (!SUPPORTED_IMAGE_TYPES.has(mime_type)) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "UNSUPPORTED_FILE_TYPE",
-          message: "Formato ainda não suportado neste OCR. Use JPG ou PNG. PDF, Word e Excel ainda não estão liberados neste fluxo.",
-        },
-        415
-      );
+      return jsonResponse({ ok: false, code: "UNSUPPORTED_FILE_TYPE", message: "Formato não suportado. Use JPG ou PNG." }, 415);
     }
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "OCR_NOT_CONFIGURED",
-          message: "OPENAI_API_KEY não configurada.",
-        },
-        500
-      );
+      return jsonResponse({ ok: false, code: "OCR_NOT_CONFIGURED", message: "OPENAI_API_KEY não configurada." }, 500);
     }
 
     const prompt = `
 Você é um especialista em extração de dados financeiros brasileiros.
-Analise a imagem de comprovante, recibo, nota fiscal, cupom ou print financeiro.
+Analise a imagem de comprovante, recibo ou nota fiscal.
 
 Extraia com precisão máxima:
-1. VALOR: O valor principal da transação.
-   - Heurística de prioridade: 'Total', 'Valor Total', 'Valor Pago', 'Valor do PIX', 'Valor da Compra'.
+1. VALOR: O valor principal da transação. 
+   - Priorize: 'Total', 'Valor Total', 'Valor Pago', 'Valor do PIX'.
    - Ignore: códigos, NSU, parcelas isoladas, troco, taxas menores se houver um total claro.
-   - Se houver múltiplos valores e o total não for óbvio, escolha o mais provável e adicione warning "valor principal escolhido entre múltiplos candidatos".
-2. DATA: A data da transação (YYYY-MM-DD). Priorize a data do evento real. Evite vencimentos futuros se houver data de emissão/pagamento.
-3. TIPO: 'income' (recebimentos, pix recebido, salário) ou 'expense' (gastos, compras, pagamentos). Se for ambíguo, use null e adicione warning "tipo inferido por contexto".
-4. DESCRIÇÃO: Nome humano e limpo.
-   - Remova ruídos: PAG*, SAO PAULO, 0001, etc.
-   - Transforme: "PAG*IFOOD" -> "Ifood", "PIX RECEBIDO JOAO" -> "Pix recebido de Joao".
+   - Se houver múltiplos valores e o principal não for óbvio, escolha o mais provável e adicione warning "valor principal escolhido entre múltiplos candidatos".
+2. DATA: A data da transação (YYYY-MM-DD). Priorize a data do evento real.
+3. TIPO: 'income' (recebimentos) ou 'expense' (gastos). 
+   - IMPORTANTE: Se não houver sinal claro de entrada ou saída, use null. NUNCA assuma 'expense' por padrão.
+4. DESCRIÇÃO: Nome humano e limpo. Remova ruídos (PAG*, SAO PAULO, etc). Transforme: "PAG*IFOOD" -> "Ifood".
 5. CATEGORIA: Sugira uma (Alimentação, Transporte, Saúde, Moradia, Renda, Assinaturas, Educação, Vestuário, Pet, Contas, Dívidas).
-6. CONFIDENCE: 'alta' (valor e data claros), 'media' (alguma inferência necessária), 'baixa' (ilegal ou muito ambíguo).
-7. WARNINGS: Liste problemas reais: "mais de um valor encontrado", "mais de uma data encontrada", "OCR com baixa legibilidade", "descrição parcialmente limpa".
+6. ESCOPO: 'business' (sinais de MEI/empresa/cliente/fornecedor/nota fiscal/CNPJ), 'family' (sinais de família/casa), ou 'private' (fallback).
+7. CONFIDENCE: 'alta' (valor e data claros), 'media', 'baixa'.
+8. WARNINGS: Liste problemas reais: "mais de um valor encontrado", "OCR com baixa legibilidade", "tipo inferido por contexto".
 
 Responda SOMENTE com JSON válido:
 {
@@ -199,7 +125,7 @@ Responda SOMENTE com JSON válido:
   "data": "YYYY-MM-DD" | null,
   "categoria": string | null,
   "descricao": string | null,
-  "moeda": "BRL",
+  "escopo": "private" | "family" | "business",
   "confidence": "alta" | "media" | "baixa",
   "warnings": string[],
   "raw_text": "Texto bruto completo extraído para auditoria"
@@ -227,69 +153,41 @@ Responda SOMENTE com JSON válido:
       }),
     });
 
-    const rawOpenAiBody = await openAiResponse.text();
-
     if (!openAiResponse.ok) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "UPSTREAM_OCR_ERROR",
-          message: `Falha no provedor OCR (${openAiResponse.status}).`,
-        },
-        502
-      );
+      const errorText = await openAiResponse.text();
+      return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: `Falha no provedor OCR (${openAiResponse.status}).`, details: errorText }, 502);
     }
 
-    let openAiJson: any;
-    try {
-      openAiJson = JSON.parse(rawOpenAiBody);
-    } catch {
-      return jsonResponse({ ok: false, code: "UPSTREAM_OCR_ERROR", message: "JSON inválido do provedor." }, 502);
-    }
-
+    const openAiJson = await openAiResponse.json();
     const modelText = openAiJson?.choices?.[0]?.message?.content ?? "";
     const parsed = extractJsonObject(modelText);
 
     if (!parsed) {
-      return jsonResponse({ ok: false, code: "INVALID_EDGE_PAYLOAD", message: "O modelo não retornou JSON." }, 502);
+      return jsonResponse({ ok: false, code: "INVALID_EDGE_PAYLOAD", message: "O modelo não retornou JSON válido." }, 502);
     }
 
-    const descricao = toTrimmedString(parsed.descricao);
-    const valor = toNullableNumber(parsed.valor);
-    const data = toTrimmedString(parsed.data);
-    const categoria = toTrimmedString(parsed.categoria);
-    const rawText = toTrimmedString(parsed.raw_text) || "Texto não extraído";
-
-    const warnings = Array.isArray(parsed.warnings)
-      ? parsed.warnings.filter((item: unknown) => typeof item === "string")
-      : [];
+    const rawText = toTrimmedString(parsed.raw_text);
+    if (!rawText || rawText.length < 5) {
+      return jsonResponse({ ok: false, code: "OCR_EMPTY_TEXT", message: "Não foi possível extrair texto legível desta imagem." }, 422);
+    }
 
     return jsonResponse({
       ok: true,
       raw_text: rawText,
       extracted_fields: {
-        valor,
-        tipo: normalizeTipo(parsed.tipo, descricao),
-        data,
-        categoria,
-        descricao,
-        moeda: toTrimmedString(parsed.moeda) || "BRL",
+        valor: toNullableNumber(parsed.valor),
+        tipo: normalizeTipo(parsed.tipo),
+        data: toTrimmedString(parsed.data),
+        categoria: toTrimmedString(parsed.categoria),
+        descricao: toTrimmedString(parsed.descricao),
+        escopo: normalizeEscopo(parsed.escopo),
         confidence: normalizeConfidence(parsed.confidence),
-        warnings,
+        warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
       },
-      confidence: normalizeConfidence(parsed.confidence),
-      warnings,
       source: "openai-responses",
       origin: file_name || "smart-capture-file",
     });
   } catch (err) {
-    return jsonResponse(
-      {
-        ok: false,
-        code: "UPSTREAM_OCR_ERROR",
-        message: err instanceof Error ? err.message : "Processing failed",
-      },
-      500
-    );
+    return jsonResponse({ ok: false, code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "Processing failed" }, 500);
   }
 });

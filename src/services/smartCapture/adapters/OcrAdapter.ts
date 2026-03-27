@@ -1,5 +1,5 @@
 /**
- * FinanceAI — OCR Adapter (Fase 2)
+ * FinanceAI — OCR Adapter (Fase 3)
  * Fluxo atual: somente imagem JPG/PNG.
  */
 
@@ -15,6 +15,7 @@ export interface OcrExtractionResult {
     date?: string;
     tipo?: "income" | "expense" | null;
     categoria?: string;
+    escopo?: "private" | "family" | "business";
     warnings?: string[];
     moeda?: string;
   };
@@ -26,6 +27,7 @@ export type OcrErrorCode =
   | "OCR_NOT_CONFIGURED"
   | "INVALID_EDGE_PAYLOAD"
   | "UPSTREAM_OCR_ERROR"
+  | "OCR_EMPTY_TEXT"
   | "UNKNOWN_OCR_ERROR";
 
 export class OcrCaptureError extends Error {
@@ -48,16 +50,15 @@ type OcrEdgeSuccessResponse = {
   ok?: true;
   extracted_fields?: {
     valor?: number | string | null;
-    tipo?: string | null;
+    tipo?: "income" | "expense" | null;
     data?: string | null;
     categoria?: string | null;
     descricao?: string | null;
+    escopo?: "private" | "family" | "business" | null;
     moeda?: string | null;
     confidence?: string | number | null;
     warnings?: string[] | null;
   };
-  confidence?: string | number | null;
-  warnings?: string[] | null;
   raw_text?: string | null;
   source?: string | null;
   origin?: string | null;
@@ -145,6 +146,8 @@ function mapEdgeCode(code?: string): OcrErrorCode {
       return "INVALID_EDGE_PAYLOAD";
     case "UPSTREAM_OCR_ERROR":
       return "UPSTREAM_OCR_ERROR";
+    case "OCR_EMPTY_TEXT":
+      return "OCR_EMPTY_TEXT";
     default:
       return "UNKNOWN_OCR_ERROR";
   }
@@ -165,27 +168,11 @@ function mapInvokeError(error: { message?: string; context?: unknown }): OcrCapt
     return new OcrCaptureError("OCR_NOT_CONFIGURED", message, 500);
   }
 
-  return new OcrCaptureError("UPSTREAM_OCR_ERROR", message, 500);
-}
-
-function buildRawText(payload: OcrEdgeSuccessResponse) {
-  if (payload.raw_text?.trim()) {
-    return payload.raw_text.trim();
+  if (/empty|legível|422/i.test(message)) {
+    return new OcrCaptureError("OCR_EMPTY_TEXT", message, 422);
   }
 
-  const fields = payload.extracted_fields;
-  if (!fields) return "Texto não extraído";
-
-  return [
-    toTrimmedString(fields.descricao),
-    toNullableNumber(fields.valor) != null ? `R$ ${toNullableNumber(fields.valor)}` : null,
-    toTrimmedString(fields.data),
-    toTrimmedString(fields.categoria),
-    ...(fields.warnings || []),
-  ]
-    .filter(Boolean)
-    .join("\n")
-    .trim();
+  return new OcrCaptureError("UPSTREAM_OCR_ERROR", message, 500);
 }
 
 export class OcrAdapter {
@@ -224,27 +211,26 @@ export class OcrAdapter {
 
     const successPayload = payload as OcrEdgeSuccessResponse;
     const fields = successPayload.extracted_fields || {};
-    const text = buildRawText(successPayload);
+    const text = toTrimmedString(successPayload.raw_text);
+
+    if (!text || text.length < 5) {
+      throw new OcrCaptureError("OCR_EMPTY_TEXT", "Não foi possível extrair texto legível desta imagem.");
+    }
 
     // Refine description with deterministic rules
     const refinedDescription = fields.descricao ? cleanDescription(String(fields.descricao)) : undefined;
 
-    // Tipo amigável sem forçar expense
-    let tipo: "income" | "expense" | null = null;
-    if (fields.tipo === "income" || fields.tipo === "expense") {
-      tipo = fields.tipo;
-    }
-
     return {
       text,
-      confidence: normalizeConfidence(fields.confidence ?? successPayload.confidence),
+      confidence: normalizeConfidence(fields.confidence),
       metadata: {
         merchantName: refinedDescription || toTrimmedString(fields.descricao) || undefined,
         totalAmount: toNullableNumber(fields.valor) ?? undefined,
         date: toTrimmedString(fields.data) || undefined,
-        tipo,
+        tipo: fields.tipo || null,
         categoria: toTrimmedString(fields.categoria) || undefined,
-        warnings: fields.warnings || successPayload.warnings || [],
+        escopo: fields.escopo || "private",
+        warnings: fields.warnings || [],
         moeda: toTrimmedString(fields.moeda) || "BRL",
       },
     };

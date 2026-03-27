@@ -153,12 +153,12 @@ export default function SmartCapture() {
 
     setEditForm({
       valor: result.valor?.toString() || "",
-      tipo: result.tipo,
+      tipo: (result.tipo || "expense") as any,
       descricao: result.descricao,
       data: result.data,
       categoria_id: "",
-      scope: currentScope === "all" ? result.escopo : currentScope,
-      source_type: source,
+      scope: (currentScope === "all" ? result.escopo : currentScope) as any,
+      source_type: source as any,
     });
 
     if (result.categoriaSugerida && categories) {

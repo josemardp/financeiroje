@@ -1,5 +1,5 @@
 /**
- * FinanceAI — Captura Inteligente: Parser de Texto Livre e OCR (Fase 2)
+ * FinanceAI — Captura Inteligente: Parser de Texto Livre e OCR (Fase 3)
  * 
  * Extrai dados estruturados de texto livre ou OCR.
  * Resultado SEMPRE tem status "suggested" — nunca salva automaticamente.
@@ -68,47 +68,58 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const camposFaltantes: string[] = [];
   const warnings: string[] = [];
 
-  // 1. Escolha Inteligente de Valor
-  const valorCandidates: number[] = [];
+  // 1. Escolha Inteligente de Valor (Fase 3)
+  const valorCandidates: { value: number; index: number }[] = [];
   const valorBrRegex = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
   const valorEnRegex = /(?:R\$\s*)?(\d{1,}\.\d{2})/gi;
   
   let match;
   while ((match = valorBrRegex.exec(text)) !== null) {
-    valorCandidates.push(parseFloat(match[1].replace(/\./g, "").replace(",", ".")));
+    valorCandidates.push({ value: parseFloat(match[1].replace(/\./g, "").replace(",", ".")), index: match.index });
   }
   while ((match = valorEnRegex.exec(text)) !== null) {
-    valorCandidates.push(parseFloat(match[1]));
+    valorCandidates.push({ value: parseFloat(match[1]), index: match.index });
   }
 
   let valor: number | null = null;
   if (valorCandidates.length > 0) {
-    // Se houver múltiplos, tenta buscar palavras-chave próximas (heurística simples)
     const lowerText = text.toLowerCase();
-    const priorities = ["total", "valor pago", "pix", "compra"];
-    let foundPriority = false;
+    const strongPriorities = ["total", "valor total", "total a pagar", "valor pago", "pix", "débito", "crédito", "compra"];
+    const avoidKeywords = ["troco", "taxa", "tarifa", "desconto", "nsu", "autorização", "parcela"];
+    
+    let bestCandidate = null;
+    let highestScore = -1;
 
-    for (const p of priorities) {
-      if (lowerText.includes(p)) {
-        // Pega o valor mais provável (geralmente o maior ou o último após a palavra)
-        valor = Math.max(...valorCandidates);
-        foundPriority = true;
-        break;
+    for (const cand of valorCandidates) {
+      let score = 0;
+      // Procura palavras de prioridade num raio de 30 caracteres
+      const windowStart = Math.max(0, cand.index - 30);
+      const windowEnd = Math.min(text.length, cand.index + 30);
+      const surrounding = lowerText.substring(windowStart, windowEnd);
+
+      for (const p of strongPriorities) {
+        if (surrounding.includes(p)) score += 10;
+      }
+      for (const a of avoidKeywords) {
+        if (surrounding.includes(a)) score -= 15;
+      }
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestCandidate = cand.value;
       }
     }
 
-    if (!foundPriority) {
-      valor = valorCandidates[valorCandidates.length - 1]; // Pega o último como fallback
-    }
+    valor = bestCandidate ?? valorCandidates[valorCandidates.length - 1].value;
 
-    if (new Set(valorCandidates).size > 1) {
+    if (new Set(valorCandidates.map(c => c.value)).size > 1) {
       warnings.push("valor principal escolhido entre múltiplos candidatos");
     }
   }
 
   if (!valor) camposFaltantes.push("valor");
 
-  // 2. Escolha Inteligente de Tipo
+  // 2. Escolha Inteligente de Tipo (Fase 3 - Sem Viés)
   const incomePatterns = /\b(entrou|receb[ei]|sal[aá]rio|renda|freelance|receita|ganho|ganh[ei]|pix recebido|transferência recebida|depósito)\b/i;
   const expensePatterns = /\b(gastei|paguei|comprei|gast[oa]|pagamento|compra|pix enviado|débito|crédito|ifood|uber|mercado|farmácia)\b/i;
   
@@ -118,8 +129,8 @@ export function parseTransactionText(input: string): ParsedTransaction {
   } else if (expensePatterns.test(text)) {
     tipo = "expense";
   } else {
-    warnings.push("tipo inferido por contexto");
-    tipo = "expense"; // Fallback seguro para despesa, mas marcado como inferido
+    // Mantém null se for ambíguo, conforme solicitado na Fase 3
+    warnings.push("tipo não identificado claramente");
   }
 
   // 3. Escolha Inteligente de Data
@@ -137,14 +148,9 @@ export function parseTransactionText(input: string): ParsedTransaction {
   }
 
   if (dateCandidates.length > 0) {
-    // Prioriza a primeira data encontrada (geralmente data da transação)
-    // Evita datas futuras
     const validDates = dateCandidates.filter(d => d <= today);
     data = validDates.length > 0 ? validDates[0] : dateCandidates[0];
-    
-    if (new Set(dateCandidates).size > 1) {
-      warnings.push("mais de uma data encontrada");
-    }
+    if (new Set(dateCandidates).size > 1) warnings.push("mais de uma data encontrada");
   }
 
   // 4. Categorização e Descrição
@@ -187,14 +193,23 @@ export function parseTransactionText(input: string): ParsedTransaction {
     warnings.push("descrição parcialmente limpa");
   }
 
-  // 5. Lógica de Confiança Real
+  // 5. Inferência de Escopo (Restaurada Fase 3)
+  let escopo: ParsedTransaction["escopo"] = "private";
+  if (/\b(mei|empresa|negócio|nota fiscal|cnpj|embalagem|fornecedor|cliente|serviço prestado)\b/i.test(text)) {
+    escopo = "business";
+    observacoes.push("Detectado como transação de negócio/MEI");
+  } else if (/\b(família|casa|filh[oa]|esposa|marido|compras casa)\b/i.test(text)) {
+    escopo = "family";
+  }
+
+  // 6. Lógica de Confiança Real
   let confianca: ParsedTransaction["confianca"] = "baixa";
   const hasStrongValue = valor !== null;
   const hasStrongDate = dateCandidates.length > 0;
   const hasStrongDesc = descricao.length > 3 && !warnings.includes("descrição parcialmente limpa");
   const hasLowAmbiguity = warnings.length <= 1;
 
-  if (hasStrongValue && hasStrongDate && hasStrongDesc && hasLowAmbiguity) {
+  if (hasStrongValue && hasStrongDate && hasStrongDesc && hasLowAmbiguity && tipo !== null) {
     confianca = "alta";
   } else if (hasStrongValue && (hasStrongDate || hasStrongDesc)) {
     confianca = "media";
@@ -208,7 +223,7 @@ export function parseTransactionText(input: string): ParsedTransaction {
     descricao,
     data,
     categoriaSugerida,
-    escopo: "private",
+    escopo,
     confianca,
     textoOriginal: text,
     observacoes,
