@@ -248,7 +248,7 @@ Regras:
       );
     }
 
-    const modelText = openAiJson?.choices?.[0]?.message?.content ?? extractOutputText(openAiJson);
+    const modelText = extractOutputText(openAiJson);
     const parsed = extractJsonObject(modelText);
 
     if (!parsed) {
