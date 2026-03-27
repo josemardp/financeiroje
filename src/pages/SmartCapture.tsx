@@ -30,7 +30,7 @@ type CaptureMode = "text" | "voice" | "photo";
 
 type MirrorFormState = {
   valor: string;
-  tipo: string;
+  tipo: "" | "income" | "expense";
   descricao: string;
   data: string;
   categoria_id: string;
@@ -68,7 +68,7 @@ export default function SmartCapture() {
 
   const [editForm, setEditForm] = useState<MirrorFormState>({
     valor: "",
-    tipo: "expense",
+    tipo: "",
     descricao: "",
     data: "",
     categoria_id: "",
@@ -122,7 +122,7 @@ export default function SmartCapture() {
   const reviewedSnapshot = parsed
     ? {
         valor: editForm.valor ? Number(editForm.valor) : null,
-        tipo: editForm.tipo,
+        tipo: editForm.tipo || null,
         descricao: editForm.descricao,
         data: editForm.data,
         categoria_id: editForm.categoria_id || null,
@@ -136,8 +136,7 @@ export default function SmartCapture() {
     if (!textToParse.trim()) return;
 
     const result = parseTransactionText(textToParse);
-    
-    // Se for OCR, sobrepor com metadados do LLM que são mais precisos para imagens
+
     if (source === "photo_ocr" && ocrMetadata) {
       if (ocrMetadata.totalAmount !== undefined) result.valor = ocrMetadata.totalAmount;
       if (ocrMetadata.date) result.data = ocrMetadata.date;
@@ -153,12 +152,12 @@ export default function SmartCapture() {
 
     setEditForm({
       valor: result.valor?.toString() || "",
-      tipo: (result.tipo || "expense") as any,
+      tipo: result.tipo ?? "",
       descricao: result.descricao,
       data: result.data,
       categoria_id: "",
-      scope: (currentScope === "all" ? result.escopo : currentScope) as any,
-      source_type: source as any,
+      scope: currentScope === "all" ? result.escopo : currentScope,
+      source_type: source,
     });
 
     if (result.categoriaSugerida && categories) {
@@ -178,6 +177,11 @@ export default function SmartCapture() {
   const handleSave = async () => {
     if (!user || !editForm.valor || Number(editForm.valor) <= 0) {
       toast.error("Valor inválido");
+      return;
+    }
+
+    if (!editForm.tipo) {
+      toast.error("Defina manualmente se é receita ou despesa");
       return;
     }
 
@@ -221,7 +225,6 @@ export default function SmartCapture() {
       return;
     }
 
-    // Registro para aprendizado futuro (Fase 2)
     try {
       await supabase.from("smart_capture_learning").insert({
         user_id: user.id,
@@ -242,7 +245,7 @@ export default function SmartCapture() {
     }
 
     toast.success("Transação confirmada e registrada", {
-      description: `Salva no escopo: ${editForm.scope === 'private' ? 'Pessoal' : editForm.scope === 'family' ? 'Família' : 'Negócio'}.`,
+      description: `Salva no escopo: ${editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"}.`,
     });
 
     setParsed(null);
@@ -419,7 +422,7 @@ export default function SmartCapture() {
                 <Check className="h-3 w-3" /> Estado: Confirmar manualmente
               </Badge>
               <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-                <Sparkles className="h-3 w-3" /> Escopo: {editForm.scope === 'private' ? 'Pessoal' : editForm.scope === 'family' ? 'Família' : 'Negócio'}
+                <Sparkles className="h-3 w-3" /> Escopo: {editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"}
               </Badge>
             </div>
 
@@ -463,13 +466,23 @@ export default function SmartCapture() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Valor (R$)</Label>
-                    <Input type="number" step="0.01" value={editForm.valor}
-                      onChange={e => updateEditForm(f => ({ ...f, valor: e.target.value }))} className="font-mono text-lg" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editForm.valor}
+                      onChange={e => updateEditForm(f => ({ ...f, valor: e.target.value }))}
+                      className="font-mono text-lg"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Tipo</Label>
-                    <Select value={editForm.tipo} onValueChange={v => updateEditForm(f => ({ ...f, tipo: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={editForm.tipo}
+                      onValueChange={v => updateEditForm(f => ({ ...f, tipo: v as "" | "income" | "expense" }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="expense">Despesa</SelectItem>
                         <SelectItem value="income">Receita</SelectItem>
@@ -479,14 +492,19 @@ export default function SmartCapture() {
                 </div>
                 <div className="space-y-2">
                   <Label>Descrição</Label>
-                  <Input value={editForm.descricao}
-                    onChange={e => updateEditForm(f => ({ ...f, descricao: e.target.value }))} />
+                  <Input
+                    value={editForm.descricao}
+                    onChange={e => updateEditForm(f => ({ ...f, descricao: e.target.value }))}
+                  />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Data</Label>
-                    <Input type="date" value={editForm.data}
-                      onChange={e => updateEditForm(f => ({ ...f, data: e.target.value }))} />
+                    <Input
+                      type="date"
+                      value={editForm.data}
+                      onChange={e => updateEditForm(f => ({ ...f, data: e.target.value }))}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Categoria</Label>
@@ -515,7 +533,17 @@ export default function SmartCapture() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/20 rounded-xl border border-dashed">
                 <InfoRow label="Valor Extraído" value={editForm.valor ? formatCurrency(Number(editForm.valor)) : "Não detectado"} highlight={!editForm.valor} />
-                <InfoRow label="Tipo de Fluxo" value={editForm.tipo === "income" ? "Receita (+)" : "Despesa (-)"} />
+                <InfoRow
+                  label="Tipo de Fluxo"
+                  value={
+                    editForm.tipo === "income"
+                      ? "Receita (+)"
+                      : editForm.tipo === "expense"
+                        ? "Despesa (-)"
+                        : "Não definido"
+                  }
+                  highlight={!editForm.tipo}
+                />
                 <InfoRow label="Descrição" value={editForm.descricao || "—"} highlight={!editForm.descricao} />
                 <InfoRow label="Data da Ocorrência" value={editForm.data} />
                 <InfoRow label="Categoria Sugerida" value={parsed.categoriaSugerida || "Não detectada"} highlight={!parsed.categoriaSugerida} />
