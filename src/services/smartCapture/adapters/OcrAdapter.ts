@@ -1,7 +1,7 @@
 /**
  * FinanceAI — OCR Adapter
- * Chama a edge function smart-capture-ocr e devolve resultado compatível com o SmartCapture.
- * O resultado nunca é persistido automaticamente.
+ * Fluxo atual: somente imagem JPG/PNG.
+ * PDF, DOCX e Excel ficam explicitamente fora deste fluxo por enquanto.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +16,34 @@ export interface OcrExtractionResult {
   };
 }
 
-type OcrEdgeResponse = {
+export type OcrErrorCode =
+  | "UNSUPPORTED_FILE_TYPE"
+  | "AUTH_REQUIRED"
+  | "OCR_NOT_CONFIGURED"
+  | "INVALID_EDGE_PAYLOAD"
+  | "UPSTREAM_OCR_ERROR"
+  | "UNKNOWN_OCR_ERROR";
+
+export class OcrCaptureError extends Error {
+  code: OcrErrorCode;
+  status?: number;
+
+  constructor(code: OcrErrorCode, message: string, status?: number) {
+    super(message);
+    this.name = "OcrCaptureError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+const SUPPORTED_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg"] as const;
+
+type SupportedImageMimeType = (typeof SUPPORTED_IMAGE_MIME_TYPES)[number];
+
+type OcrEdgeSuccessResponse = {
+  ok?: true;
   extracted_fields?: {
-    valor?: number | null;
+    valor?: number | string | null;
     tipo?: string | null;
     data?: string | null;
     categoria?: string | null;
@@ -34,19 +59,38 @@ type OcrEdgeResponse = {
   origin?: string | null;
 };
 
+type OcrEdgeErrorResponse = {
+  ok?: false;
+  code?: string;
+  message?: string;
+  error?: string;
+};
+
+type OcrEdgeResponse = OcrEdgeSuccessResponse | OcrEdgeErrorResponse;
+
+function isSupportedImageMimeType(mimeType: string): mimeType is SupportedImageMimeType {
+  return SUPPORTED_IMAGE_MIME_TYPES.includes(mimeType as SupportedImageMimeType);
+}
+
 function blobToBase64(file: File | Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+
     reader.onload = () => {
       const result = reader.result;
       if (typeof result !== "string") {
-        reject(new Error("Falha ao converter arquivo para base64."));
+        reject(new OcrCaptureError("UNKNOWN_OCR_ERROR", "Falha ao converter arquivo para base64."));
         return;
       }
+
       const [, base64 = ""] = result.split(",");
       resolve(base64);
     };
-    reader.onerror = () => reject(new Error("Falha ao ler arquivo para OCR."));
+
+    reader.onerror = () => {
+      reject(new OcrCaptureError("UNKNOWN_OCR_ERROR", "Falha ao ler arquivo para OCR."));
+    };
+
     reader.readAsDataURL(file);
   });
 }
@@ -69,7 +113,58 @@ function normalizeConfidence(value: string | number | null | undefined) {
   }
 }
 
-function buildRawText(payload: OcrEdgeResponse) {
+function toNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  if (typeof value === "string") {
+    const normalized = value.replace(/\s/g, "").replace("R$", "").replace(/\./g, "").replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function toTrimmedString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function mapEdgeCode(code?: string): OcrErrorCode {
+  switch (code) {
+    case "UNSUPPORTED_FILE_TYPE":
+      return "UNSUPPORTED_FILE_TYPE";
+    case "AUTH_REQUIRED":
+      return "AUTH_REQUIRED";
+    case "OCR_NOT_CONFIGURED":
+      return "OCR_NOT_CONFIGURED";
+    case "INVALID_EDGE_PAYLOAD":
+      return "INVALID_EDGE_PAYLOAD";
+    case "UPSTREAM_OCR_ERROR":
+      return "UPSTREAM_OCR_ERROR";
+    default:
+      return "UNKNOWN_OCR_ERROR";
+  }
+}
+
+function mapInvokeError(error: { message?: string; context?: unknown }): OcrCaptureError {
+  const message = error.message || "Falha ao processar OCR na edge function.";
+
+  if (/401|unauthorized|jwt|auth/i.test(message)) {
+    return new OcrCaptureError("AUTH_REQUIRED", message, 401);
+  }
+
+  if (/unsupported|415/i.test(message)) {
+    return new OcrCaptureError("UNSUPPORTED_FILE_TYPE", message, 415);
+  }
+
+  if (/configur|openai|api key/i.test(message)) {
+    return new OcrCaptureError("OCR_NOT_CONFIGURED", message, 500);
+  }
+
+  return new OcrCaptureError("UPSTREAM_OCR_ERROR", message, 500);
+}
+
+function buildRawText(payload: OcrEdgeSuccessResponse) {
   if (payload.raw_text?.trim()) {
     return payload.raw_text.trim();
   }
@@ -78,10 +173,10 @@ function buildRawText(payload: OcrEdgeResponse) {
   if (!fields) return "";
 
   return [
-    fields.descricao,
-    fields.valor != null ? `R$ ${fields.valor}` : null,
-    fields.data,
-    fields.categoria,
+    toTrimmedString(fields.descricao),
+    toNullableNumber(fields.valor) != null ? `R$ ${toNullableNumber(fields.valor)}` : null,
+    toTrimmedString(fields.data),
+    toTrimmedString(fields.categoria),
     ...(fields.warnings || []),
   ]
     .filter(Boolean)
@@ -92,6 +187,14 @@ function buildRawText(payload: OcrEdgeResponse) {
 export class OcrAdapter {
   static async extract(imageFile: File | Blob): Promise<OcrExtractionResult> {
     const mimeType = imageFile.type || "application/octet-stream";
+
+    if (!isSupportedImageMimeType(mimeType)) {
+      throw new OcrCaptureError(
+        "UNSUPPORTED_FILE_TYPE",
+        "Formato ainda não suportado neste OCR. Use JPG ou PNG."
+      );
+    }
+
     const base64 = await blobToBase64(imageFile);
 
     const { data, error } = await supabase.functions.invoke("smart-capture-ocr", {
@@ -103,24 +206,36 @@ export class OcrAdapter {
     });
 
     if (error) {
-      throw new Error(error.message || "Falha ao processar OCR na edge function.");
+      throw mapInvokeError(error);
     }
 
     const payload = (data || {}) as OcrEdgeResponse;
-    const fields = payload.extracted_fields || {};
-    const text = buildRawText(payload);
+
+    if ("ok" in payload && payload.ok === false) {
+      throw new OcrCaptureError(
+        mapEdgeCode(payload.code),
+        payload.message || payload.error || "Falha no backend de OCR."
+      );
+    }
+
+    const successPayload = payload as OcrEdgeSuccessResponse;
+    const fields = successPayload.extracted_fields || {};
+    const text = buildRawText(successPayload);
 
     if (!text) {
-      throw new Error("Nenhum texto legível foi retornado pela edge function de OCR.");
+      throw new OcrCaptureError(
+        "INVALID_EDGE_PAYLOAD",
+        "A edge function não retornou texto utilizável."
+      );
     }
 
     return {
       text,
-      confidence: normalizeConfidence(fields.confidence ?? payload.confidence),
+      confidence: normalizeConfidence(fields.confidence ?? successPayload.confidence),
       metadata: {
-        merchantName: fields.descricao || undefined,
-        totalAmount: typeof fields.valor === "number" ? fields.valor : undefined,
-        date: fields.data || undefined,
+        merchantName: toTrimmedString(fields.descricao) || undefined,
+        totalAmount: toNullableNumber(fields.valor) ?? undefined,
+        date: toTrimmedString(fields.data) || undefined,
       },
     };
   }
