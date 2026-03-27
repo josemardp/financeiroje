@@ -194,7 +194,7 @@ Regras:
 - Considere contexto brasileiro.
 `.trim();
 
-    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+    const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -203,12 +203,12 @@ Regras:
       body: JSON.stringify({
         model: "gpt-4o-mini",
         temperature: 0,
-        input: [
+        messages: [
           {
             role: "user",
             content: [
-              { type: "input_text", text: prompt },
-              { type: "input_image", image_base64: file_base64 },
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: `data:${mime_type};base64,${file_base64}` } },
             ],
           },
         ],
@@ -248,7 +248,7 @@ Regras:
       );
     }
 
-    const modelText = extractOutputText(openAiJson);
+    const modelText = openAiJson?.choices?.[0]?.message?.content ?? extractOutputText(openAiJson);
     const parsed = extractJsonObject(modelText);
 
     if (!parsed) {
