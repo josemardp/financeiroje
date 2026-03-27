@@ -308,7 +308,7 @@ Regras:
       },
       confidence: normalizeConfidence(parsed.confidence),
       warnings,
-      source: "openai-responses",
+      source: "lovable-ai-gateway",
       origin: file_name || "smart-capture-file",
     });
   } catch (err) {
