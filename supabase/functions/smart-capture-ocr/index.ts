@@ -158,13 +158,13 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
       return jsonResponse(
         {
           ok: false,
           code: "OCR_NOT_CONFIGURED",
-          message: "LOVABLE_API_KEY não configurada.",
+          message: "OPENAI_API_KEY não configurada.",
         },
         500
       );
@@ -194,21 +194,21 @@ Regras:
 - Considere contexto brasileiro.
 `.trim();
 
-    const openAiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         temperature: 0,
-        messages: [
+        input: [
           {
             role: "user",
             content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:${mime_type};base64,${file_base64}` } },
+              { type: "input_text", text: prompt },
+              { type: "input_image", image_base64: file_base64 },
             ],
           },
         ],
@@ -248,7 +248,7 @@ Regras:
       );
     }
 
-    const modelText = openAiJson?.choices?.[0]?.message?.content ?? extractOutputText(openAiJson);
+    const modelText = extractOutputText(openAiJson);
     const parsed = extractJsonObject(modelText);
 
     if (!parsed) {
@@ -308,7 +308,7 @@ Regras:
       },
       confidence: normalizeConfidence(parsed.confidence),
       warnings,
-      source: "lovable-ai-gateway",
+      source: "openai-responses",
       origin: file_name || "smart-capture-file",
     });
   } catch (err) {
