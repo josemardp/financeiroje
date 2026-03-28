@@ -42,9 +42,9 @@ export class OcrCaptureError extends Error {
   }
 }
 
-const SUPPORTED_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg"] as const;
+const SUPPORTED_OCR_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "application/pdf"] as const;
 
-type SupportedImageMimeType = (typeof SUPPORTED_IMAGE_MIME_TYPES)[number];
+type SupportedOcrMimeType = (typeof SUPPORTED_OCR_MIME_TYPES)[number];
 
 type OcrEdgeSuccessResponse = {
   ok?: true;
@@ -73,8 +73,8 @@ type OcrEdgeErrorResponse = {
 
 type OcrEdgeResponse = OcrEdgeSuccessResponse | OcrEdgeErrorResponse;
 
-function isSupportedImageMimeType(mimeType: string): mimeType is SupportedImageMimeType {
-  return SUPPORTED_IMAGE_MIME_TYPES.includes(mimeType as SupportedImageMimeType);
+function isSupportedOcrMimeType(mimeType: string): mimeType is SupportedOcrMimeType {
+  return SUPPORTED_OCR_MIME_TYPES.includes(mimeType as SupportedOcrMimeType);
 }
 
 function blobToBase64(file: File | Blob): Promise<string> {
@@ -176,23 +176,23 @@ function mapInvokeError(error: { message?: string; context?: unknown }): OcrCapt
 }
 
 export class OcrAdapter {
-  static async extract(imageFile: File | Blob): Promise<OcrExtractionResult> {
-    const mimeType = imageFile.type || "application/octet-stream";
+  static async extract(file: File | Blob): Promise<OcrExtractionResult> {
+    const mimeType = file.type || "application/octet-stream";
 
-    if (!isSupportedImageMimeType(mimeType)) {
+    if (!isSupportedOcrMimeType(mimeType)) {
       throw new OcrCaptureError(
         "UNSUPPORTED_FILE_TYPE",
-        "Formato ainda não suportado neste OCR. Use JPG ou PNG."
+        "Formato ainda não suportado neste OCR. Use PDF, JPG ou PNG."
       );
     }
 
-    const base64 = await blobToBase64(imageFile);
+    const base64 = await blobToBase64(file);
 
     const { data, error } = await supabase.functions.invoke("smart-capture-ocr", {
       body: {
         file_base64: base64,
         mime_type: mimeType,
-        file_name: imageFile instanceof File ? imageFile.name : "smart-capture-file",
+        file_name: file instanceof File ? file.name : "smart-capture-file",
       },
     });
 

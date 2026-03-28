@@ -8,7 +8,7 @@ function getOcrToast(error: unknown) {
       case "UNSUPPORTED_FILE_TYPE":
         return {
           title: "Formato ainda não suportado",
-          description: "Use imagem JPG ou PNG. PDF, Word e Excel ainda não estão liberados neste fluxo.",
+          description: "Use PDF, JPG ou PNG. Word e Excel ainda não estão liberados neste fluxo.",
         };
       case "AUTH_REQUIRED":
         return {
