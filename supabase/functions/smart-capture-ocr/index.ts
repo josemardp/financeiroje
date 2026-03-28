@@ -1,5 +1,5 @@
-// Edge Function: smart-capture-ocr (Fase 4.3 - Suporte a PDF)
-// Suporta: JPG, PNG e agora PDF (Texto Nativo + Fallback Vision)
+// Edge Function: smart-capture-ocr (Fase 4.4 - Suporte Real a Imagem/OCR)
+// Suporta: JPG, PNG (PDF tratado no frontend via rasterização/extração real)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -9,7 +9,7 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
-const SUPPORTED_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "application/pdf"]);
+const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg"]);
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -91,8 +91,13 @@ serve(async (req) => {
       return jsonResponse({ ok: false, code: "INVALID_EDGE_PAYLOAD", message: "Payload inválido." }, 400);
     }
 
-    if (!SUPPORTED_TYPES.has(mime_type)) {
-      return jsonResponse({ ok: false, code: "UNSUPPORTED_FILE_TYPE", message: "Formato não suportado. Use PDF, JPG ou PNG." }, 415);
+    // PDF agora deve ser tratado no frontend (extração ou rasterização para imagem)
+    if (!SUPPORTED_IMAGE_TYPES.has(mime_type)) {
+      return jsonResponse({ 
+        ok: false, 
+        code: "UNSUPPORTED_FILE_TYPE", 
+        message: "O backend OCR suporta apenas imagens JPG/PNG. PDFs devem ser processados no cliente." 
+      }, 415);
     }
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -100,11 +105,9 @@ serve(async (req) => {
       return jsonResponse({ ok: false, code: "OCR_NOT_CONFIGURED", message: "OPENAI_API_KEY não configurada." }, 500);
     }
 
-    const isPdf = mime_type === "application/pdf";
-    
     const prompt = `
 Você é um especialista em extração de dados financeiros brasileiros.
-Analise o conteúdo do arquivo (pode ser uma imagem ou texto extraído de um PDF).
+Analise a imagem de comprovante, recibo ou nota fiscal.
 
 Extraia com precisão máxima:
 1. VALOR: O valor principal da transação. 
@@ -118,7 +121,7 @@ Extraia com precisão máxima:
 5. CATEGORIA: Sugira uma (Alimentação, Transporte, Saúde, Moradia, Renda, Assinaturas, Educação, Vestuário, Pet, Contas, Dívidas).
 6. ESCOPO: 'business' (sinais de MEI/empresa/cliente/fornecedor/nota fiscal/CNPJ), 'family' (sinais de família/casa), ou 'private' (fallback).
 7. CONFIDENCE: 'alta' (valor e data claros), 'media', 'baixa'.
-8. WARNINGS: Liste problemas reais: "mais de um valor encontrado", "OCR com baixa legibilidade", "tipo inferido por contexto", "PDF processado via visão".
+8. WARNINGS: Liste problemas reais: "mais de um valor encontrado", "OCR com baixa legibilidade", "tipo inferido por contexto".
 
 Responda SOMENTE com JSON válido:
 {
@@ -134,41 +137,6 @@ Responda SOMENTE com JSON válido:
 }
 `.trim();
 
-    let messages;
-    if (isPdf) {
-      // Para PDF, enviamos o PDF como arquivo para o modelo (gpt-4o suporta PDF nativamente em algumas versões/APIs, 
-      // mas aqui usamos a estratégia de "enviar como conteúdo" ou fallback para imagem se necessário).
-      // Como gpt-4o-mini não suporta PDF nativo via API de imagem_url, vamos tratar o PDF:
-      // Estratégia: No Deno, não temos bibliotecas nativas pesadas de PDF facilmente.
-      // Vamos enviar o PDF como um "documento" se o modelo suportar, ou avisar que PDFs vision serão processados.
-      
-      messages = [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { 
-              type: "text", 
-              text: `CONTEÚDO DO PDF (BASE64): ${file_base64.substring(0, 10000)}... [PDF truncado para análise]` 
-            },
-          ],
-        },
-      ];
-      
-      // Ajuste: gpt-4o (não mini) suporta melhor PDFs. Mas para manter o custo e a velocidade:
-      // Se for PDF, vamos tentar usar o gpt-4o padrão que tem capacidades multimodais melhores para documentos.
-    } else {
-      messages = [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: `data:${mime_type};base64,${file_base64}` } },
-          ],
-        },
-      ];
-    }
-
     const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -176,9 +144,17 @@ Responda SOMENTE com JSON válido:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: isPdf ? "gpt-4o" : "gpt-4o-mini", // gpt-4o lida melhor com PDFs complexos
+        model: "gpt-4o-mini",
         temperature: 0,
-        messages: messages,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: `data:${mime_type};base64,${file_base64}` } },
+            ],
+          },
+        ],
       }),
     });
 
@@ -195,8 +171,11 @@ Responda SOMENTE com JSON válido:
       return jsonResponse({ ok: false, code: "INVALID_EDGE_PAYLOAD", message: "O modelo não retornou JSON válido." }, 502);
     }
 
-    const rawText = toTrimmedString(parsed.raw_text) || "Texto extraído via LLM Vision/Document";
-    
+    const rawText = toTrimmedString(parsed.raw_text);
+    if (!rawText || rawText.length < 5) {
+      return jsonResponse({ ok: false, code: "OCR_EMPTY_TEXT", message: "Não foi possível extrair texto legível desta imagem." }, 422);
+    }
+
     return jsonResponse({
       ok: true,
       raw_text: rawText,
@@ -210,7 +189,7 @@ Responda SOMENTE com JSON válido:
         confidence: normalizeConfidence(parsed.confidence),
         warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
       },
-      source: isPdf ? "openai-gpt-4o-doc" : "openai-gpt-4o-mini-vision",
+      source: "openai-vision",
       origin: file_name || "smart-capture-file",
     });
   } catch (err) {
