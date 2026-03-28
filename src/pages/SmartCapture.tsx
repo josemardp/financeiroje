@@ -38,7 +38,7 @@ type MirrorFormState = {
   source_type: string;
 };
 
-const SUPPORTED_OCR_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"] as const;
+const SUPPORTED_OCR_TYPES = ["image/png", "image/jpeg", "image/jpg", "application/pdf"] as const;
 
 function normalizeLearningText(text: string) {
   return text
@@ -268,13 +268,16 @@ export default function SmartCapture() {
 
     if (!file) return;
 
-    const isSupported = SUPPORTED_OCR_IMAGE_TYPES.includes(
-      file.type as (typeof SUPPORTED_OCR_IMAGE_TYPES)[number]
+    const isSupported = SUPPORTED_OCR_TYPES.includes(
+      file.type as (typeof SUPPORTED_OCR_TYPES)[number]
     );
 
     if (!isSupported) {
-      toast.error("Formato ainda não suportado neste OCR", {
-        description: "Use JPG ou PNG. PDF, Word e Excel ainda não estão liberados neste fluxo.",
+      const isOffice = file.type.includes("word") || file.type.includes("excel") || file.type.includes("officedocument") || file.name.endsWith(".docx") || file.name.endsWith(".xlsx");
+      toast.error(isOffice ? "Formato ainda não liberado" : "Formato não suportado", {
+        description: isOffice 
+          ? "Word e Excel ainda não estão liberados. Por enquanto, use PDF, JPG ou PNG."
+          : "Use PDF, JPG ou PNG para captura automática.",
       });
       e.target.value = "";
       return;
@@ -372,12 +375,12 @@ export default function SmartCapture() {
                   {isOcrProcessing ? <Loader2 className="h-12 w-12 text-primary animate-spin" /> : <ImageIcon className="h-12 w-12 text-muted-foreground" />}
                 </div>
                 <div className="text-center px-4">
-                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : "Selecione uma foto, print ou recibo em imagem"}</p>
-                  <p className="text-sm text-muted-foreground">Formatos suportados agora: JPG e PNG. PDF, Word e Excel ainda não estão liberados neste fluxo.</p>
+                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados do arquivo..." : "Selecione uma foto, print, recibo ou PDF"}</p>
+                  <p className="text-sm text-muted-foreground">Formatos suportados agora: PDF, JPG e PNG. Word e Excel ainda não estão liberados.</p>
                 </div>
                 <input
                   type="file"
-                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                  accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
@@ -389,7 +392,7 @@ export default function SmartCapture() {
                   variant="outline"
                   size="lg"
                 >
-                  <Camera className="h-4 w-4 mr-2" /> Escolher Foto
+                  <FileText className="h-4 w-4 mr-2" /> Escolher Arquivo
                 </Button>
               </div>
             )}
