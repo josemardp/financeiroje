@@ -4,7 +4,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { cleanDescription } from "../textParser";
+import { cleanDescription, parseTransactionText } from "../textParser";
 import { processPdf, PdfProcessingError } from "../pdfService";
 
 export interface OcrExtractionResult {
@@ -109,14 +109,27 @@ export class OcrAdapter {
 
         // Se o PDF tiver texto nativo útil, retornamos ele
         if (!pdfResult.isRasterized && pdfResult.text.length > 50) {
+          // Estruturar o texto nativo via parser local (igual texto livre)
+          const parsed = parseTransactionText(pdfResult.text);
+          
+          const confidenceMap = { alta: 0.9, media: 0.7, baixa: 0.4 };
+
           return {
             text: pdfResult.text,
-            confidence: 0.9,
+            confidence: confidenceMap[parsed.confianca] ?? 0.6,
             metadata: {
-              warnings: pdfResult.pagesProcessed > 1
-                ? [`Processadas ${pdfResult.pagesProcessed} páginas.`]
-                : []
-            }
+              merchantName: parsed.descricao || undefined,
+              totalAmount: parsed.valor ?? undefined,
+              date: parsed.data || undefined,
+              tipo: parsed.tipo,
+              categoria: parsed.categoriaSugerida || undefined,
+              escopo: parsed.escopo,
+              warnings: [
+                ...(pdfResult.pagesProcessed > 1 ? [`Processadas ${pdfResult.pagesProcessed} páginas.`] : []),
+                ...parsed.warnings,
+              ],
+              moeda: "BRL",
+            },
           };
         }
 
