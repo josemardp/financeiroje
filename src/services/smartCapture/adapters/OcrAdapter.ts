@@ -4,7 +4,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { cleanDescription } from "../textParser";
+import { cleanDescription, parseTransactionText } from "../textParser";
 import { processPdf, PdfProcessingError } from "../pdfService";
 
 export interface OcrExtractionResult {
