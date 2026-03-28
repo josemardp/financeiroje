@@ -36,13 +36,13 @@ import {
   Search,
   ArrowRight,
   RefreshCcw,
-  MessageSquare,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { normalizeConfidence, detectDivergence, calculateAccuracy } from "@/lib/learningUtils";
 
 interface LearningRecord {
   id: string;
@@ -69,7 +69,6 @@ export default function SmartCaptureLearning() {
   const [filterCorrection, setFilterCorrection] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
 
   const { data: records, isLoading, refetch } = useQuery({
     queryKey: ["smart_capture_learning"],
@@ -102,14 +101,6 @@ export default function SmartCaptureLearning() {
     },
   });
 
-  const normalizeConfidence = (conf: string | null): string => {
-    if (!conf) return 'baixa';
-    const c = conf.toLowerCase();
-    if (c === 'high' || c === 'alta') return 'alta';
-    if (c === 'medium' || c === 'media' || c === 'média') return 'media';
-    return 'baixa';
-  };
-
   const filteredRecords = useMemo(() => {
     if (!records) return [];
     return records.filter(r => {
@@ -124,11 +115,11 @@ export default function SmartCaptureLearning() {
       if (filterCorrection !== "all") {
         const sug = r.suggested_payload || {};
         const fin = r.final_payload || {};
-        if (filterCorrection === "amount") matchesCorrection = Number(sug.amount) !== Number(fin.amount);
-        if (filterCorrection === "type") matchesCorrection = sug.type !== fin.type;
-        if (filterCorrection === "description") matchesCorrection = sug.description !== fin.description;
-        if (filterCorrection === "category") matchesCorrection = sug.category_id !== fin.category_id;
-        if (filterCorrection === "scope") matchesCorrection = sug.scope !== fin.scope;
+        if (filterCorrection === "amount") matchesCorrection = detectDivergence(sug, fin, 'amount');
+        if (filterCorrection === "type") matchesCorrection = detectDivergence(sug, fin, 'type');
+        if (filterCorrection === "description") matchesCorrection = detectDivergence(sug, fin, 'description');
+        if (filterCorrection === "category") matchesCorrection = detectDivergence(sug, fin, 'category_id');
+        if (filterCorrection === "scope") matchesCorrection = detectDivergence(sug, fin, 'scope');
       }
 
       return matchesType && matchesConfidence && matchesSearch && matchesCorrection;
@@ -141,33 +132,7 @@ export default function SmartCaptureLearning() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const metrics = useMemo(() => {
-    if (!records || records.length === 0) return null;
-    const total = records.length;
-    let corrections = { amount: 0, type: 0, description: 0, category: 0, scope: 0 };
-
-    records.forEach(r => {
-      const sug = r.suggested_payload || {};
-      const fin = r.final_payload || {};
-      if (Number(sug.amount) !== Number(fin.amount)) corrections.amount++;
-      if (sug.type !== fin.type) corrections.type++;
-      if (sug.description !== fin.description) corrections.description++;
-      if (sug.category_id !== fin.category_id) corrections.category++;
-      if (sug.scope !== fin.scope) corrections.scope++;
-    });
-
-    return {
-      total,
-      corrections,
-      accuracy: {
-        amount: ((total - corrections.amount) / total * 100).toFixed(1),
-        type: ((total - corrections.type) / total * 100).toFixed(1),
-        description: ((total - corrections.description) / total * 100).toFixed(1),
-        category: ((total - corrections.category) / total * 100).toFixed(1),
-        scope: ((total - corrections.scope) / total * 100).toFixed(1),
-      }
-    };
-  }, [records]);
+  const metrics = useMemo(() => calculateAccuracy(records || []), [records]);
 
   const getConfidenceBadge = (conf: string) => {
     const normalized = normalizeConfidence(conf);
@@ -182,7 +147,7 @@ export default function SmartCaptureLearning() {
   const renderComparison = (sug: any, fin: any, field: string, label: string) => {
     const valSug = field === 'amount' ? Number(sug[field] || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : String(sug[field] || '-');
     const valFin = field === 'amount' ? Number(fin[field] || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : String(fin[field] || '-');
-    const isDifferent = field === 'amount' ? Number(sug[field]) !== Number(fin[field]) : sug[field] !== fin[field];
+    const isDifferent = detectDivergence(sug, fin, field);
     
     return (
       <div className="flex flex-col gap-0.5 py-1 border-b border-border/50 last:border-0">
@@ -218,6 +183,17 @@ export default function SmartCaptureLearning() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input placeholder="Texto original ou normalizado..." className="pl-9 h-9 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
+        </div>
+        <div className="w-32 space-y-1.5">
+          <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Origem</label>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Origem" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="voice">Voz</SelectItem>
+              <SelectItem value="photo_ocr">Foto / OCR</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="w-32 space-y-1.5">
           <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Confiança</label>
@@ -286,6 +262,7 @@ export default function SmartCaptureLearning() {
                     <TableCell>
                       <div className="grid grid-cols-1 gap-0 bg-muted/20 p-1.5 rounded border border-border/30">
                         {renderComparison(record.suggested_payload, record.final_payload, 'amount', 'Valor')}
+                        {renderComparison(record.suggested_payload, record.final_payload, 'type', 'Tipo')}
                         {renderComparison(record.suggested_payload, record.final_payload, 'description', 'Descrição')}
                         {renderComparison(record.suggested_payload, record.final_payload, 'category_id', 'Categoria')}
                         {renderComparison(record.suggested_payload, record.final_payload, 'scope', 'Escopo')}
