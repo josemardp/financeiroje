@@ -5,7 +5,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { cleanDescription } from "../textParser";
-import { processPdf } from "../pdfService";
+import { processPdf, PdfProcessingError } from "../pdfService";
 
 export interface OcrExtractionResult {
   text: string;
@@ -29,6 +29,10 @@ export type OcrErrorCode =
   | "INVALID_EDGE_PAYLOAD"
   | "UPSTREAM_OCR_ERROR"
   | "OCR_EMPTY_TEXT"
+  | "PDF_LOAD_FAILED"
+  | "PDF_TEXT_EXTRACTION_FAILED"
+  | "PDF_RASTERIZE_FAILED"
+  | "PDF_TOO_LARGE"
   | "PDF_PROCESSING_ERROR"
   | "UNKNOWN_OCR_ERROR";
 
@@ -102,27 +106,36 @@ export class OcrAdapter {
     if (mimeType === "application/pdf" && file instanceof File) {
       try {
         const pdfResult = await processPdf(file);
-        
-        // Se o PDF tiver texto nativo útil, retornamos ele (o SmartCapture fará o handleParse)
+
+        // Se o PDF tiver texto nativo útil, retornamos ele
         if (!pdfResult.isRasterized && pdfResult.text.length > 50) {
           return {
             text: pdfResult.text,
             confidence: 0.9,
             metadata: {
-              warnings: pdfResult.pagesProcessed > 1 ? [`Processadas ${pdfResult.pagesProcessed} páginas.`] : []
+              warnings: pdfResult.pagesProcessed > 1
+                ? [`Processadas ${pdfResult.pagesProcessed} páginas.`]
+                : []
             }
           };
         }
-        
+
         // Se for rasterizado, processamos a primeira imagem gerada via OCR
         if (pdfResult.images && pdfResult.images.length > 0) {
           return await this.extractFromImage(pdfResult.images[0], "page1.jpg");
         }
-        
+
         throw new OcrCaptureError("OCR_EMPTY_TEXT", "Não foi possível extrair texto útil deste PDF.");
       } catch (err) {
         if (err instanceof OcrCaptureError) throw err;
-        throw new OcrCaptureError("PDF_PROCESSING_ERROR", "Erro ao processar o arquivo PDF.");
+        if (err instanceof PdfProcessingError) {
+          throw new OcrCaptureError(
+            err.code as OcrErrorCode,
+            err.message
+          );
+        }
+        console.error("[OcrAdapter] Erro inesperado ao processar PDF:", err);
+        throw new OcrCaptureError("PDF_PROCESSING_ERROR", "Erro ao processar o arquivo PDF. Tente enviar como foto.");
       }
     }
 
