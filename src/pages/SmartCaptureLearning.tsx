@@ -73,13 +73,13 @@ export default function SmartCaptureLearning() {
   const { data: records, isLoading, refetch } = useQuery({
     queryKey: ["smart_capture_learning"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("smart_capture_learning")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as LearningRecord[];
+      return (data || []) as LearningRecord[];
     },
   });
 
@@ -89,7 +89,7 @@ export default function SmartCaptureLearning() {
       if (status) updates.review_status = status;
       if (notes !== undefined) updates.review_notes = notes;
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("smart_capture_learning")
         .update(updates)
         .eq("id", id);
@@ -163,16 +163,16 @@ export default function SmartCaptureLearning() {
 
   return (
     <div className="container mx-auto p-4 space-y-6 animate-in fade-in duration-500">
-      <PageHeader title="Curadoria de IA" description="Refinamento e monitoramento da inteligência de captura" icon={Brain} />
+      <PageHeader title="Curadoria de IA" description="Refinamento e monitoramento da inteligência de captura" />
 
       {metrics && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <KpiCard title="Total" value={metrics.total} icon={Brain} />
-          <KpiCard title="Valor" value={`${metrics.accuracy.amount}%`} description={`${metrics.corrections.amount} corr.`} />
-          <KpiCard title="Categoria" value={`${metrics.accuracy.category}%`} description={`${metrics.corrections.category} corr.`} />
-          <KpiCard title="Tipo" value={`${metrics.accuracy.type}%`} description={`${metrics.corrections.type} corr.`} />
-          <KpiCard title="Descrição" value={`${metrics.accuracy.description}%`} description={`${metrics.corrections.description} corr.`} />
-          <KpiCard title="Escopo" value={`${metrics.accuracy.scope}%`} description={`${metrics.corrections.scope} corr.`} />
+          <KpiCard title="Total" value={String(metrics.total)} icon={Brain} />
+          <KpiCard title="Valor" value={`${metrics.accuracy.amount}%`} icon={Brain} subtitle={`${metrics.corrections.amount} corr.`} />
+          <KpiCard title="Categoria" value={`${metrics.accuracy.category}%`} icon={Brain} subtitle={`${metrics.corrections.category} corr.`} />
+          <KpiCard title="Tipo" value={`${metrics.accuracy.type}%`} icon={Brain} subtitle={`${metrics.corrections.type} corr.`} />
+          <KpiCard title="Descrição" value={`${metrics.accuracy.description}%`} icon={Brain} subtitle={`${metrics.corrections.description} corr.`} />
+          <KpiCard title="Escopo" value={`${metrics.accuracy.scope}%`} icon={Brain} subtitle={`${metrics.corrections.scope} corr.`} />
         </div>
       )}
 
