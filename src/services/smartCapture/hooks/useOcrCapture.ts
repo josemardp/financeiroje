@@ -30,10 +30,35 @@ function getOcrToast(error: unknown) {
           title: "Falha no provedor OCR",
           description: error.message || "O serviço externo falhou ao processar a imagem.",
         };
+      case "PDF_LOAD_FAILED":
+        return {
+          title: "Falha ao abrir PDF",
+          description: error.message || "O arquivo pode estar corrompido ou protegido por senha.",
+        };
+      case "PDF_TEXT_EXTRACTION_FAILED":
+        return {
+          title: "Falha ao extrair texto do PDF",
+          description: error.message || "Não foi possível ler o conteúdo. Tente enviar como foto.",
+        };
+      case "PDF_RASTERIZE_FAILED":
+        return {
+          title: "Falha ao renderizar PDF",
+          description: error.message || "O PDF pode ser muito complexo. Tente enviar como foto.",
+        };
+      case "PDF_TOO_LARGE":
+        return {
+          title: "PDF muito grande",
+          description: error.message || "Reduza o tamanho do arquivo e tente novamente.",
+        };
+      case "PDF_PROCESSING_ERROR":
+        return {
+          title: "Erro no processamento do PDF",
+          description: error.message || "Tente enviar o documento como foto (JPG/PNG).",
+        };
       default:
         return {
           title: "Falha no OCR",
-          description: error.message || "Não foi possível processar a imagem.",
+          description: error.message || "Não foi possível processar o arquivo.",
         };
     }
   }
@@ -47,7 +72,7 @@ function getOcrToast(error: unknown) {
 
   return {
     title: "Falha no OCR",
-    description: "Erro inesperado ao processar a imagem.",
+    description: "Erro inesperado ao processar o arquivo.",
   };
 }
 
