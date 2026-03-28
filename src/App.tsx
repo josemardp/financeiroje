@@ -37,6 +37,7 @@ const Business = lazy(() => import("./pages/Business"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
 const FinancialCalendar = lazy(() => import("./pages/FinancialCalendar"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const SmartCaptureLearning = lazy(() => import("./pages/SmartCaptureLearning"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -113,6 +114,7 @@ function AppRoutes() {
         <Route path="/fiscal" element={<Suspense fallback={<LazyFallback />}><Fiscal /></Suspense>} />
         <Route path="/calendario" element={<Suspense fallback={<LazyFallback />}><FinancialCalendar /></Suspense>} />
         <Route path="/configuracoes" element={<Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>} />
+        <Route path="/curadoria" element={<Suspense fallback={<LazyFallback />}><SmartCaptureLearning /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

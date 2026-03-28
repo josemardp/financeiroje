@@ -62,6 +62,7 @@ const financeNav = [
 const toolsNav = [
   { title: "IA Conselheira", icon: Bot, href: "/ia" },
   { title: "Captura Inteligente", icon: Zap, href: "/captura" },
+  { title: "Curadoria IA", icon: Brain, href: "/curadoria" },
   { title: "Score Financeiro", icon: BarChart3, href: "/score" },
   { title: "Alertas", icon: Bell, href: "/alertas" },
   { title: "Fechamento Mensal", icon: Lock, href: "/fechamento" },
