@@ -226,7 +226,7 @@ export default function SmartCapture() {
     }
 
     try {
-      await supabase.from("smart_capture_learning").insert({
+      await (supabase as any).from("smart_capture_learning").insert({
         user_id: user.id,
         transaction_id: insertedTransaction.id,
         source_text: originalInput,
