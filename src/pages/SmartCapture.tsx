@@ -317,7 +317,7 @@ export default function SmartCapture() {
           onClick={() => setMode("photo")}
           className="transition-all"
         >
-          <Camera className="h-4 w-4 mr-2" /> Foto / OCR
+          <Camera className="h-4 w-4 mr-2" /> Foto / OCR / PDF
         </Button>
       </div>
 
@@ -326,7 +326,7 @@ export default function SmartCapture() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              {mode === "text" ? "O que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Suba uma foto do recibo"}
+              {mode === "text" ? "O que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Suba uma foto ou PDF do recibo"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -376,7 +376,7 @@ export default function SmartCapture() {
                 </div>
                 <div className="text-center px-4">
                   <p className="font-medium">{isOcrProcessing ? "Extraindo dados do arquivo..." : "Selecione uma foto, print, recibo ou PDF"}</p>
-                  <p className="text-sm text-muted-foreground">Formatos suportados agora: PDF, JPG e PNG. Word e Excel ainda não estão liberados.</p>
+                  <p className="text-sm text-muted-foreground">Formatos suportados agora: PDF, JPG e PNG. Word e Excel em breve.</p>
                 </div>
                 <input
                   type="file"
@@ -419,7 +419,7 @@ export default function SmartCapture() {
           <CardContent className="pt-6 space-y-6">
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary" className="gap-1">
-                <FileText className="h-3 w-3" /> Origem: {editForm.source_type === "free_text" ? "Texto Livre" : editForm.source_type === "voice" ? "Voz" : "OCR/Foto"}
+                <FileText className="h-3 w-3" /> Origem: {editForm.source_type === "free_text" ? "Texto Livre" : editForm.source_type === "voice" ? "Voz" : "OCR/Foto/PDF"}
               </Badge>
               <Badge variant="secondary" className="gap-1">
                 <Check className="h-3 w-3" /> Estado: Confirmar manualmente
