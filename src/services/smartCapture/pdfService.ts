@@ -47,8 +47,9 @@ export async function processPdf(file: File): Promise<PdfProcessingResult> {
         
         await page.render({
           canvasContext: context,
-          viewport: viewport
-        }).promise;
+          viewport: viewport,
+          canvas: canvas,
+        } as any).promise;
         
         const blob = await new Promise<Blob | null>((resolve) => 
           canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.8)
