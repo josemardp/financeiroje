@@ -561,10 +561,19 @@ function columnRefToIndex(ref: string) {
 
 function decodeXmlEntities(value: string) {
   return value
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+      const codePoint = Number.parseInt(hex, 16);
+      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : _;
+    })
+    .replace(/&#(\d+);/g, (_, dec) => {
+      const codePoint = Number.parseInt(dec, 10);
+      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : _;
+    })
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&#xA;/gi, "\n");
 }
