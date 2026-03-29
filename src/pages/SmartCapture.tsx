@@ -48,6 +48,48 @@ function normalizeLearningText(text: string) {
     .trim();
 }
 
+function normalizeWarningKey(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function mergeUniqueWarnings(...groups: Array<string[] | undefined>) {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  for (const group of groups) {
+    for (const item of group || []) {
+      const warning = item?.trim();
+      if (!warning) continue;
+
+      const key = normalizeWarningKey(warning);
+      if (seen.has(key)) continue;
+
+      seen.add(key);
+      merged.push(warning);
+    }
+  }
+
+  return merged;
+}
+
+function getSourceLabel(sourceType: string) {
+  switch (sourceType) {
+    case "free_text":
+      return "Texto Livre";
+    case "voice":
+      return "Voz";
+    case "photo_ocr":
+      return "OCR / Foto / PDF / DOCX / XLSX";
+    default:
+      return sourceType || "Não informado";
+  }
+}
+
 export default function SmartCapture() {
   const { user } = useAuth();
   const { currentScope, scopeLabel } = useScope();
@@ -130,6 +172,8 @@ export default function SmartCapture() {
       }
     : null;
 
+  const visibleWarnings = parsed ? mergeUniqueWarnings(parsed.warnings) : [];
+
   const handleParse = (input: string, source: string = "free_text", ocrMetadata?: any) => {
     const textToParse = input || textInput;
     if (!textToParse.trim()) return;
@@ -142,7 +186,9 @@ export default function SmartCapture() {
       if (ocrMetadata.merchantName) result.descricao = ocrMetadata.merchantName;
       if (ocrMetadata.tipo) result.tipo = ocrMetadata.tipo;
       if (ocrMetadata.categoria) result.categoriaSugerida = ocrMetadata.categoria;
-      if (ocrMetadata.warnings) result.warnings = [...(result.warnings || []), ...ocrMetadata.warnings];
+      result.warnings = mergeUniqueWarnings(result.warnings, ocrMetadata.warnings);
+    } else {
+      result.warnings = mergeUniqueWarnings(result.warnings);
     }
 
     setParsed(result);
@@ -421,7 +467,7 @@ export default function SmartCapture() {
           <CardContent className="pt-6 space-y-6">
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary" className="gap-1">
-                <FileText className="h-3 w-3" /> Origem: {editForm.source_type === "free_text" ? "Texto Livre" : editForm.source_type === "voice" ? "Voz" : "OCR / Foto / PDF / DOCX / XLSX"}
+                <FileText className="h-3 w-3" /> Origem: {getSourceLabel(editForm.source_type)}
               </Badge>
               <Badge variant="secondary" className="gap-1">
                 <Check className="h-3 w-3" /> Estado: Confirmar manualmente
@@ -441,13 +487,13 @@ export default function SmartCapture() {
               </div>
             )}
 
-            {parsed.warnings && parsed.warnings.length > 0 && (
+            {visibleWarnings.length > 0 && (
               <div className="flex items-start gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
                 <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold">Atenção na extração</p>
                   <ul className="list-disc list-inside text-xs mt-1 space-y-1">
-                    {parsed.warnings.map((w, i) => (
+                    {visibleWarnings.map((w, i) => (
                       <li key={i}>{w}</li>
                     ))}
                   </ul>
