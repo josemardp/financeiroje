@@ -488,22 +488,34 @@ function wordXmlToText(xml: string) {
     .replace(/<[^>]+>/g, "");
 }
 
-function parseWorkbookSheets(workbookXml: string, relsXml: string) {
+function parseWorkbookSheets(workbookXml: string, relsXml: string): string[] {
   const rels = new Map<string, string>();
-  const relRegex = /<Relationship[^>]+Id="([^"]+)"[^>]+Target="([^"]+)"/g;
-  let relMatch: RegExpExecArray | null;
-  while ((relMatch = relRegex.exec(relsXml)) !== null) {
-    let target = relMatch[2];
-    if (!target.startsWith("xl/")) target = `xl/${target.replace(/^\//, "")}`;
-    rels.set(relMatch[1], target);
+
+  const relTagRegex = /<Relationship\b([^>]*)\/?>/g;
+  let relTagMatch: RegExpExecArray | null;
+
+  while ((relTagMatch = relTagRegex.exec(relsXml)) !== null) {
+    const attrs = relTagMatch[1] || "";
+    const id = /\bId="([^"]+)"/.exec(attrs)?.[1];
+    let target = /\bTarget="([^"]+)"/.exec(attrs)?.[1];
+
+    if (!id || !target) continue;
+
+    if (target.startsWith("/")) target = target.slice(1);
+    if (!target.startsWith("xl/")) target = `xl/${target}`;
+
+    rels.set(id, target);
   }
+
   const sheets: string[] = [];
-  const sheetRegex = /<sheet[^>]+r:id="([^"]+)"[^>]*\/>/g;
+  const sheetRegex = /<sheet[^>]+r:id="([^"]+)"[^>]*\/?>/g;
   let sheetMatch: RegExpExecArray | null;
+
   while ((sheetMatch = sheetRegex.exec(workbookXml)) !== null) {
     const target = rels.get(sheetMatch[1]);
     if (target) sheets.push(target);
   }
+
   return sheets;
 }
 
