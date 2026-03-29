@@ -1,6 +1,6 @@
 /**
- * FinanceAI — OCR Adapter (Fase 4.4)
- * Fluxo real: Imagem JPG/PNG + PDF (Extração Nativa ou Rasterização).
+ * FinanceAI  OCR Adapter (Fase 4.4)
+ * Fluxo real: Imagem JPG/PNG + PDF (Extracao Nativa ou Rasterizacao).
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +40,10 @@ export type OcrErrorCode =
   | "PDF_TOO_LARGE"
   | "PDF_PROCESSING_ERROR"
   | "DOC_LEGACY_NOT_SUPPORTED"
+  | "XLS_LEGACY_NOT_SUPPORTED"
   | "DOCX_EMPTY_CONTENT"
+  | "XLSX_EMPTY_CONTENT"
+  | "XLSX_MULTIPLE_TRANSACTIONS"
   | "FILE_CORRUPTED"
   | "DOCUMENT_PROCESSING_ERROR"
   | "UNKNOWN_OCR_ERROR";
@@ -113,10 +116,14 @@ export class OcrAdapter {
     const mimeType = file.type || "application/octet-stream";
 
     if (kind === "doc") {
-      throw new OcrCaptureError("DOC_LEGACY_NOT_SUPPORTED", "Arquivos .doc ainda não são suportados nesta fase.");
+      throw new OcrCaptureError("DOC_LEGACY_NOT_SUPPORTED", "Arquivos .doc ainda nao sao suportados nesta fase.");
     }
 
-    if (kind === "docx" && file instanceof File) {
+    if (kind === "xls") {
+      throw new OcrCaptureError("XLS_LEGACY_NOT_SUPPORTED", "Arquivos .xls ainda nao sao suportados nesta fase. Use .xlsx.");
+    }
+
+    if ((kind === "docx" || kind === "xlsx") && file instanceof File) {
       try {
         return await extractStructuredDocument(file, {
           cleanDescription,
@@ -127,10 +134,10 @@ export class OcrAdapter {
           throw new OcrCaptureError(err.code as OcrErrorCode, err.message);
         }
 
-        console.error("[OcrAdapter] Erro inesperado ao processar documento Word:", err);
+        console.error("[OcrAdapter] Erro inesperado ao processar documento Office:", err);
         throw new OcrCaptureError(
           "DOCUMENT_PROCESSING_ERROR",
-          "Falha ao processar o documento Word. Revise o arquivo e tente novamente.",
+          "Falha ao processar o documento enviado. Revise o arquivo e tente novamente.",
         );
       }
     }
@@ -154,7 +161,7 @@ export class OcrAdapter {
               categoria: parsed.categoriaSugerida || undefined,
               escopo: parsed.escopo,
               warnings: [
-                ...(pdfResult.pagesProcessed > 1 ? [`Processadas ${pdfResult.pagesProcessed} páginas.`] : []),
+                ...(pdfResult.pagesProcessed > 1 ? [`Processadas ${pdfResult.pagesProcessed} paginas.`] : []),
                 ...parsed.warnings,
               ],
               moeda: "BRL",
@@ -166,7 +173,7 @@ export class OcrAdapter {
           return await this.extractFromImage(pdfResult.images[0], "page1.jpg");
         }
 
-        throw new OcrCaptureError("OCR_EMPTY_TEXT", "Não foi possível extrair texto útil deste PDF.");
+        throw new OcrCaptureError("OCR_EMPTY_TEXT", "Nao foi possivel extrair texto util deste PDF.");
       } catch (err) {
         if (err instanceof OcrCaptureError) throw err;
         if (err instanceof PdfProcessingError) {
@@ -181,7 +188,7 @@ export class OcrAdapter {
       return await this.extractFromImage(file, file instanceof File ? file.name : "image.jpg");
     }
 
-    throw new OcrCaptureError("UNSUPPORTED_FILE_TYPE", "Formato não suportado. Use PDF, JPG, PNG ou DOCX.");
+    throw new OcrCaptureError("UNSUPPORTED_FILE_TYPE", "Formato nao suportado. Use PDF, JPG, PNG, DOCX ou XLSX.");
   }
 
   private static async extractFromImage(file: File | Blob, fileName: string): Promise<OcrExtractionResult> {
@@ -200,7 +207,7 @@ export class OcrAdapter {
     const fields = payload.extracted_fields || {};
     const text = toTrimmedString(payload.raw_text);
 
-    if (!text || text.length < 5) throw new OcrCaptureError("OCR_EMPTY_TEXT", "Texto extraído insuficiente.");
+    if (!text || text.length < 5) throw new OcrCaptureError("OCR_EMPTY_TEXT", "Texto extraido insuficiente.");
 
     return {
       text,
