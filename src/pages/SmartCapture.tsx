@@ -90,6 +90,21 @@ function getSourceLabel(sourceType: string) {
   }
 }
 
+function getErrorMessage(error: unknown) {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const maybeMessage = "message" in error ? String((error as any).message || "") : "";
+    if (maybeMessage.trim()) return maybeMessage.trim();
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Erro desconhecido.";
+    }
+  }
+  return "Erro desconhecido.";
+}
+
 export default function SmartCapture() {
   const { user } = useAuth();
   const { currentScope, scopeLabel } = useScope();
@@ -240,11 +255,13 @@ export default function SmartCapture() {
     setIsSaving(true);
 
     const originalInput = parsed?.textoOriginal || textInput;
-    const validationNotes = JSON.stringify({
+    const baseValidationPayload = {
       original_input: originalInput,
       extracted_payload: extractedSnapshot,
       reviewed_payload: reviewedSnapshot,
-    });
+      learning_status: "pending",
+      learning_error: null as string | null,
+    };
 
     const transactionPayload = {
       user_id: user.id,
@@ -259,7 +276,7 @@ export default function SmartCapture() {
       confidence: (parsed?.confianca || "media") as any,
       created_by: user.id,
       updated_by: user.id,
-      validation_notes: validationNotes,
+      validation_notes: JSON.stringify(baseValidationPayload),
     };
 
     const { data: insertedTransaction, error: transactionError } = await supabase
@@ -276,7 +293,8 @@ export default function SmartCapture() {
       return;
     }
 
-    let learningError: unknown = null;
+    let learningFailed = false;
+    let learningMessage = "";
 
     try {
       const { error } = await (supabase as any).from("smart_capture_learning").insert({
@@ -295,34 +313,66 @@ export default function SmartCapture() {
       });
 
       if (error) {
-        learningError = error;
+        learningFailed = true;
+        learningMessage = getErrorMessage(error);
       }
     } catch (err) {
-      learningError = err;
+      learningFailed = true;
+      learningMessage = getErrorMessage(err);
     }
 
-    if (learningError) {
-      console.error("Erro ao registrar aprendizado:", learningError);
+    if (learningFailed) {
+      console.error("Erro ao registrar aprendizado:", learningMessage);
 
-      const { error: rollbackError } = await supabase
+      const failedValidationPayload = {
+        ...baseValidationPayload,
+        learning_status: "failed",
+        learning_error: learningMessage,
+      };
+
+      const { error: notesUpdateError } = await supabase
         .from("transactions")
-        .delete()
+        .update({
+          validation_notes: JSON.stringify(failedValidationPayload),
+          updated_by: user.id,
+        })
         .eq("id", insertedTransaction.id)
         .eq("user_id", user.id);
 
-      if (rollbackError) {
-        console.error("Erro ao desfazer transação após falha no aprendizado:", rollbackError);
-        toast.error("Falha ao concluir captura", {
-          description: "O aprendizado falhou e não foi possível desfazer automaticamente a transação. Revise manualmente antes de seguir.",
-        });
-      } else {
-        toast.error("Falha ao concluir captura", {
-          description: "O aprendizado falhou e a transação foi desfeita para evitar persistência parcial.",
-        });
+      if (notesUpdateError) {
+        console.error("Erro ao atualizar validation_notes após falha no aprendizado:", notesUpdateError);
       }
 
+      toast.warning("Transação salva com ressalva", {
+        description: "O registro financeiro foi salvo, mas o aprendizado falhou. O uso do Smart Capture continua normal.",
+      });
+
+      setParsed(null);
+      setTextInput("");
+      setReviewConfirmed(false);
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
       setIsSaving(false);
       return;
+    }
+
+    const successValidationPayload = {
+      ...baseValidationPayload,
+      learning_status: "saved",
+      learning_error: null,
+    };
+
+    const { error: finalNotesUpdateError } = await supabase
+      .from("transactions")
+      .update({
+        validation_notes: JSON.stringify(successValidationPayload),
+        updated_by: user.id,
+      })
+      .eq("id", insertedTransaction.id)
+      .eq("user_id", user.id);
+
+    if (finalNotesUpdateError) {
+      console.error("Erro ao atualizar validation_notes com status final do aprendizado:", finalNotesUpdateError);
     }
 
     toast.success("Transação confirmada e registrada", {
