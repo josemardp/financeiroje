@@ -4,6 +4,11 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import {
+  DocumentImportError,
+  extractStructuredDocument,
+  getSmartCaptureFileKind,
+} from "../documentImport";
 import { cleanDescription, parseTransactionText } from "../textParser";
 import { processPdf, PdfProcessingError } from "../pdfService";
 
@@ -34,6 +39,10 @@ export type OcrErrorCode =
   | "PDF_RASTERIZE_FAILED"
   | "PDF_TOO_LARGE"
   | "PDF_PROCESSING_ERROR"
+  | "DOC_LEGACY_NOT_SUPPORTED"
+  | "DOCX_EMPTY_CONTENT"
+  | "FILE_CORRUPTED"
+  | "DOCUMENT_PROCESSING_ERROR"
   | "UNKNOWN_OCR_ERROR";
 
 export class OcrCaptureError extends Error {
@@ -87,7 +96,7 @@ function normalizeConfidence(value: string | number | null | undefined) {
 function toNullableNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
-    const normalized = value.replace(/\s/g, "").replace("R$", "").replace(/\./g, "").replace(",", ".");
+    const normalized = value.replace(/\s/s/g, "").replace("R$", "").replace(/\./g, "").replace(",", ".");
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : null;
   }
@@ -100,18 +109,38 @@ function toTrimmedString(value: unknown): string | null {
 
 export class OcrAdapter {
   static async extract(file: File | Blob): Promise<OcrExtractionResult> {
+    const kind = getSmartCaptureFileKind(file);
     const mimeType = file.type || "application/octet-stream";
 
-    // 1. Se for PDF, processar via PdfService
-    if (mimeType === "application/pdf" && file instanceof File) {
+    if (kind === "doc") {
+      throw new OcrCaptureError("DOC_LEGACY_NOT_SUPPORTED", "Arquivos .doc ainda não suportados nesta fase.");
+    }
+
+    if (kind === "docx" && file instanceof File) {
+      try {
+        return await extractStructuredDocument(file, {
+          cleanDescription,
+          parseTransactionText,
+        });
+      } catch (err) {
+        if (err instanceof DocumentImportError) {
+          throw new OcrCaptureError(err.code as OcrErrorCode, err.message);
+        }
+
+        console.error("[OcrAdapter] Erro inesperado ao processar documento Word:", err);
+        throw new OcrCaptureError(
+          "DOCUMENT_PROCESSING_ERROR",
+          "Falha ao processar o documento Word. Revise o arquivo e tente novamente.",
+        );
+      }
+    }
+
+    if (kind === "pdf" && file instanceof File) {
       try {
         const pdfResult = await processPdf(file);
 
-        // Se o PDF tiver texto nativo útil, retornamos ele
         if (!pdfResult.isRasterized && pdfResult.text.length > 50) {
-          // Estruturar o texto nativo via parser local (igual texto livre)
           const parsed = parseTransactionText(pdfResult.text);
-          
           const confidenceMap = { alta: 0.9, media: 0.7, baixa: 0.4 };
 
           return {
@@ -133,7 +162,6 @@ export class OcrAdapter {
           };
         }
 
-        // Se for rasterizado, processamos a primeira imagem gerada via OCR
         if (pdfResult.images && pdfResult.images.length > 0) {
           return await this.extractFromImage(pdfResult.images[0], "page1.jpg");
         }
@@ -142,22 +170,18 @@ export class OcrAdapter {
       } catch (err) {
         if (err instanceof OcrCaptureError) throw err;
         if (err instanceof PdfProcessingError) {
-          throw new OcrCaptureError(
-            err.code as OcrErrorCode,
-            err.message
-          );
+          throw new OcrCaptureError(err.code as OcrErrorCode, err.message);
         }
         console.error("[OcrAdapter] Erro inesperado ao processar PDF:", err);
         throw new OcrCaptureError("PDF_PROCESSING_ERROR", "Erro ao processar o arquivo PDF. Tente enviar como foto.");
       }
     }
 
-    // 2. Se for Imagem, segue fluxo normal
-    if (isSupportedImageMimeType(mimeType)) {
+    if (kind === "image" || isSupportedImageMimeType(mimeType)) {
       return await this.extractFromImage(file, file instanceof File ? file.name : "image.jpg");
     }
 
-    throw new OcrCaptureError("UNSUPPORTED_FILE_TYPE", "Formato não suportado. Use PDF, JPG ou PNG.");
+    throw new OcrCaptureError("UNSUPPORTED_FILE_TYPE", "Formato não suportado. Use PDF, JPG, PNG ou DOCX.");
   }
 
   private static async extractFromImage(file: File | Blob, fileName: string): Promise<OcrExtractionResult> {

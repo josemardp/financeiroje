@@ -1,3 +1,4 @@
+
 /**
  * FinanceAI — Captura Inteligente Premium (Sprint 3)
  * Modo Espelho: Texto Livre, Voz e OCR → Parser → Confirmação → Persistência
@@ -8,6 +9,7 @@ import { useScope } from "@/contexts/ScopeContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { parseTransactionText, type ParsedTransaction } from "@/services/smartCapture";
+import { getSmartCaptureFileKind } from "@/services/smartCapture/documentImport";
 import { useVoiceCapture } from "@/services/smartCapture/hooks/useVoiceCapture";
 import { useOcrCapture } from "@/services/smartCapture/hooks/useOcrCapture";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -23,7 +25,7 @@ import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Mic, Camera, Type, Send, Check, Edit, AlertCircle,
-  Loader2, Trash2, Save, FileText, Image as ImageIcon, Sparkles
+  Loader2, Trash2, Save, FileText, Image as ImageIcon, Sparkles,
 } from "lucide-react";
 
 type CaptureMode = "text" | "voice" | "photo";
@@ -37,8 +39,6 @@ type MirrorFormState = {
   scope: string;
   source_type: string;
 };
-
-const SUPPORTED_OCR_TYPES = ["image/png", "image/jpeg", "image/jpg", "application/pdf"] as const;
 
 function normalizeLearningText(text: string) {
   return text
@@ -245,7 +245,7 @@ export default function SmartCapture() {
     }
 
     toast.success("Transação confirmada e registrada", {
-      description: `Salva no escopo: ${editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"}.`,
+      description: `Salva no escopo: ${editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Familia" : "Negóocio"}.`,
     });
 
     setParsed(null);
@@ -268,16 +268,19 @@ export default function SmartCapture() {
 
     if (!file) return;
 
-    const isSupported = SUPPORTED_OCR_TYPES.includes(
-      file.type as (typeof SUPPORTED_OCR_TYPES)[number]
-    );
+    const fileKind = getSmartCaptureFileKind(file);
 
-    if (!isSupported) {
-      const isOffice = file.type.includes("word") || file.type.includes("excel") || file.type.includes("officedocument") || file.name.endsWith(".docx") || file.name.endsWith(".xlsx");
-      toast.error(isOffice ? "Formato ainda não liberado" : "Formato não suportado", {
-        description: isOffice 
-          ? "Word e Excel ainda não estão liberados. Por enquanto, use PDF, JPG ou PNG."
-          : "Use PDF, JPG ou PNG para captura automática.",
+    if (fileKind === "unsupported") {
+      toast.error("Formato não suportado", {
+        description: "Use PDF, JPG, PNG ou DOCX para captura automática.",
+      });
+      e.target.value = "";
+      return;
+    }
+
+    if (fileKind === "doc") {
+      toast.error("Word legado ainda não suportado", {
+        description: "Arquivos .doc continuam bloqueados nesta fase. Use .docx.",
       });
       e.target.value = "";
       return;
@@ -291,7 +294,7 @@ export default function SmartCapture() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Captura Inteligente Premium"
-        description={`Modo Espelho ativo — Escopo atual: ${scopeLabel}`}
+        description={`imp.\�odo Espelho ativo — Escopo atual: ${scopeLabel}`}
       />
 
       <div className="flex flex-wrap gap-2">
@@ -317,7 +320,7 @@ export default function SmartCapture() {
           onClick={() => setMode("photo")}
           className="transition-all"
         >
-          <Camera className="h-4 w-4 mr-2" /> Foto / OCR / PDF
+          <Camera className="h-4 w-4 mr-2" /> Foto / OCR / PDF _ DOCX
         </Button>
       </div>
 
@@ -326,7 +329,7 @@ export default function SmartCapture() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              {mode === "text" ? "O que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Suba uma foto ou PDF do recibo"}
+              {mode === "text" ? "Oc que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Suba uma foto, PDF u Word"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -375,12 +378,12 @@ export default function SmartCapture() {
                   {isOcrProcessing ? <Loader2 className="h-12 w-12 text-primary animate-spin" /> : <ImageIcon className="h-12 w-12 text-muted-foreground" />}
                 </div>
                 <div className="text-center px-4">
-                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados do arquivo..." : "Selecione uma foto, print, recibo ou PDF"}</p>
-                  <p className="text-sm text-muted-foreground">Formatos suportados agora: PDF, JPG e PNG. Word e Excel em breve.</p>
+                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados do arquivo..." : "Selecione uma foto, print, recibo, PDF ou DOCX"}</p>
+                  <p className="text-sm text-muted-foreground">Formatos suportados agora: PDF, JPG, PNG e DOCX. Arquivos .doc seguem bloqueados nesta fase.</p>
                 </div>
                 <input
                   type="file"
-                  accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                  accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,image/jpeg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
@@ -400,7 +403,7 @@ export default function SmartCapture() {
         </Card>
       )}
 
-      {parsed && (
+     {parsed && (
         <Card className="border-2 border-primary shadow-lg animate-in zoom-in-95 duration-200">
           <CardHeader className="bg-primary/5 border-b pb-4">
             <div className="flex items-center justify-between">
@@ -419,7 +422,7 @@ export default function SmartCapture() {
           <CardContent className="pt-6 space-y-6">
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary" className="gap-1">
-                <FileText className="h-3 w-3" /> Origem: {editForm.source_type === "free_text" ? "Texto Livre" : editForm.source_type === "voice" ? "Voz" : "OCR/Foto/PDF"}
+                <FileText className="h-3 w-3" /> Origem: {editForm.source_type === "free_text" ? "Texto Livre" : editForm.source_type === "voice" ? "Voz" : "OCR/Foto/PDF _ DOCX"}
               </Badge>
               <Badge variant="secondary" className="gap-1">
                 <Check className="h-3 w-3" /> Estado: Confirmar manualmente
@@ -484,7 +487,7 @@ export default function SmartCapture() {
                       onValueChange={v => updateEditForm(f => ({ ...f, tipo: v as "" | "income" | "expense" }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo" />
+                        <SelectValue placeholder="Selecione otipo" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="expense">Despesa</SelectItem>
@@ -494,7 +497,7 @@ export default function SmartCapture() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Descrição</Label>
+                  <Label>Descri�ão</Label>
                   <Input
                     value={editForm.descricao}
                     onChange={e => updateEditForm(f => ({ ...f, descricao: e.target.value }))}
@@ -562,7 +565,7 @@ export default function SmartCapture() {
                 onChange={(e) => setReviewConfirmed(e.target.checked)}
               />
               <div>
-                <p className="text-sm font-medium">Confirmo explicitamente que revisei os dados extraídos e os dados revisados antes de salvar.</p>
+                <p className="text-sm font-medium">Confirmo explicitamente que revisei os dados extraídos e as payloads revisados antes de salvar.</p>
                 <p className="text-xs text-muted-foreground">Sem essa confirmação, a persistência é bloqueada.</p>
               </div>
             </label>

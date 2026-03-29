@@ -7,8 +7,28 @@ function getOcrToast(error: unknown) {
     switch (error.code) {
       case "UNSUPPORTED_FILE_TYPE":
         return {
-          title: "Formato ainda não suportado",
-          description: "Use PDF, JPG ou PNG. Word e Excel ainda não estão liberados neste fluxo.",
+          title: "Formato não suportado",
+          description: "Use PDF, JPG, PNG ou DOCX neste fluxo.",
+        };
+      case "DOC_LEGACY_NOT_SUPPORTED":
+        return {
+          title: "Word legado ainda não suportado",
+          description: "Arquivos .doc continuam bloqueados nesta fase. Use .docx.",
+        };
+      case "DOCX_EMPTY_CONTENT":
+        return {
+          title: "Word sem conteádo útil",
+          description: error.message || "O arquivo .docx não contém texto útil para capturar.",
+        };
+      case "FILE_CORRUPTED":
+        return {
+          title: "Arquivo corrompido ou inválido",
+          description: error.message || "Revise o arquivo e tente novamente.",
+        };
+      case "DOCUMENT_PROCESSING_ERROR":
+        return {
+          title: "Falha ao processar documento Word",
+          description: error.message || "Não foi possível ler o arquivo Word enviado.",
         };
       case "AUTH_REQUIRED":
         return {
@@ -38,7 +58,7 @@ function getOcrToast(error: unknown) {
       case "PDF_TEXT_EXTRACTION_FAILED":
         return {
           title: "Falha ao extrair texto do PDF",
-          description: error.message || "Não foi possível ler o conteúdo. Tente enviar como foto.",
+          description: error.message || "Não foi possível ler oconteúdo. Tente enviar como foto.",
         };
       case "PDF_RASTERIZE_FAILED":
         return {
