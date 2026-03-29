@@ -96,7 +96,7 @@ function normalizeConfidence(value: string | number | null | undefined) {
 function toNullableNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
-    const normalized = value.replace(/\s/s/g, "").replace("R$", "").replace(/\./g, "").replace(",", ".");
+    const normalized = value.replace(/\s/g, "").replace("R$", "").replace(/\./g, "").replace(",", ".");
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : null;
   }
@@ -113,7 +113,7 @@ export class OcrAdapter {
     const mimeType = file.type || "application/octet-stream";
 
     if (kind === "doc") {
-      throw new OcrCaptureError("DOC_LEGACY_NOT_SUPPORTED", "Arquivos .doc ainda não suportados nesta fase.");
+      throw new OcrCaptureError("DOC_LEGACY_NOT_SUPPORTED", "Arquivos .doc ainda não são suportados nesta fase.");
     }
 
     if (kind === "docx" && file instanceof File) {
