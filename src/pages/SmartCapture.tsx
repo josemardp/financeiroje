@@ -1,7 +1,7 @@
 
 /**
- * FinanceAI — Captura Inteligente Premium (Sprint 3)
- * Modo Espelho: Texto Livre, Voz e OCR → Parser → Confirmação → Persistência
+ * FinanceAI â€” Captura Inteligente Premium (Sprint 3)
+ * Modo Espelho: Texto Livre, Voz e OCR â†’ Parser â†’ ConfirmaÃ§Ã£o â†’ PersistÃªncia
  */
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -169,24 +169,24 @@ export default function SmartCapture() {
       }
     }
 
-    toast.success("Dados extraídos com sucesso!", {
+    toast.success("Dados extraÃ­dos com sucesso!", {
       description: "Revise no Modo Espelho abaixo."
     });
   };
 
   const handleSave = async () => {
     if (!user || !editForm.valor || Number(editForm.valor) <= 0) {
-      toast.error("Valor inválido");
+      toast.error("Valor invÃ¡lido");
       return;
     }
 
     if (!editForm.tipo) {
-      toast.error("Defina manualmente se é receita ou despesa");
+      toast.error("Defina manualmente se Ã© receita ou despesa");
       return;
     }
 
     if (!reviewConfirmed) {
-      toast.error("Confirme explicitamente a revisão antes de salvar");
+      toast.error("Confirme explicitamente a revisÃ£o antes de salvar");
       return;
     }
 
@@ -220,7 +220,7 @@ export default function SmartCapture() {
       .single();
 
     if (error || !insertedTransaction) {
-      toast.error("Erro ao salvar", { description: error?.message || "Falha ao salvar transação." });
+      toast.error("Erro ao salvar", { description: error?.message || "Falha ao salvar transaÃ§Ã£o." });
       setIsSaving(false);
       return;
     }
@@ -244,8 +244,8 @@ export default function SmartCapture() {
       console.error("Erro ao registrar aprendizado:", learnErr);
     }
 
-    toast.success("Transação confirmada e registrada", {
-      description: `Salva no escopo: ${editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Familia" : "Negóocio"}.`,
+    toast.success("TransaÃ§Ã£o confirmada e registrada", {
+      description: `Salva no escopo: ${editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Familia" : "NegÃ³ocio"}.`,
     });
 
     setParsed(null);
@@ -271,15 +271,15 @@ export default function SmartCapture() {
     const fileKind = getSmartCaptureFileKind(file);
 
     if (fileKind === "unsupported") {
-      toast.error("Formato não suportado", {
-        description: "Use PDF, JPG, PNG ou DOCX para captura automática.",
+      toast.error("Formato nÃ£o suportado", {
+        description: "Use PDF, JPG, PNG, DOCX ou XLSX para captura automÃ¡tica.",
       });
       e.target.value = "";
       return;
     }
 
     if (fileKind === "doc") {
-      toast.error("Word legado ainda não suportado", {
+      toast.error("Word legado ainda nÃ£o suportado", {
         description: "Arquivos .doc continuam bloqueados nesta fase. Use .docx.",
       });
       e.target.value = "";
@@ -294,7 +294,7 @@ export default function SmartCapture() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Captura Inteligente Premium"
-        description={`imp.\�odo Espelho ativo — Escopo atual: ${scopeLabel}`}
+        description={`imp.\’odo Espelho ativo â€” Escopo atual: ${scopeLabel}`}
       />
 
       <div className="flex flex-wrap gap-2">
@@ -320,7 +320,7 @@ export default function SmartCapture() {
           onClick={() => setMode("photo")}
           className="transition-all"
         >
-          <Camera className="h-4 w-4 mr-2" /> Foto / OCR / PDF _ DOCX
+          <Camera className="h-4 w-4 mr-2" /> Foto / OCR / PDF / DOCX / XLSX
         </Button>
       </div>
 
@@ -329,14 +329,14 @@ export default function SmartCapture() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              {mode === "text" ? "Oc que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Suba uma foto, PDF u Word"}
+              {mode === "text" ? "Oc que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Suba uma foto, PDF, Word ou Excel"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {mode === "text" && (
               <div className="space-y-4">
                 <Textarea
-                  placeholder='Ex: "gastei 52 reais com pizza hoje" ou "mercado 320 ontem" ou "entrou 4500 de salário"'
+                  placeholder='Ex: "gastei 52 reais com pizza hoje" ou "mercado 320 ontem" ou "entrou 4500 de salÃ¡rio"'
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
                   rows={4}
@@ -355,13 +355,13 @@ export default function SmartCapture() {
                   <Mic className={`h-12 w-12 ${isRecording ? "text-red-600" : "text-muted-foreground"}`} />
                 </div>
                 <div className="text-center">
-                  <p className="font-medium">{isRecording ? "Gravando..." : isTranscribing ? "Transcrevendo áudio..." : "Clique para falar"}</p>
-                  <p className="text-sm text-muted-foreground">Descreva sua transação naturalmente</p>
+                  <p className="font-medium">{isRecording ? "Gravando..." : isTranscribing ? "Transcrevendo Ã¡udio..." : "Clique para falar"}</p>
+                  <p className="text-sm text-muted-foreground">Descreva sua transaÃ§Ã£o naturalmente</p>
                 </div>
                 <div className="flex gap-2">
                   {!isRecording ? (
                     <Button onClick={startRecording} disabled={isTranscribing} size="lg" className="rounded-full px-8">
-                      Começar a falar
+                      ComeÃ§ar a falar
                     </Button>
                   ) : (
                     <Button onClick={stopRecording} variant="destructive" size="lg" className="rounded-full px-8">
@@ -378,12 +378,12 @@ export default function SmartCapture() {
                   {isOcrProcessing ? <Loader2 className="h-12 w-12 text-primary animate-spin" /> : <ImageIcon className="h-12 w-12 text-muted-foreground" />}
                 </div>
                 <div className="text-center px-4">
-                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados do arquivo..." : "Selecione uma foto, print, recibo, PDF ou DOCX"}</p>
-                  <p className="text-sm text-muted-foreground">Formatos suportados agora: PDF, JPG, PNG e DOCX. Arquivos .doc seguem bloqueados nesta fase.</p>
+                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados do arquivo..." : "Selecione uma foto, print, recibo, PDF, DOCX ou XLSX"}</p>
+                  <p className="text-sm text-muted-foreground">Formatos suportados agora: JPG, PNG, PDF, DOCX e XLSX. Arquivos .doc e .xls seguem bloqueados nesta fase.</p>
                 </div>
                 <input
                   type="file"
-                  accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,image/jpeg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,image/jpeg,image/png,application/pdf,application/msword,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
@@ -409,7 +409,7 @@ export default function SmartCapture() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Modo Espelho — Confirme os Dados</CardTitle>
+                <CardTitle className="text-lg">Modo Espelho â€” Confirme os Dados</CardTitle>
               </div>
               <div className="flex gap-2">
                 <DataStatusBadge status="suggested" />
@@ -428,7 +428,7 @@ export default function SmartCapture() {
                 <Check className="h-3 w-3" /> Estado: Confirmar manualmente
               </Badge>
               <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-                <Sparkles className="h-3 w-3" /> Escopo: {editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"}
+                <Sparkles className="h-3 w-3" /> Escopo: {editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "FamÃ­lia" : "NegÃ³cio"}
               </Badge>
             </div>
 
@@ -436,8 +436,8 @@ export default function SmartCapture() {
               <div className="flex items-center gap-2 text-sm text-warning bg-warning/10 rounded-lg px-4 py-3">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <div>
-                  <p className="font-semibold text-amber-700">Campos não detectados</p>
-                  <p className="text-xs text-amber-600">A IA não encontrou com clareza: {parsed.camposFaltantes.join(", ")}</p>
+                  <p className="font-semibold text-amber-700">Campos nÃ£o detectados</p>
+                  <p className="text-xs text-amber-600">A IA nÃ£o encontrou com clareza: {parsed.camposFaltantes.join(", ")}</p>
                 </div>
               </div>
             )}
@@ -446,7 +446,7 @@ export default function SmartCapture() {
               <div className="flex items-start gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
                 <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Atenção na extração</p>
+                  <p className="font-semibold">AtenÃ§Ã£o na extraÃ§Ã£o</p>
                   <ul className="list-disc list-inside text-xs mt-1 space-y-1">
                     {parsed.warnings.map((w, i) => (
                       <li key={i}>{w}</li>
@@ -458,7 +458,7 @@ export default function SmartCapture() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl border bg-muted/20 p-4 space-y-2">
-                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Payload extraído</p>
+                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Payload extraÃ­do</p>
                 <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(extractedSnapshot, null, 2)}</pre>
               </div>
               <div className="rounded-xl border bg-muted/20 p-4 space-y-2">
@@ -497,7 +497,7 @@ export default function SmartCapture() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Descri�ão</Label>
+                  <Label>Descriã§Ã£o</Label>
                   <Input
                     value={editForm.descricao}
                     onChange={e => updateEditForm(f => ({ ...f, descricao: e.target.value }))}
@@ -529,8 +529,8 @@ export default function SmartCapture() {
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="private">Pessoal</SelectItem>
-                        <SelectItem value="family">Família</SelectItem>
-                        <SelectItem value="business">Negócio</SelectItem>
+                        <SelectItem value="family">FamÃ­lia</SelectItem>
+                        <SelectItem value="business">NegÃ³cio</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -538,7 +538,7 @@ export default function SmartCapture() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/20 rounded-xl border border-dashed">
-                <InfoRow label="Valor Extraído" value={editForm.valor ? formatCurrency(Number(editForm.valor)) : "Não detectado"} highlight={!editForm.valor} />
+                <InfoRow label="Valor ExtraÃ­do" value={editForm.valor ? formatCurrency(Number(editForm.valor)) : "NÃ£o detectado"} highlight={!editForm.valor} />
                 <InfoRow
                   label="Tipo de Fluxo"
                   value={
@@ -546,14 +546,14 @@ export default function SmartCapture() {
                       ? "Receita (+)"
                       : editForm.tipo === "expense"
                         ? "Despesa (-)"
-                        : "Não definido"
+                        : "NÃ£o definido"
                   }
                   highlight={!editForm.tipo}
                 />
-                <InfoRow label="Descrição" value={editForm.descricao || "—"} highlight={!editForm.descricao} />
-                <InfoRow label="Data da Ocorrência" value={editForm.data} />
-                <InfoRow label="Categoria Sugerida" value={parsed.categoriaSugerida || "Não detectada"} highlight={!parsed.categoriaSugerida} />
-                <InfoRow label="Escopo de Destino" value={editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"} isScope />
+                <InfoRow label="DescriÃ§Ã£o" value={editForm.descricao || "â€”"} highlight={!editForm.descricao} />
+                <InfoRow label="Data da OcorrÃªncia" value={editForm.data} />
+                <InfoRow label="Categoria Sugerida" value={parsed.categoriaSugerida || "NÃ£o detectada"} highlight={!parsed.categoriaSugerida} />
+                <InfoRow label="Escopo de Destino" value={editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "FamÃ­lia" : "NegÃ³cio"} isScope />
               </div>
             )}
 
@@ -565,8 +565,8 @@ export default function SmartCapture() {
                 onChange={(e) => setReviewConfirmed(e.target.checked)}
               />
               <div>
-                <p className="text-sm font-medium">Confirmo explicitamente que revisei os dados extraídos e as payloads revisados antes de salvar.</p>
-                <p className="text-xs text-muted-foreground">Sem essa confirmação, a persistência é bloqueada.</p>
+                <p className="text-sm font-medium">Confirmo explicitamente que revisei os dados extraÃ­dos e as payloads revisados antes de salvar.</p>
+                <p className="text-xs text-muted-foreground">Sem essa confirmaÃ§Ã£o, a persistÃªncia Ã© bloqueada.</p>
               </div>
             </label>
           </CardContent>
@@ -594,7 +594,7 @@ function InfoRow({ label, value, highlight = false, isScope = false }: { label: 
       <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{label}</p>
       <p className={`text-base font-medium ${isScope ? "text-primary" : ""}`}>
         {value}
-        {highlight && <span className="ml-2 text-[10px] text-warning">(Atenção)</span>}
+        {highlight && <span className="ml-2 text-[10px] text-warning">(AtenÃ§Ã£o)</span>}
       </p>
     </div>
   );
