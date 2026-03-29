@@ -220,6 +220,8 @@ export default function SmartCapture() {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
+
     if (!user || !editForm.valor || Number(editForm.valor) <= 0) {
       toast.error("Valor inválido");
       return;
@@ -244,34 +246,40 @@ export default function SmartCapture() {
       reviewed_payload: reviewedSnapshot,
     });
 
-    const { data: insertedTransaction, error } = await supabase
+    const transactionPayload = {
+      user_id: user.id,
+      valor: Number(editForm.valor),
+      tipo: editForm.tipo as any,
+      categoria_id: editForm.categoria_id || null,
+      descricao: editForm.descricao,
+      data: editForm.data,
+      scope: editForm.scope as any,
+      data_status: "confirmed" as any,
+      source_type: editForm.source_type as any,
+      confidence: (parsed?.confianca || "media") as any,
+      created_by: user.id,
+      updated_by: user.id,
+      validation_notes: validationNotes,
+    };
+
+    const { data: insertedTransaction, error: transactionError } = await supabase
       .from("transactions")
-      .insert({
-        user_id: user.id,
-        valor: Number(editForm.valor),
-        tipo: editForm.tipo as any,
-        categoria_id: editForm.categoria_id || null,
-        descricao: editForm.descricao,
-        data: editForm.data,
-        scope: editForm.scope as any,
-        data_status: "confirmed" as any,
-        source_type: editForm.source_type as any,
-        confidence: (parsed?.confianca || "media") as any,
-        created_by: user.id,
-        updated_by: user.id,
-        validation_notes: validationNotes,
-      })
+      .insert(transactionPayload)
       .select("id")
       .single();
 
-    if (error || !insertedTransaction) {
-      toast.error("Erro ao salvar", { description: error?.message || "Falha ao salvar transação." });
+    if (transactionError || !insertedTransaction) {
+      toast.error("Erro ao salvar", {
+        description: transactionError?.message || "Falha ao salvar transação.",
+      });
       setIsSaving(false);
       return;
     }
 
+    let learningError: unknown = null;
+
     try {
-      await (supabase as any).from("smart_capture_learning").insert({
+      const { error } = await (supabase as any).from("smart_capture_learning").insert({
         user_id: user.id,
         transaction_id: insertedTransaction.id,
         source_text: originalInput,
@@ -283,10 +291,38 @@ export default function SmartCapture() {
         transaction_type: editForm.tipo as any,
         scope: editForm.scope as any,
         confidence_before: (parsed?.confianca || "media") as any,
-        confirmation_method: "mirror_confirmed"
+        confirmation_method: "mirror_confirmed",
       });
-    } catch (learnErr) {
-      console.error("Erro ao registrar aprendizado:", learnErr);
+
+      if (error) {
+        learningError = error;
+      }
+    } catch (err) {
+      learningError = err;
+    }
+
+    if (learningError) {
+      console.error("Erro ao registrar aprendizado:", learningError);
+
+      const { error: rollbackError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", insertedTransaction.id)
+        .eq("user_id", user.id);
+
+      if (rollbackError) {
+        console.error("Erro ao desfazer transação após falha no aprendizado:", rollbackError);
+        toast.error("Falha ao concluir captura", {
+          description: "O aprendizado falhou e não foi possível desfazer automaticamente a transação. Revise manualmente antes de seguir.",
+        });
+      } else {
+        toast.error("Falha ao concluir captura", {
+          description: "O aprendizado falhou e a transação foi desfeita para evitar persistência parcial.",
+        });
+      }
+
+      setIsSaving(false);
+      return;
     }
 
     toast.success("Transação confirmada e registrada", {
