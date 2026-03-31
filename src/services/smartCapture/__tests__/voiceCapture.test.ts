@@ -157,7 +157,7 @@ describe("VoiceAdapter", () => {
       status: 413,
       message: "Audio file exceeds 15MB",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "AUDIO_TOO_LARGE");
