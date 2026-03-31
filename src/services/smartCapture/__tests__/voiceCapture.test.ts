@@ -59,18 +59,17 @@ Object.defineProperty(global, "Blob", {
 });
 
 // Mocking FileReader
-class MockFileReader {
-  onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
-  onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
-  result: string | ArrayBuffer | null = null;
-
+const MockFileReader = vi.fn().mockImplementation(() => ({
+  onload: null as any,
+  onerror: null as any,
+  result: null as any,
   readAsDataURL(blob: Blob) {
-    this.result = `data:${blob.type};base64,SGVsbG8gV29ybGQ=`; // Mock base64 content
+    this.result = `data:${blob.type};base64,SGVsbG8gV29ybGQ=`;
     if (this.onload) {
       this.onload(new ProgressEvent('load'));
     }
-  }
-}
+  },
+}));
 
 Object.defineProperty(global, "FileReader", {
   value: MockFileReader,
@@ -112,7 +111,7 @@ describe("VoiceAdapter", () => {
       error: null,
     };
 
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue(mockResponse);
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
 
     const result = await VoiceAdapter.transcribe(mockAudioBlob);
 
@@ -146,7 +145,7 @@ describe("VoiceAdapter", () => {
       status: 401,
       message: "Unauthorized",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "AUTH_REQUIRED");
@@ -158,7 +157,7 @@ describe("VoiceAdapter", () => {
       status: 413,
       message: "Audio file exceeds 15MB",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "AUDIO_TOO_LARGE");
@@ -170,7 +169,7 @@ describe("VoiceAdapter", () => {
       status: 500,
       message: "OPENAI_API_KEY is not configured",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "VOICE_NOT_CONFIGURED");
@@ -186,7 +185,7 @@ describe("VoiceAdapter", () => {
       },
       error: null,
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue(mockResponse);
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "VOICE_EMPTY_TEXT");
@@ -198,7 +197,7 @@ describe("VoiceAdapter", () => {
       status: 500,
       message: "Some other backend error",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "UPSTREAM_VOICE_ERROR");
@@ -242,7 +241,7 @@ describe("useVoiceCapture", () => {
       confidence: 0.9,
       metadata: { valor: 10, tipo: "expense" },
     };
-    (VoiceAdapter.transcribe as vi.Mock) = vi.fn().mockResolvedValue(mockTranscriptionResult);
+    (VoiceAdapter.transcribe as ReturnType<typeof vi.fn>) = vi.fn().mockResolvedValue(mockTranscriptionResult);
 
     const { result } = renderHook(() => useVoiceCapture());
 
@@ -283,7 +282,7 @@ describe("useVoiceCapture", () => {
 
   it("should handle transcription error", async () => {
     const mockError = new VoiceCaptureError("UPSTREAM_VOICE_ERROR", "Backend error");
-    (VoiceAdapter.transcribe as vi.Mock) = vi.fn().mockRejectedValue(mockError);
+    (VoiceAdapter.transcribe as ReturnType<typeof vi.fn>) = vi.fn().mockRejectedValue(mockError);
 
     const { result } = renderHook(() => useVoiceCapture());
 
