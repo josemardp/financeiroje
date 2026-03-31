@@ -241,7 +241,7 @@ describe("useVoiceCapture", () => {
       confidence: 0.9,
       metadata: { valor: 10, tipo: "expense" },
     };
-    (VoiceAdapter.transcribe as vi.Mock) = vi.fn().mockResolvedValue(mockTranscriptionResult);
+    (VoiceAdapter.transcribe as ReturnType<typeof vi.fn>) = vi.fn().mockResolvedValue(mockTranscriptionResult);
 
     const { result } = renderHook(() => useVoiceCapture());
 
