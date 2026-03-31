@@ -33,7 +33,7 @@ export default function Transactions() {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingId, setEditingId] = useState<string | null>(null);
-
+  const [deletingTransaction, setDeletingTransaction] = useState<any | null>(null);
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
