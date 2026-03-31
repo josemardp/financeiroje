@@ -3,6 +3,22 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// ── Rate limiting (in-memory, per-isolate — resets on cold start) ──
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 15; // max requests per window per user
+const RATE_WINDOW_MS = 60_000; // 1 minute
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -82,6 +98,22 @@ serve(async (req) => {
     const auth = req.headers.get("Authorization");
     if (!auth || !auth.startsWith("Bearer ")) {
       return jsonResponse({ ok: false, code: "AUTH_REQUIRED", message: "Não autorizado." }, 401);
+    }
+
+    // Extract user ID from JWT for rate limiting
+    let userId = "anonymous";
+    try {
+      const token = auth.replace("Bearer ", "");
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.sub) userId = payload.sub;
+    } catch { /* fallback to anonymous */ }
+
+    if (!checkRateLimit(userId)) {
+      return jsonResponse({
+        ok: false,
+        code: "OCR_RATE_LIMITED",
+        message: "Limite de requisições de OCR excedido. Aguarde um momento antes de tentar novamente.",
+      }, 429);
     }
 
     const body = await req.json();
