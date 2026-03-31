@@ -74,7 +74,7 @@ const MockFileReader = vi.fn().mockImplementation(() => ({
   readAsDataURL(blob: Blob) {
     this.result = `data:${blob.type};base64,SGVsbG8gV29ybGQ=`;
     (this.onload as ((event: ProgressEvent<FileReader>) => void) | null)?.(
-      new ProgressEvent("load"),
+      new ProgressEvent("load") as ProgressEvent<FileReader>,
     );
   },
 }));
