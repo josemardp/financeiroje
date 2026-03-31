@@ -240,12 +240,9 @@ export default function Transactions() {
                     <span className={`text-sm font-mono font-bold ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
                       {t.tipo === "income" ? "+" : "-"}{formatCurrency(Number(t.valor))}
                     </span>
+                    {/* Status-specific actions */}
                     {t.data_status === "suggested" && (
                       <>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => setEditingId(t.id)} title="Editar">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
                         <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
                           onClick={() => confirmMutation.mutate(t.id)} title="Confirmar" disabled={!validateMinimumFields(t)}>
                           ✓
@@ -254,7 +251,7 @@ export default function Transactions() {
                           onClick={() => markIncompleteMutation.mutate(t.id)} title="Marcar como incompleta">
                           ?
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-red-600"
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
                           onClick={() => markInconsistentMutation.mutate(t.id)} title="Marcar como inconsistente">
                           !
                         </Button>
@@ -262,34 +259,30 @@ export default function Transactions() {
                     )}
                     {t.data_status === "incomplete" && (
                       <>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => setEditingId(t.id)} title="Completar">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
                         <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
                           onClick={() => confirmMutation.mutate(t.id)} title="Confirmar" disabled={!validateMinimumFields(t)}>
                           ✓
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-red-600"
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
                           onClick={() => markInconsistentMutation.mutate(t.id)} title="Marcar como inconsistente">
                           !
                         </Button>
                       </>
                     )}
                     {t.data_status === "inconsistent" && (
-                      <>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => setEditingId(t.id)} title="Corrigir">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
-                          onClick={() => confirmMutation.mutate(t.id)} title="Confirmar" disabled={!validateMinimumFields(t)}>
-                          ✓
-                        </Button>
-                      </>
+                      <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
+                        onClick={() => confirmMutation.mutate(t.id)} title="Confirmar" disabled={!validateMinimumFields(t)}>
+                        ✓
+                      </Button>
                     )}
+                    {/* Edit — always visible */}
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => setEditingId(t.id)} title="Editar">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {/* Delete — always visible, opens confirmation */}
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => deleteMutation.mutate(t.id)}>
+                      onClick={() => setDeletingTransaction(t)} title="Excluir">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -298,6 +291,44 @@ export default function Transactions() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Delete confirmation dialog */}
+          <AlertDialog open={!!deletingTransaction} onOpenChange={(open) => !open && setDeletingTransaction(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                  <ShieldAlert className="h-5 w-5" />
+                  Excluir transação permanentemente?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <span className="block">Esta ação <strong>não pode ser desfeita</strong>. A transação será removida de todos os cálculos e relatórios.</span>
+                  {deletingTransaction && (
+                    <span className="block rounded-md bg-muted p-3 text-sm font-mono">
+                      {deletingTransaction.tipo === "income" ? "+" : "-"}{formatCurrency(Number(deletingTransaction.valor))}
+                      {" · "}
+                      {deletingTransaction.descricao || deletingTransaction.categories?.nome || "Sem descrição"}
+                      {" · "}
+                      {formatDate(deletingTransaction.data)}
+                    </span>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => {
+                    if (deletingTransaction) {
+                      deleteMutation.mutate(deletingTransaction.id);
+                      setDeletingTransaction(null);
+                    }
+                  }}
+                >
+                  Sim, excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>
