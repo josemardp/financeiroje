@@ -9,7 +9,7 @@ type PwaInstallBannerProps = {
 };
 
 export function PwaInstallBanner({ className }: PwaInstallBannerProps) {
-  const { canPromptInstall, dismiss, isIOSFallback, promptInstall, shouldShow } = usePwaInstall();
+  const { canPromptInstall, dismiss, isIOSFallback, isAndroidFallback, promptInstall, shouldShow } = usePwaInstall();
 
   if (!shouldShow) return null;
 
@@ -26,7 +26,9 @@ export function PwaInstallBanner({ className }: PwaInstallBannerProps) {
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {isIOSFallback
                 ? "No iPhone, toque em Compartilhar e depois em Adicionar à Tela de Início para usar como app."
-                : "Instale o FinanceAI para abrir mais rápido, usar em tela cheia e ter experiência de app no celular."}
+                : isAndroidFallback
+                  ? "No Android/Chrome, abra o menu ⋮ e procure por Instalar app ou Adicionar à tela inicial se o Chrome ainda não mostrar o prompt automaticamente."
+                  : "Instale o FinanceAI para abrir mais rápido, usar em tela cheia e ter experiência de app no celular."}
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">

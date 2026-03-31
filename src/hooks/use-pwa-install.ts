@@ -40,6 +40,13 @@ function isIosSafari() {
   return isIOS && isSafari;
 }
 
+function isAndroidChrome() {
+  if (typeof window === "undefined") return false;
+
+  const ua = window.navigator.userAgent;
+  return /Android/i.test(ua) && /Chrome\//i.test(ua) && !/EdgA|OPR|SamsungBrowser/i.test(ua);
+}
+
 function isStandaloneMode() {
   if (typeof window === "undefined") return false;
 
@@ -52,6 +59,7 @@ export function usePwaInstall() {
   const [isInstalled, setIsInstalled] = React.useState(false);
   const [isDismissed, setIsDismissed] = React.useState(true);
   const [isIOS, setIsIOS] = React.useState(false);
+  const [isAndroid, setIsAndroid] = React.useState(false);
   const [isReady, setIsReady] = React.useState(false);
 
   React.useEffect(() => {
@@ -61,6 +69,7 @@ export function usePwaInstall() {
 
       setIsInstalled(installed);
       setIsIOS(isIosSafari());
+      setIsAndroid(isAndroidChrome());
       setIsDismissed(dismissedUntil > Date.now());
       setIsReady(true);
     };
@@ -71,12 +80,15 @@ export function usePwaInstall() {
     const handleDisplayModeChange = () => syncEnvironment();
 
     const handleBeforeInstallPrompt = (event: BeforeInstallPromptEvent) => {
-      event.preventDefault();
       syncEnvironment();
 
       if (isStandaloneMode()) return;
-      if (readDismissedUntil() > Date.now()) return;
+      if (readDismissedUntil() > Date.now()) {
+        setDeferredPrompt(null);
+        return;
+      }
 
+      event.preventDefault();
       setDeferredPrompt(event);
     };
 
@@ -127,13 +139,15 @@ export function usePwaInstall() {
 
   const canPromptInstall = isMobile && !isInstalled && !isDismissed && !!deferredPrompt;
   const showIOSFallback = isMobile && !isInstalled && !isDismissed && !deferredPrompt && isIOS;
-  const shouldShow = isReady && (canPromptInstall || showIOSFallback);
+  const showAndroidFallback = isMobile && !isInstalled && !isDismissed && !deferredPrompt && isAndroid;
+  const shouldShow = isReady && (canPromptInstall || showIOSFallback || showAndroidFallback);
 
   return {
     canPromptInstall,
     dismiss,
     isInstalled,
     isIOSFallback: showIOSFallback,
+    isAndroidFallback: showAndroidFallback,
     promptInstall,
     shouldShow,
   };
