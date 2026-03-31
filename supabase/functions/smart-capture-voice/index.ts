@@ -150,6 +150,22 @@ serve(async (req) => {
     return json({ error: "Unauthorized" }, 401);
   }
 
+  // Extract user ID from JWT for rate limiting (decode payload without verification — auth is already validated by Supabase)
+  let userId = "anonymous";
+  try {
+    const token = authHeader.replace("Bearer ", "");
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.sub) userId = payload.sub;
+  } catch { /* fallback to anonymous */ }
+
+  if (!checkRateLimit(userId)) {
+    return json({
+      ok: false,
+      code: "VOICE_RATE_LIMITED",
+      message: "Limite de requisições de voz excedido. Aguarde um momento antes de tentar novamente.",
+    }, 429);
+  }
+
   const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openAiApiKey) {
     return json({ error: "OPENAI_API_KEY is not configured" }, 500);

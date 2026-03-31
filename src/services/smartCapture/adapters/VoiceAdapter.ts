@@ -93,7 +93,9 @@ export class VoiceAdapter {
     });
 
     if (error) {
-      if (error.status === 401) {
+      if (error.status === 429) {
+        throw new VoiceCaptureError("VOICE_RATE_LIMITED" as VoiceErrorCode, "Limite de requisições de voz excedido. Aguarde um momento.", 429);
+      } else if (error.status === 401) {
         throw new VoiceCaptureError("AUTH_REQUIRED", "Sessão inválida. Faça login novamente.", 401);
       } else if (error.status === 500 && error.message.includes("OPENAI_API_KEY")) {
         throw new VoiceCaptureError("VOICE_NOT_CONFIGURED", "A chave da API de voz não está configurada no backend.", 500);
