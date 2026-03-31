@@ -197,7 +197,7 @@ describe("VoiceAdapter", () => {
       status: 500,
       message: "Some other backend error",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "UPSTREAM_VOICE_ERROR");
