@@ -15,10 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { TRANSACTION_TYPE_LABELS } from "@/lib/constants";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ArrowLeftRight, Search, Filter, Trash2, Pencil, Loader2 } from "lucide-react";
+import { Plus, ArrowLeftRight, Search, Trash2, Pencil, Loader2 } from "lucide-react";
 
 export default function Transactions() {
   const { user } = useAuth();
@@ -48,12 +47,7 @@ export default function Transactions() {
         .limit(100);
 
       if (filterType !== "all") query = query.eq("tipo", filterType as "income" | "expense");
-      
-      // Filter by global scope context
-      if (currentScope !== "all") {
-        query = query.eq("scope", currentScope);
-      }
-      
+      if (currentScope !== "all") query = query.eq("scope", currentScope);
       if (filterStatus !== "all") query = query.eq("data_status", filterStatus as any);
       if (search) query = query.ilike("descricao", `%${search}%`);
 
@@ -236,6 +230,12 @@ export default function Transactions() {
                     <span className={`text-sm font-mono font-bold ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
                       {t.tipo === "income" ? "+" : "-"}{formatCurrency(Number(t.valor))}
                     </span>
+                    {t.data_status === "confirmed" && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => setEditingId(t.id)} title="Editar">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
                     {t.data_status === "suggested" && (
                       <>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
@@ -493,7 +493,7 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
         </div>
       </div>
       <div className="flex gap-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={(e) => handleSubmit(e, true)} disabled={isSubmitting}>
+        <Button type="button" variant="outline" className="flex-1" onClick={(e) => handleSubmit(e as any, true)} disabled={isSubmitting}>
           Salvar e Confirmar
         </Button>
         <Button type="submit" className="flex-1" disabled={isSubmitting}>
