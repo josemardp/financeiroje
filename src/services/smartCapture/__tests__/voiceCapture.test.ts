@@ -185,7 +185,7 @@ describe("VoiceAdapter", () => {
       },
       error: null,
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue(mockResponse);
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "VOICE_EMPTY_TEXT");
