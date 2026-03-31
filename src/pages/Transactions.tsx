@@ -79,9 +79,50 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
-      toast.success("Transação excluída");
+      queryClient.invalidateQueries({ queryKey: ["transaction-trash"] });
+      toast.success("Transação movida para a lixeira");
     },
-    onError: () => toast.error("Erro ao excluir transação"),
+    onError: () => toast.error("Erro ao mover para a lixeira"),
+  });
+
+  const { data: trashItems, isLoading: isTrashLoading } = useQuery({
+    queryKey: ["transaction-trash", isTrashOpen],
+    queryFn: async () => {
+      await (supabase.rpc as any)("purge_expired_deleted_transactions");
+      const { data, error } = await (supabase.rpc as any)("get_transaction_trash");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user && isTrashOpen,
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.rpc as any)("restore_transaction", { p_transaction_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["transaction-trash"] });
+      toast.success("Transação restaurada");
+    },
+    onError: () => toast.error("Erro ao restaurar transação"),
+  });
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.rpc as any)("hard_delete_transaction", { p_transaction_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transaction-trash"] });
+      toast.success("Transação excluída definitivamente");
+      setHardDeletingId(null);
+    },
+    onError: () => toast.error("Erro ao excluir definitivamente"),
   });
 
   const validateMinimumFields = (transaction: any): boolean => {
