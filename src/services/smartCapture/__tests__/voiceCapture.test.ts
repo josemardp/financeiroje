@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { renderHook, act } from "@testing-library/react-hooks";
 import { VoiceAdapter, VoiceCaptureError } from "../adapters/VoiceAdapter";
 import { useVoiceCapture } from "../hooks/useVoiceCapture";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-// Mocking supabase.functions.invoke
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     functions: {
@@ -13,30 +13,40 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-// Mocking MediaRecorder and related APIs
+vi.mock("sonner", () => ({
+  toast: {
+    info: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+const mockStopTrack = vi.fn();
+
+const mockStream = {
+  getTracks: vi.fn(() => [{ stop: mockStopTrack }]),
+  getAudioTracks: vi.fn(() => [{ stop: mockStopTrack }]),
+};
+
 const mockMediaRecorder = {
   start: vi.fn(),
   stop: vi.fn(),
-  ondataavailable: vi.fn(),
-  onstop: vi.fn(),
-  onerror: vi.fn(),
+  ondataavailable: null as ((event: BlobEvent) => void) | null,
+  onstop: null as (() => void) | null,
+  onerror: null as ((event: Event) => void) | null,
   state: "inactive",
-  stream: {
-    getTracks: vi.fn(() => [{
-      stop: mockStopTrack
-    }]),
-    getAudioTracks: vi.fn(() => [{
-      stop: mockStopTrack
-    }])
-  }
+  stream: mockStream,
 };
 
-const mockStopTrack = vi.fn();
-const mockGetUserMedia = vi.fn(() => Promise.resolve({
-  getTracks: vi.fn(() => [{
-    stop: mockStopTrack
-  }]),
-}));
+mockMediaRecorder.start.mockImplementation(() => {
+  mockMediaRecorder.state = "recording";
+});
+
+mockMediaRecorder.stop.mockImplementation(() => {
+  mockMediaRecorder.state = "inactive";
+});
+
+const mockGetUserMedia = vi.fn(() => Promise.resolve(mockStream));
 
 Object.defineProperty(global.navigator, "mediaDevices", {
   value: {
@@ -50,7 +60,6 @@ Object.defineProperty(global, "MediaRecorder", {
   writable: true,
 });
 
-// Mocking Blob for testing purposes
 class MockBlob extends Blob {}
 
 Object.defineProperty(global, "Blob", {
@@ -58,39 +67,31 @@ Object.defineProperty(global, "Blob", {
   writable: true,
 });
 
-// Mocking FileReader
-class MockFileReader {
-  onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
-  onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
-  result: string | ArrayBuffer | null = null;
-
+const MockFileReader = vi.fn().mockImplementation(() => ({
+  onload: null as ((event: ProgressEvent<FileReader>) => void) | null,
+  onerror: null as ((event: ProgressEvent<FileReader>) => void) | null,
+  result: null as string | ArrayBuffer | null,
   readAsDataURL(blob: Blob) {
-    this.result = `data:${blob.type};base64,SGVsbG8gV29ybGQ=`; // Mock base64 content
-    if (this.onload) {
-      this.onload(new ProgressEvent('load'));
-    }
-  }
-}
+    this.result = `data:${blob.type};base64,SGVsbG8gV29ybGQ=`;
+    (this.onload as ((event: ProgressEvent<FileReader>) => void) | null)?.(
+      new ProgressEvent("load"),
+    );
+  },
+}));
 
 Object.defineProperty(global, "FileReader", {
   value: MockFileReader,
   writable: true,
 });
 
-// Mocking toast from sonner
-import { toast } from "sonner";
-
-vi.mock("sonner", () => ({
-  toast: {
-    info: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+const getInvokeMock = () => supabase.functions.invoke as unknown as Mock;
 
 describe("VoiceAdapter", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
+    mockMediaRecorder.state = "inactive";
+    mockGetUserMedia.mockResolvedValue(mockStream);
   });
 
   it("should successfully transcribe audio and extract fields", async () => {
@@ -112,7 +113,7 @@ describe("VoiceAdapter", () => {
       error: null,
     };
 
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue(mockResponse);
+    getInvokeMock().mockResolvedValue(mockResponse);
 
     const result = await VoiceAdapter.transcribe(mockAudioBlob);
 
@@ -125,6 +126,7 @@ describe("VoiceAdapter", () => {
         }),
       }),
     );
+
     expect(result).toEqual({
       text: "Gastei 50 reais no mercado",
       confidence: 0.9,
@@ -146,7 +148,8 @@ describe("VoiceAdapter", () => {
       status: 401,
       message: "Unauthorized",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+
+    getInvokeMock().mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "AUTH_REQUIRED");
@@ -158,7 +161,8 @@ describe("VoiceAdapter", () => {
       status: 413,
       message: "Audio file exceeds 15MB",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+
+    getInvokeMock().mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "AUDIO_TOO_LARGE");
@@ -170,7 +174,8 @@ describe("VoiceAdapter", () => {
       status: 500,
       message: "OPENAI_API_KEY is not configured",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+
+    getInvokeMock().mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "VOICE_NOT_CONFIGURED");
@@ -186,7 +191,8 @@ describe("VoiceAdapter", () => {
       },
       error: null,
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue(mockResponse);
+
+    getInvokeMock().mockResolvedValue(mockResponse);
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "VOICE_EMPTY_TEXT");
@@ -198,7 +204,8 @@ describe("VoiceAdapter", () => {
       status: 500,
       message: "Some other backend error",
     };
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue({ data: null, error: mockError });
+
+    getInvokeMock().mockResolvedValue({ data: null, error: mockError });
 
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toThrow(VoiceCaptureError);
     await expect(VoiceAdapter.transcribe(mockAudioBlob)).rejects.toHaveProperty("code", "UPSTREAM_VOICE_ERROR");
@@ -207,8 +214,10 @@ describe("VoiceAdapter", () => {
 
 describe("useVoiceCapture", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     mockMediaRecorder.state = "inactive";
+    mockGetUserMedia.mockResolvedValue(mockStream);
   });
 
   it("should start and stop recording successfully", async () => {
@@ -224,15 +233,16 @@ describe("useVoiceCapture", () => {
     expect(result.current.isTranscribing).toBe(false);
     expect(toast.info).toHaveBeenCalledWith("Gravando áudio...");
 
-    await act(() => {
+    await act(async () => {
       result.current.stopRecording();
     });
 
     expect(mockMediaRecorder.stop).toHaveBeenCalled();
-    // Simulate onstop event firing after stopRecording
+
     act(() => {
-      mockMediaRecorder.onstop();
+      mockMediaRecorder.onstop?.();
     });
+
     expect(result.current.isRecording).toBe(false);
   });
 
@@ -242,7 +252,8 @@ describe("useVoiceCapture", () => {
       confidence: 0.9,
       metadata: { valor: 10, tipo: "expense" },
     };
-    (VoiceAdapter.transcribe as vi.Mock) = vi.fn().mockResolvedValue(mockTranscriptionResult);
+
+    vi.spyOn(VoiceAdapter, "transcribe").mockResolvedValue(mockTranscriptionResult);
 
     const { result } = renderHook(() => useVoiceCapture());
 
@@ -250,17 +261,15 @@ describe("useVoiceCapture", () => {
       await result.current.startRecording();
     });
 
-    // Simulate ondataavailable event
     act(() => {
-      mockMediaRecorder.ondataavailable({ data: new Blob(["chunk1"]) } as BlobEvent);
+      mockMediaRecorder.ondataavailable?.({ data: new Blob(["chunk1"]) } as BlobEvent);
     });
 
-    // Simulate onstop event
     await act(async () => {
-      mockMediaRecorder.onstop();
+      await mockMediaRecorder.onstop?.();
     });
 
-    expect(result.current.isTranscribing).toBe(false); // Should be false after transcription completes
+    expect(result.current.isTranscribing).toBe(false);
     expect(result.current.result).toEqual(mockTranscriptionResult);
     expect(toast.success).toHaveBeenCalledWith("Transcrição de voz concluída!", expect.any(Object));
   });
@@ -276,14 +285,18 @@ describe("useVoiceCapture", () => {
 
     expect(result.current.isRecording).toBe(false);
     expect(result.current.isTranscribing).toBe(false);
-    expect(toast.error).toHaveBeenCalledWith("Falha na captura de voz", expect.objectContaining({
-      description: "Permission denied",
-    }));
+    expect(toast.error).toHaveBeenCalledWith(
+      "Falha na captura de voz",
+      expect.objectContaining({
+        description: "Permission denied",
+      }),
+    );
   });
 
   it("should handle transcription error", async () => {
     const mockError = new VoiceCaptureError("UPSTREAM_VOICE_ERROR", "Backend error");
-    (VoiceAdapter.transcribe as vi.Mock) = vi.fn().mockRejectedValue(mockError);
+
+    vi.spyOn(VoiceAdapter, "transcribe").mockRejectedValue(mockError);
 
     const { result } = renderHook(() => useVoiceCapture());
 
@@ -291,21 +304,22 @@ describe("useVoiceCapture", () => {
       await result.current.startRecording();
     });
 
-    // Simulate ondataavailable event
     act(() => {
-      mockMediaRecorder.ondataavailable({ data: new Blob(["chunk1"]) } as BlobEvent);
+      mockMediaRecorder.ondataavailable?.({ data: new Blob(["chunk1"]) } as BlobEvent);
     });
 
-    // Simulate onstop event
     await act(async () => {
-      mockMediaRecorder.onstop();
+      await mockMediaRecorder.onstop?.();
     });
 
     expect(result.current.isTranscribing).toBe(false);
     expect(result.current.result).toBeNull();
-    expect(toast.error).toHaveBeenCalledWith("Falha no provedor de voz", expect.objectContaining({
-      description: "Backend error",
-    }));
+    expect(toast.error).toHaveBeenCalledWith(
+      "Falha no provedor de voz",
+      expect.objectContaining({
+        description: "Backend error",
+      }),
+    );
   });
 
   it("should reset voice capture state", async () => {
@@ -322,9 +336,6 @@ describe("useVoiceCapture", () => {
     expect(result.current.isRecording).toBe(false);
     expect(result.current.isTranscribing).toBe(false);
     expect(result.current.result).toBeNull();
-    // The track.stop() is called on the stream returned by getUserMedia, not directly on mockMediaRecorder.stream
-    expect(mockGetUserMedia).toHaveBeenCalled();
-    const stream = await mockGetUserMedia.mock.results[0].value;
     expect(mockStopTrack).toHaveBeenCalled();
   });
 });
