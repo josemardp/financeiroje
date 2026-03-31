@@ -282,7 +282,7 @@ describe("useVoiceCapture", () => {
 
   it("should handle transcription error", async () => {
     const mockError = new VoiceCaptureError("UPSTREAM_VOICE_ERROR", "Backend error");
-    (VoiceAdapter.transcribe as vi.Mock) = vi.fn().mockRejectedValue(mockError);
+    (VoiceAdapter.transcribe as ReturnType<typeof vi.fn>) = vi.fn().mockRejectedValue(mockError);
 
     const { result } = renderHook(() => useVoiceCapture());
 
