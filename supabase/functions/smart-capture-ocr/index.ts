@@ -100,6 +100,22 @@ serve(async (req) => {
       return jsonResponse({ ok: false, code: "AUTH_REQUIRED", message: "Não autorizado." }, 401);
     }
 
+    // Extract user ID from JWT for rate limiting
+    let userId = "anonymous";
+    try {
+      const token = auth.replace("Bearer ", "");
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.sub) userId = payload.sub;
+    } catch { /* fallback to anonymous */ }
+
+    if (!checkRateLimit(userId)) {
+      return jsonResponse({
+        ok: false,
+        code: "OCR_RATE_LIMITED",
+        message: "Limite de requisições de OCR excedido. Aguarde um momento antes de tentar novamente.",
+      }, 429);
+    }
+
     const body = await req.json();
     const { file_base64, mime_type, file_name } = body ?? {};
 

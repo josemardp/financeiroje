@@ -199,7 +199,12 @@ export class OcrAdapter {
       body: { file_base64: base64, mime_type: mimeType, file_name: fileName },
     });
 
-    if (error) throw new OcrCaptureError("UPSTREAM_OCR_ERROR", error.message || "Falha no backend de OCR.");
+    if (error) {
+      if (error.status === 429) {
+        throw new OcrCaptureError("OCR_RATE_LIMITED" as OcrErrorCode, "Limite de requisições de OCR excedido. Aguarde um momento.", 429);
+      }
+      throw new OcrCaptureError("UPSTREAM_OCR_ERROR", error.message || "Falha no backend de OCR.");
+    }
 
     const payload = data || {};
     if (payload.ok === false) throw new OcrCaptureError(payload.code || "UNKNOWN_OCR_ERROR", payload.message || "Falha no OCR.");
