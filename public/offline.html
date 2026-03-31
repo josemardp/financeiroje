@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>FinanceAI offline</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0f172a;
+        --card: rgba(255, 255, 255, 0.08);
+        --border: rgba(255, 255, 255, 0.16);
+        --text: #f8fafc;
+        --muted: rgba(248, 250, 252, 0.74);
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          radial-gradient(circle at top, rgba(59, 130, 246, 0.22), transparent 30%),
+          linear-gradient(180deg, #111827 0%, #0f172a 100%);
+        color: var(--text);
+      }
+
+      main {
+        width: min(100%, 420px);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 24px;
+        background: var(--card);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 1.5rem;
+      }
+
+      p {
+        margin: 0 0 12px;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 14px;
+        padding: 12px 16px;
+        font: inherit;
+        font-weight: 600;
+        color: white;
+        background: #2563eb;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Você está offline</h1>
+      <p>O FinanceAI não conseguiu atualizar os dados agora, mas o app shell permanece disponível para você abrir e tentar novamente quando a conexão voltar.</p>
+      <p>Assim que a internet retornar, recarregue a tela para continuar.</p>
+      <button type="button" onclick="window.location.reload()">Tentar novamente</button>
+    </main>
+  </body>
+</html>
