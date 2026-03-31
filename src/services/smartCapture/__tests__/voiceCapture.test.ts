@@ -250,7 +250,7 @@ describe("useVoiceCapture", () => {
     const mockTranscriptionResult = {
       text: "Teste de transcrição",
       confidence: 0.9,
-      metadata: { valor: 10, tipo: "expense" },
+      metadata: { valor: 10, tipo: "expense" as const },
     };
 
     vi.spyOn(VoiceAdapter, "transcribe").mockResolvedValue(mockTranscriptionResult);
