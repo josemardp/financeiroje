@@ -22,7 +22,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, ArrowLeftRight, Search, Filter, Trash2, Pencil, Loader2, ShieldAlert } from "lucide-react";
+import { Plus, ArrowLeftRight, Search, Filter, Trash2, Pencil, Loader2, ShieldAlert, RotateCcw } from "lucide-react";
 
 export default function Transactions() {
   const { user } = useAuth();
@@ -34,6 +34,8 @@ export default function Transactions() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<any | null>(null);
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
+  const [hardDeletingId, setHardDeletingId] = useState<string | null>(null);
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
@@ -77,9 +79,50 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
-      toast.success("Transação excluída");
+      queryClient.invalidateQueries({ queryKey: ["transaction-trash"] });
+      toast.success("Transação movida para a lixeira");
     },
-    onError: () => toast.error("Erro ao excluir transação"),
+    onError: () => toast.error("Erro ao mover para a lixeira"),
+  });
+
+  const { data: trashItems, isLoading: isTrashLoading } = useQuery({
+    queryKey: ["transaction-trash", isTrashOpen],
+    queryFn: async () => {
+      await (supabase.rpc as any)("purge_expired_deleted_transactions");
+      const { data, error } = await (supabase.rpc as any)("get_transaction_trash");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user && isTrashOpen,
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.rpc as any)("restore_transaction", { p_transaction_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["transaction-trash"] });
+      toast.success("Transação restaurada");
+    },
+    onError: () => toast.error("Erro ao restaurar transação"),
+  });
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.rpc as any)("hard_delete_transaction", { p_transaction_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transaction-trash"] });
+      toast.success("Transação excluída definitivamente");
+      setHardDeletingId(null);
+    },
+    onError: () => toast.error("Erro ao excluir definitivamente"),
   });
 
   const validateMinimumFields = (transaction: any): boolean => {
@@ -130,26 +173,31 @@ export default function Transactions() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader title="Transações" description={`Histórico de lançamentos (${scopeLabel})`}>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" /> Nova transação</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Nova Transação</DialogTitle>
-            </DialogHeader>
-            <NewTransactionForm 
-              categories={categories || []} 
-              onSuccess={() => {
-                setIsOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["transactions"] });
-                queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
-                queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
-                queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
-              }} 
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setIsTrashOpen(true)}>
+            <Trash2 className="h-4 w-4" /> Lixeira
+          </Button>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2"><Plus className="h-4 w-4" /> Nova transação</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Nova Transação</DialogTitle>
+              </DialogHeader>
+              <NewTransactionForm 
+                categories={categories || []} 
+                onSuccess={() => {
+                  setIsOpen(false);
+                  queryClient.invalidateQueries({ queryKey: ["transactions"] });
+                  queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+                  queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+                  queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
+                }} 
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -292,16 +340,16 @@ export default function Transactions() {
             </CardContent>
           </Card>
 
-          {/* Delete confirmation dialog */}
+          {/* Delete confirmation dialog — soft delete (lixeira) */}
           <AlertDialog open={!!deletingTransaction} onOpenChange={(open) => !open && setDeletingTransaction(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-                  <ShieldAlert className="h-5 w-5" />
-                  Excluir transação permanentemente?
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <Trash2 className="h-5 w-5 text-muted-foreground" />
+                  Mover transação para a lixeira?
                 </AlertDialogTitle>
                 <AlertDialogDescription className="space-y-2">
-                  <span className="block">Esta ação <strong>não pode ser desfeita</strong>. A transação será removida de todos os cálculos e relatórios.</span>
+                  <span className="block">A transação poderá ser restaurada por até <strong>30 dias</strong>. Após esse período, será excluída automaticamente.</span>
                   {deletingTransaction && (
                     <span className="block rounded-md bg-muted p-3 text-sm font-mono">
                       {deletingTransaction.tipo === "income" ? "+" : "-"}{formatCurrency(Number(deletingTransaction.valor))}
@@ -324,13 +372,86 @@ export default function Transactions() {
                     }
                   }}
                 >
-                  Sim, excluir
+                  Mover para lixeira
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </>
       )}
+
+      {/* Trash dialog */}
+      <Dialog open={isTrashOpen} onOpenChange={setIsTrashOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-muted-foreground" />
+              Lixeira de Transações
+            </DialogTitle>
+          </DialogHeader>
+
+          {isTrashLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : !trashItems || trashItems.length === 0 ? (
+            <EmptyState icon={Trash2} title="Lixeira vazia" description="Nenhuma transação deletada nos últimos 30 dias." />
+          ) : (
+            <div className="divide-y divide-border rounded-md border">
+              {trashItems.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between p-3 gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate max-w-[30ch] sm:max-w-[40ch]" title={t.descricao || "Sem descrição"}>
+                      {t.descricao || "Sem descrição"}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                      <span className={`font-mono font-bold ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
+                        {t.tipo === "income" ? "+" : "-"}{formatCurrency(Number(t.valor))}
+                      </span>
+                      <span>Data: {formatDate(t.data)}</span>
+                      {t.deleted_at && <span>Excluído: {formatDate(t.deleted_at)}</span>}
+                      {t.expires_at && <span>Expira: {formatDate(t.expires_at)}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => restoreMutation.mutate(t.id)} title="Restaurar"
+                      disabled={restoreMutation.isPending}>
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setHardDeletingId(t.id)} title="Excluir definitivamente">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Hard delete confirmation */}
+      <AlertDialog open={!!hardDeletingId} onOpenChange={(open) => !open && setHardDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Excluir transação permanentemente?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação <strong>não pode ser desfeita</strong>. A transação será removida definitivamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (hardDeletingId) hardDeleteMutation.mutate(hardDeletingId); }}
+            >
+              Sim, excluir definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
