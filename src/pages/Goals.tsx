@@ -64,7 +64,6 @@ export default function Goals() {
         user_id: user.id, goal_id: goalId, valor, data: new Date().toISOString().split("T")[0],
       });
       if (contribError) throw contribError;
-      // Update valor_atual on goal
       const goal = goals?.find((g: any) => g.id === goalId);
       if (goal) {
         await supabase.from("goals").update({ valor_atual: Number(goal.valor_atual || 0) + valor }).eq("id", goalId);
@@ -80,22 +79,18 @@ export default function Goals() {
     onError: () => toast.error("Erro ao registrar aporte"),
   });
 
-  // Engine calculations
   const { data: goalsWithProgress = [] } = useQuery({
     queryKey: ["goals-progress", goals, contributions],
     queryFn: async () => {
       if (!goals) return [];
       const allGoalRaws: GoalRaw[] = (goals || []).map((g: any) => ({
-        id: g.id, nome: g.nome, valor_alvo: Number(g.valor_alvo),
-        valor_atual: Number(g.valor_atual || 0), prazo: g.prazo, prioridade: g.prioridade, ativo: g.ativo,
+        id: g.id, nome: g.nome, valor_alvo: Number(g.valor_alvo), valor_atual: Number(g.valor_atual || 0), prazo: g.prazo, prioridade: g.prioridade, ativo: g.ativo,
       }));
       const allContribs: GoalContributionRaw[] = (contributions || []).map((c: any) => ({
         id: c.id, goal_id: c.goal_id, valor: Number(c.valor), data: c.data,
       }));
       const progressResults = await calculateGoalProgress(allGoalRaws, allContribs);
-      return (goals || []).map((g: any) => ({
-        ...g, progress: progressResults.find(p => p.goalId === g.id),
-      }));
+      return (goals || []).map((g: any) => ({ ...g, progress: progressResults.find((p) => p.goalId === g.id) }));
     },
     enabled: !!goals && !!contributions,
   });
@@ -104,13 +99,13 @@ export default function Goals() {
   const PRIORITY_COLORS: Record<string, string> = { alta: "destructive", media: "default", baixa: "secondary" };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6">
       <PageHeader title="Metas & Sonhos" description="Acompanhe seus objetivos financeiros">
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-1" /> Nova meta</Button>
+            <Button className="w-full sm:w-auto"><Plus className="mr-1 h-4 w-4" /> Nova meta</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="w-[calc(100vw-2rem)] max-w-lg">
             <DialogHeader><DialogTitle>Nova Meta</DialogTitle></DialogHeader>
             <GoalForm onSuccess={() => { setIsOpen(false); queryClient.invalidateQueries({ queryKey: ["goals"] }); }} />
           </DialogContent>
@@ -121,7 +116,7 @@ export default function Goals() {
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : goalsWithProgress.length === 0 ? (
         <EmptyState icon={Target} title="Sem metas cadastradas" description="Cadastre seus sonhos e metas para acompanhar o progresso.">
-          <Button onClick={() => setIsOpen(true)}><Plus className="h-4 w-4 mr-1" /> Criar meta</Button>
+          <Button onClick={() => setIsOpen(true)}><Plus className="mr-1 h-4 w-4" /> Criar meta</Button>
         </EmptyState>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -130,12 +125,12 @@ export default function Goals() {
             return (
               <Card key={g.id}>
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      {p.isOnTrack ? <CheckCircle className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4 text-warning" />}
-                      {g.nome}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <CardTitle className="flex min-w-0 items-center gap-2 text-sm leading-tight">
+                      {p.isOnTrack ? <CheckCircle className="h-4 w-4 shrink-0 text-success" /> : <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />}
+                      <span className="line-clamp-2">{g.nome}</span>
                     </CardTitle>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <Badge variant={PRIORITY_COLORS[g.prioridade] as any}>{PRIORITY_LABELS[g.prioridade] || "Média"}</Badge>
                       <ScopeBadge scope={g.scope} />
                     </div>
@@ -143,64 +138,54 @@ export default function Goals() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <div className="flex justify-between text-sm mb-1">
+                    <div className="mb-1 flex items-center justify-between gap-2 text-sm">
                       <span className="text-muted-foreground">{formatCurrency(Number(g.valor_atual || 0))}</span>
                       <span className="font-medium">{formatCurrency(Number(g.valor_alvo))}</span>
                     </div>
                     <Progress value={p.progressPercent} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">{p.progressPercent.toFixed(1)}% concluído</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{p.progressPercent.toFixed(1)}% concluído</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-muted-foreground">Falta: </span>
-                      <span className="font-medium">{formatCurrency(p.remainingAmount)}</span>
-                    </div>
+                  <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                    <div><span className="text-muted-foreground">Falta: </span><span className="font-medium">{formatCurrency(p.remainingAmount)}</span></div>
                     {p.monthlyContributionNeeded !== null && (
-                      <div>
-                        <span className="text-muted-foreground">Mensal: </span>
-                        <span className="font-medium">{formatCurrency(p.monthlyContributionNeeded)}</span>
-                      </div>
+                      <div><span className="text-muted-foreground">Mensal: </span><span className="font-medium">{formatCurrency(p.monthlyContributionNeeded)}</span></div>
                     )}
                     {g.prazo && (
-                      <div>
-                        <span className="text-muted-foreground">Prazo: </span>
-                        <span className="font-medium">{formatDate(g.prazo)}</span>
-                      </div>
+                      <div><span className="text-muted-foreground">Prazo: </span><span className="font-medium">{formatDate(g.prazo)}</span></div>
                     )}
                     <div>
                       <span className="text-muted-foreground">Status: </span>
-                      <span className={`font-medium ${p.isOnTrack ? "text-success" : "text-warning"}`}>
-                        {p.isOnTrack ? "No prazo" : "Em risco"}
-                      </span>
+                      <span className={`font-medium ${p.isOnTrack ? "text-success" : "text-warning"}`}>{p.isOnTrack ? "No prazo" : "Em risco"}</span>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2">
                     {contributionGoalId === g.id ? (
-                      <div className="flex gap-2 w-full">
-                        <Input type="number" step="0.01" min="0.01" placeholder="Valor"
-                          value={contributionValue} onChange={e => setContributionValue(e.target.value)} className="flex-1" />
-                        <Button size="sm" onClick={() => {
-                          const v = Number(contributionValue);
-                          if (v > 0) addContribution.mutate({ goalId: g.id, valor: v });
-                        }}>OK</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setContributionGoalId(null)}>✕</Button>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input type="number" step="0.01" min="0.01" placeholder="Valor" value={contributionValue} onChange={(e) => setContributionValue(e.target.value)} className="flex-1" />
+                        <div className="flex gap-2 sm:w-auto">
+                          <Button size="sm" className="flex-1 sm:flex-none" onClick={() => {
+                            const v = Number(contributionValue);
+                            if (v > 0) addContribution.mutate({ goalId: g.id, valor: v });
+                          }}>OK</Button>
+                          <Button size="sm" variant="ghost" className="flex-1 sm:flex-none" onClick={() => setContributionGoalId(null)}>✕</Button>
+                        </div>
                       </div>
                     ) : (
-                      <>
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setContributionGoalId(g.id)}>
-                          <PiggyBank className="h-3 w-3 mr-1" /> Aportar
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Button size="sm" variant="outline" className="w-full sm:flex-1" onClick={() => setContributionGoalId(g.id)}>
+                          <PiggyBank className="mr-1 h-3 w-3" /> Aportar
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-muted-foreground"
-                          onClick={() => setEditingGoal(g)}>
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive"
-                          onClick={() => deleteMutation.mutate(g.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </>
+                        <div className="flex items-center gap-2 sm:w-auto">
+                          <Button size="sm" variant="ghost" className="flex-1 text-muted-foreground sm:flex-none" onClick={() => setEditingGoal(g)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="flex-1 text-muted-foreground hover:text-destructive sm:flex-none" onClick={() => deleteMutation.mutate(g.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -211,14 +196,9 @@ export default function Goals() {
       )}
 
       <Dialog open={!!editingGoal} onOpenChange={(open) => !open && setEditingGoal(null)}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg">
           <DialogHeader><DialogTitle>Editar Meta</DialogTitle></DialogHeader>
-          {editingGoal && (
-            <GoalForm
-              initialData={editingGoal}
-              onSuccess={() => { setEditingGoal(null); queryClient.invalidateQueries({ queryKey: ["goals"] }); }}
-            />
-          )}
+          {editingGoal && <GoalForm initialData={editingGoal} onSuccess={() => { setEditingGoal(null); queryClient.invalidateQueries({ queryKey: ["goals"] }); }} />}
         </DialogContent>
       </Dialog>
     </div>
@@ -241,7 +221,7 @@ function GoalForm({ onSuccess, initialData }: { onSuccess: () => void; initialDa
     e.preventDefault();
     if (!user || !form.nome.trim() || !form.valor_alvo) { toast.error("Preencha nome e valor"); return; }
     setSubmitting(true);
-    
+
     const payload = {
       user_id: user.id,
       nome: form.nome.trim(),
@@ -252,9 +232,7 @@ function GoalForm({ onSuccess, initialData }: { onSuccess: () => void; initialDa
       notas: form.notas || null,
     };
 
-    const { error } = initialData 
-      ? await supabase.from("goals").update(payload).eq("id", initialData.id)
-      : await supabase.from("goals").insert({ ...payload, valor_atual: 0 });
+    const { error } = initialData ? await supabase.from("goals").update(payload).eq("id", initialData.id) : await supabase.from("goals").insert({ ...payload, valor_atual: 0 });
 
     if (error) toast.error(initialData ? "Erro ao atualizar meta" : "Erro ao criar meta");
     else {
@@ -266,42 +244,17 @@ function GoalForm({ onSuccess, initialData }: { onSuccess: () => void; initialDa
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2"><Label>Nome do sonho/meta</Label>
-        <Input placeholder="Ex: Viagem para Europa, Reserva..." value={form.nome}
-          onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required /></div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2"><Label>Valor alvo (R$)</Label>
-          <Input type="number" step="0.01" min="1" value={form.valor_alvo}
-            onChange={e => setForm(f => ({ ...f, valor_alvo: e.target.value }))} required /></div>
-        <div className="space-y-2"><Label>Prazo</Label>
-          <Input type="date" value={form.prazo} onChange={e => setForm(f => ({ ...f, prazo: e.target.value }))} /></div>
+      <div className="space-y-2"><Label>Nome do sonho/meta</Label><Input placeholder="Ex: Viagem para Europa, Reserva..." value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} required /></div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2"><Label>Valor alvo (R$)</Label><Input type="number" step="0.01" min="1" value={form.valor_alvo} onChange={(e) => setForm((f) => ({ ...f, valor_alvo: e.target.value }))} required /></div>
+        <div className="space-y-2"><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm((f) => ({ ...f, prazo: e.target.value }))} /></div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2"><Label>Prioridade</Label>
-          <Select value={form.prioridade} onValueChange={v => setForm(f => ({ ...f, prioridade: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="alta">Alta</SelectItem>
-              <SelectItem value="media">Média</SelectItem>
-              <SelectItem value="baixa">Baixa</SelectItem>
-            </SelectContent>
-          </Select></div>
-        <div className="space-y-2"><Label>Escopo</Label>
-          <Select value={form.scope} onValueChange={v => setForm(f => ({ ...f, scope: v as "private" | "family" | "business" }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="private">Pessoal</SelectItem>
-              <SelectItem value="family">Família</SelectItem>
-              <SelectItem value="business">Negócio</SelectItem>
-            </SelectContent>
-          </Select></div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2"><Label>Prioridade</Label><Select value={form.prioridade} onValueChange={(v) => setForm((f) => ({ ...f, prioridade: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="alta">Alta</SelectItem><SelectItem value="media">Média</SelectItem><SelectItem value="baixa">Baixa</SelectItem></SelectContent></Select></div>
+        <div className="space-y-2"><Label>Escopo</Label><Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v as "private" | "family" | "business" }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="private">Pessoal</SelectItem><SelectItem value="family">Família</SelectItem><SelectItem value="business">Negócio</SelectItem></SelectContent></Select></div>
       </div>
-      <div className="space-y-2"><Label>Notas</Label>
-        <Textarea placeholder="Observações..." value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} rows={2} /></div>
-      <Button type="submit" className="w-full" disabled={submitting}>
-        {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />} 
-        {initialData ? "Salvar alterações" : "Criar meta"}
-      </Button>
+      <div className="space-y-2"><Label>Notas</Label><Textarea placeholder="Observações..." value={form.notas} onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))} rows={2} /></div>
+      <Button type="submit" className="w-full" disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{initialData ? "Salvar alterações" : "Criar meta"}</Button>
     </form>
   );
 }

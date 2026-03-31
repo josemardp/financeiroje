@@ -11,7 +11,7 @@ import { calculateMonthlySummary, filterOfficialTransactions } from "@/services/
 import type { TransactionRaw } from "@/services/financeEngine/types";
 import { SCOPE_LABELS } from "@/lib/constants";
 import { toast } from "sonner";
-import { Download, FileSpreadsheet, BarChart3, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
 export default function Reports() {
   const { user } = useAuth();
@@ -40,7 +40,7 @@ export default function Reports() {
   });
 
   const official = rawTransactions ? filterOfficialTransactions(rawTransactions) : [];
-  
+
   const { data: summary } = useQuery({
     queryKey: ["report-summary", official],
     queryFn: async () => {
@@ -50,10 +50,9 @@ export default function Reports() {
     enabled: official.length > 0,
   });
 
-  // Scope breakdown
   const scopeBreakdown = rawTransactions ? (() => {
     const scopes: Record<string, { income: number; expense: number }> = {};
-    filterOfficialTransactions(rawTransactions).forEach(t => {
+    filterOfficialTransactions(rawTransactions).forEach((t) => {
       const s = t.scope || "private";
       if (!scopes[s]) scopes[s] = { income: 0, expense: 0 };
       if (t.tipo === "income") scopes[s].income += t.valor;
@@ -66,20 +65,17 @@ export default function Reports() {
     if (!rawTransactions || rawTransactions.length === 0) {
       toast.error("Sem dados para exportar"); return;
     }
-    
+
     const toExport = onlyOfficial ? filterOfficialTransactions(rawTransactions) : rawTransactions;
-    
     if (toExport.length === 0) {
       toast.error("Sem dados para exportar com o filtro selecionado"); return;
     }
 
     const headers = ["Data", "Tipo", "Valor", "Descrição", "Categoria", "Escopo", "Status"];
-    const rows = toExport.map(t => [
-      t.data, t.tipo === "income" ? "Receita" : "Despesa", t.valor.toFixed(2),
-      t.descricao || "", t.categoria_nome || "", SCOPE_LABELS[t.scope || "private"] || "",
-      t.data_status || "confirmed",
+    const rows = toExport.map((t) => [
+      t.data, t.tipo === "income" ? "Receita" : "Despesa", t.valor.toFixed(2), t.descricao || "", t.categoria_nome || "", SCOPE_LABELS[t.scope || "private"] || "", t.data_status || "confirmed",
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -93,59 +89,48 @@ export default function Reports() {
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6">
       <PageHeader title="Relatórios" description="Resumos e exportações financeiras">
-        <Button onClick={exportCSV} variant="outline" disabled={!rawTransactions || rawTransactions.length === 0}>
-          <Download className="h-4 w-4 mr-1" /> Exportar CSV
+        <Button onClick={exportCSV} variant="outline" className="w-full sm:w-auto" disabled={!rawTransactions || rawTransactions.length === 0}>
+          <Download className="mr-1 h-4 w-4" /> Exportar CSV
         </Button>
       </PageHeader>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex gap-3">
-          <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="grid grid-cols-2 gap-3 sm:flex">
+          <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+            <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {months.map(m => <SelectItem key={m} value={String(m)}>{formatMonthYear(m, year).split(" ")[0]}</SelectItem>)}
+              {months.map((m) => <SelectItem key={m} value={String(m)}>{formatMonthYear(m, year).split(" ")[0]}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
-            <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+            <SelectTrigger className="w-full sm:w-[100px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {[now.getFullYear(), now.getFullYear() - 1].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              {[now.getFullYear(), now.getFullYear() - 1].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="onlyOfficial"
-            checked={onlyOfficial}
-            onChange={(e) => setOnlyOfficial(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-          />
-          <label htmlFor="onlyOfficial" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-            Apenas dados confirmados no CSV
-          </label>
-        </div>
+        <label htmlFor="onlyOfficial" className="flex items-start gap-3 rounded-lg border border-border/70 px-3 py-2 text-sm">
+          <input type="checkbox" id="onlyOfficial" checked={onlyOfficial} onChange={(e) => setOnlyOfficial(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+          <span className="leading-snug">Apenas dados confirmados no CSV</span>
+        </label>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : !summary ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">
-          Sem dados confirmados para {formatMonthYear(month, year)}.
-        </CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground">Sem dados confirmados para {formatMonthYear(month, year)}.</CardContent></Card>
       ) : (
         <>
-          {/* Monthly Summary */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Resumo Mensal — {formatMonthYear(month, year)}</CardTitle>
               <CardDescription>Dados confirmados ({summary.confirmedCount} transações)</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div><p className="text-xs text-muted-foreground">Receitas</p><p className="text-lg font-bold text-success">{formatCurrency(summary.totalIncome)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Despesas</p><p className="text-lg font-bold text-destructive">{formatCurrency(summary.totalExpense)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Saldo</p><p className={`text-lg font-bold ${summary.balance >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(summary.balance)}</p></div>
@@ -154,22 +139,21 @@ export default function Reports() {
             </CardContent>
           </Card>
 
-          {/* Category Breakdown */}
           {summary.expenseByCategory.length > 0 && (
             <Card>
               <CardHeader><CardTitle className="text-base">Despesas por Categoria</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {summary.expenseByCategory.map(cat => (
-                    <div key={cat.categoryId || "none"} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
-                      <div className="flex items-center gap-2">
+                  {summary.expenseByCategory.map((cat) => (
+                    <div key={cat.categoryId || "none"} className="flex flex-col gap-1.5 border-b border-border py-2 last:border-0 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-2">
                         <span>{cat.categoryIcon}</span>
-                        <span className="text-sm">{cat.categoryName}</span>
+                        <span className="min-w-0 text-sm break-words">{cat.categoryName}</span>
                         <span className="text-xs text-muted-foreground">({cat.count})</span>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between gap-3 sm:justify-end">
                         <span className="text-sm font-mono">{formatCurrency(cat.total)}</span>
-                        <span className="text-xs text-muted-foreground w-10 text-right">{cat.percentage.toFixed(0)}%</span>
+                        <span className="w-10 text-right text-xs text-muted-foreground">{cat.percentage.toFixed(0)}%</span>
                       </div>
                     </div>
                   ))}
@@ -178,21 +162,18 @@ export default function Reports() {
             </Card>
           )}
 
-          {/* Scope Breakdown */}
           {Object.keys(scopeBreakdown).length > 0 && (
             <Card>
               <CardHeader><CardTitle className="text-base">Resumo por Escopo</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {Object.entries(scopeBreakdown).map(([scope, vals]) => (
-                    <div key={scope} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                    <div key={scope} className="flex flex-col gap-2 border-b border-border py-1.5 last:border-0 sm:flex-row sm:items-center sm:justify-between">
                       <span className="text-sm font-medium">{SCOPE_LABELS[scope] || scope}</span>
-                      <div className="flex gap-6 text-sm font-mono">
+                      <div className="flex flex-wrap gap-4 text-sm font-mono sm:justify-end sm:gap-6">
                         <span className="text-success">+{formatCurrency(vals.income)}</span>
                         <span className="text-destructive">-{formatCurrency(vals.expense)}</span>
-                        <span className={vals.income - vals.expense >= 0 ? "text-success" : "text-destructive"}>
-                          {formatCurrency(vals.income - vals.expense)}
-                        </span>
+                        <span className={vals.income - vals.expense >= 0 ? "text-success" : "text-destructive"}>{formatCurrency(vals.income - vals.expense)}</span>
                       </div>
                     </div>
                   ))}
