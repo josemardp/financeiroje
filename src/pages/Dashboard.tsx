@@ -27,18 +27,18 @@ export default function Dashboard() {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-      
+
       let query = supabase
         .from("transactions")
         .select("id, valor, tipo, data, descricao, data_status, scope, source_type, confidence, e_mei, categoria_id, categories(nome, icone)")
         .gte("data", startOfMonth).lte("data", endOfMonth);
-      
+
       if (currentScope !== "all") {
         query = query.eq("scope", currentScope);
       }
-      
+
       const { data } = await query.order("data", { ascending: false });
-      
+
       return (data || []).map((t: any): TransactionRaw => ({
         id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data, descricao: t.descricao,
         categoria_id: t.categoria_id, categoria_nome: t.categories?.nome, categoria_icone: t.categories?.icone,
@@ -52,11 +52,11 @@ export default function Dashboard() {
     queryKey: ["dashboard-alerts", user?.id, currentScope],
     queryFn: async () => {
       let query = supabase.from("alerts").select("*").eq("lido", false);
-      
+
       if (currentScope !== "all") {
         query = query.eq("scope", currentScope);
       }
-      
+
       const { data } = await query.order("created_at", { ascending: false }).limit(5);
       return data || [];
     },
@@ -81,7 +81,6 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // Financial summaries via backend engine (async)
   const { data: summary } = useQuery<MonthlySummary>({
     queryKey: ["dashboard-summary", rawTransactions],
     queryFn: () => calculateMonthlySummary(rawTransactions!),
@@ -94,13 +93,9 @@ export default function Dashboard() {
     enabled: !!rawTransactions && rawTransactions.length > 0,
   });
 
-  // Recent transactions (top 5)
   const recentTransactions = rawTransactions ? rawTransactions.slice(0, 5) : [];
-
-  // Account balance summary
   const totalAccountBalance = (accounts || []).reduce((acc: number, curr: any) => acc + Number(curr.saldo_actual || curr.saldo_inicial || 0), 0);
 
-  // Profile preferences for reserve
   const prefs = (profile?.preferences || {}) as any;
   const reserveValue = Number(prefs.reserva_emergencia_valor || 0);
   const reserveConfigured = !!prefs.reserva_emergencia_valor;
@@ -110,8 +105,8 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <PageHeader title="Dashboard" description={`Visão geral (${scopeLabel})`} />
+      <div className="space-y=4 animate-fade-in sm:space-y-6">
+        <PageHeader title="Dashboard" description={`Vis�o geral (${scopeLabel})`} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}><CardContent className="p-5"><div className="h-20 bg-muted animate-pulse rounded-lg" /></CardContent></Card>
@@ -122,12 +117,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <PageHeader title={`Olá, ${profile?.nome || "Usuário"}`} description={`Visão geral (${scopeLabel})`}>
+    <div className="space-y=4 animate-fade-in sm:space-y-6">
+      <PageHeader title={`Olá, ${profile?.nome || "Usuário"}`} description={`Vis�o geral (${scopeLabel})`}>
         <Button asChild><Link to="/transacoes"><Plus className="h-4 w-4 mr-1" /> Nova transação</Link></Button>
       </PageHeader>
 
-      {/* KPIs — confirmed data only */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard title="Receitas" value={formatCurrency(summaryConfirmed?.totalIncome || 0)} icon={TrendingUp} variant="success" />
         <KpiCard title="Despesas" value={formatCurrency(summaryConfirmed?.totalExpense || 0)} icon={TrendingDown} variant="destructive" />
@@ -137,7 +131,6 @@ export default function Dashboard() {
           variant={summaryConfirmed && summaryConfirmed.savingsRate >= 20 ? "success" : "warning"} />
       </div>
 
-      {/* Accounts & Reserve */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {(accounts || []).length > 0 && (
           <Card>
@@ -182,9 +175,11 @@ export default function Dashboard() {
             <CardContent>
               <div className="space-y-2">
                 {(goalsAtRisk || []).slice(0, 3).map((g: any) => (
-                  <div key={g.id} className="flex justify-between text-sm">
-                    <span className="truncate">{g.nome}</span>
-                    <span className="text-muted-foreground">{formatCurrency(Number(g.valor_alvo) - Number(g.valor_atual || 0))} restante</span>
+                  <div key={g.id} className="flex items-start justify-between gap-2 text-sm">
+                    <span className="line-clamp-2 min-w-0 flex-1 leading-tight">{g.nome}</span>
+                    <span className="shrink-0 text-right text-xs text-muted-foreground">
+                      {formatCurrency(Number(g.valor_alvo) - Number(g.valor_atual || 0))} restante
+                    </span>
                   </div>
                 ))}
                 <Button variant="ghost" size="sm" asChild className="w-full"><Link to="/metas">Ver metas</Link></Button>
@@ -194,43 +189,40 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Data quality */}
       {summary && summary.suggestedCount > 0 && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-2">
+        <div className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-[11px] leading-4 text-muted-foreground sm:items-center sm:text-xs">
           <DataStatusBadge status="suggested" showLabel={false} />
-          <span>{summary.suggestedCount} transação(ões) sugerida(s) pendente(s) — não incluídas nos KPIs.</span>
+          <span>{summary.suggestedCount} transações)ões sugerida(s) pendente(s) — não incluídas nos KPIs.</span>
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent transactions */}
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Transações Recentes</CardTitle>
             <Button variant="ghost" size="sm" asChild><Link to="/transacoes">Ver todas</Link></Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {!hasData ? (
-              <EmptyState icon={ArrowLeftRight} title="Sem transações este mês" description="Comece registrando receitas e despesas.">
+              <EmptyState icon={ArrowLeftRight} title="Sem transações este mês" description="Começe registrando receitas e despesas.">
                 <Button asChild size="sm"><Link to="/transacoes"><Plus className="h-4 w-4 mr-1" /> Adicionar</Link></Button>
               </EmptyState>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {recentTransactions.map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex items-start justify-between gap-3 py-2 border-b border-border last:border-0 sm:items-center"
+                  <div key={t.id}
+                    className="flex items-start justify-between gap-3 border-b border-border py-2 last:border-0 sm:items-center"
                   >
                     <div className="flex min-w-0 items-start gap-3">
                       <span className="shrink-0 text-lg">{t.categoria_icone || "📋"}</span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{t.descricao || t.categoria_nome || "Sem descrição"}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(t.data)}</p>
+                      <div className="min-w-0 max-w-[11rem] sm:max-w-none">
+                        <p className="truncate text-sm font-medium leading-tight">{t.descricao || t.categoria_nome || "Sem descrição"}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">{formatDate(t.data)}</p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                    <div className="flex shrink-0 flex-col items-end gap-1 pl-2 sm:flex-row sm:items-center sm:gap-2">
                       <DataStatusBadge status={t.data_status || "confirmed"} showLabel={false} />
-                      <span className={`text-right text-sm font-mono font-semibold leading-tight ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
+                      <span className={`max-w-[7.5rem] truncate text-right text-sm font-mono font-semibold leading-tight ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
                         {t.tipo === "income" ? "+" : "-"}{formatCurrency(t.valor)}
                       </span>
                     </div>
@@ -241,7 +233,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Alerts */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Alertas</CardTitle>
@@ -254,13 +245,13 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground">Nenhum alerta pendente</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {unreadAlerts.map((alert: any) => (
-                  <div key={alert.id} className="flex items-start gap-2 rounded-lg bg-muted/50 p-2.5">
+                  <div key={alert.id} className="flex items-start gap-2 rounded-lg bg-muted/50 px-2.5 py-2">
                     <Bell className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{alert.titulo}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">{alert.mensagem}</p>
+                      <p className="truncate text-sm font-medium leading-tight">{alert.titulo}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground break-words">{alert.mensagem}</p>
                     </div>
                   </div>
                 ))}
@@ -270,7 +261,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Expense by category — HARDENING: uses confirmed-only data */}
       {summaryConfirmed && summaryConfirmed.expenseByCategory.length > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Despesas por Categoria (dados oficiais)</CardTitle></CardHeader>
@@ -285,7 +275,7 @@ export default function Dashboard() {
                       <span className="font-mono text-muted-foreground">{formatCurrency(cat.total)}</span>
                     </div>
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, cat.percentage)}%` }} />
+                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, cat.percentage)}%`}} />
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground w-10 text-right">{cat.percentage.toFixed(0)}%</span>
