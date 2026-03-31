@@ -34,6 +34,8 @@ export default function Transactions() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<any | null>(null);
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
+  const [hardDeletingId, setHardDeletingId] = useState<string | null>(null);
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
