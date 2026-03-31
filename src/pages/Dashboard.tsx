@@ -217,17 +217,20 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-2">
                 {recentTransactions.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-lg">{t.categoria_icone || "📋"}</span>
+                  <div
+                    key={t.id}
+                    className="flex items-start justify-between gap-3 py-2 border-b border-border last:border-0 sm:items-center"
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="shrink-0 text-lg">{t.categoria_icone || "📋"}</span>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{t.descricao || t.categoria_nome || "Sem descrição"}</p>
+                        <p className="truncate text-sm font-medium">{t.descricao || t.categoria_nome || "Sem descrição"}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(t.data)}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                       <DataStatusBadge status={t.data_status || "confirmed"} showLabel={false} />
-                      <span className={`text-sm font-mono font-semibold ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
+                      <span className={`text-right text-sm font-mono font-semibold leading-tight ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
                         {t.tipo === "income" ? "+" : "-"}{formatCurrency(t.valor)}
                       </span>
                     </div>
@@ -253,11 +256,11 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-3">
                 {unreadAlerts.map((alert: any) => (
-                  <div key={alert.id} className="flex gap-2 p-2 rounded-lg bg-muted/50">
-                    <Bell className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">{alert.titulo}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{alert.mensagem}</p>
+                  <div key={alert.id} className="flex items-start gap-2 rounded-lg bg-muted/50 p-2.5">
+                    <Bell className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{alert.titulo}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">{alert.mensagem}</p>
                     </div>
                   </div>
                 ))}
