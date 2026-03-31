@@ -22,6 +22,7 @@ export type Database = {
           icone: string | null
           id: string
           nome: string
+          saldo_atual: number | null
           saldo_inicial: number
           scope: Database["public"]["Enums"]["scope_type"] | null
           tipo: string
@@ -35,6 +36,7 @@ export type Database = {
           icone?: string | null
           id?: string
           nome: string
+          saldo_atual?: number | null
           saldo_inicial?: number
           scope?: Database["public"]["Enums"]["scope_type"] | null
           tipo?: string
@@ -48,6 +50,7 @@ export type Database = {
           icone?: string | null
           id?: string
           nome?: string
+          saldo_atual?: number | null
           saldo_inicial?: number
           scope?: Database["public"]["Enums"]["scope_type"] | null
           tipo?: string
@@ -166,9 +169,93 @@ export type Database = {
         }
         Relationships: []
       }
+      asset_valuations: {
+        Row: {
+          asset_id: string
+          created_at: string
+          data_referencia: string
+          id: string
+          valor: number
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          data_referencia?: string
+          id?: string
+          valor: number
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          data_referencia?: string
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_valuations_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          data_aquisicao: string | null
+          detalhes: Json | null
+          id: string
+          instituicao: string | null
+          liquidez: string | null
+          nome: string
+          tipo: string
+          updated_at: string
+          user_id: string
+          valor_aquisicao: number
+          valor_atual: number
+          vencimento: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          data_aquisicao?: string | null
+          detalhes?: Json | null
+          id?: string
+          instituicao?: string | null
+          liquidez?: string | null
+          nome: string
+          tipo?: string
+          updated_at?: string
+          user_id: string
+          valor_aquisicao?: number
+          valor_atual?: number
+          vencimento?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          data_aquisicao?: string | null
+          detalhes?: Json | null
+          id?: string
+          instituicao?: string | null
+          liquidez?: string | null
+          nome?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+          valor_aquisicao?: number
+          valor_atual?: number
+          vencimento?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
+          context: string | null
           created_at: string
           id: string
           new_data: Json | null
@@ -179,6 +266,7 @@ export type Database = {
         }
         Insert: {
           action: string
+          context?: string | null
           created_at?: string
           id?: string
           new_data?: Json | null
@@ -189,6 +277,7 @@ export type Database = {
         }
         Update: {
           action?: string
+          context?: string | null
           created_at?: string
           id?: string
           new_data?: Json | null
@@ -677,6 +766,36 @@ export type Database = {
         }
         Relationships: []
       }
+      mei_settings: {
+        Row: {
+          alerta_threshold_percent: number | null
+          ano_referencia: number
+          created_at: string
+          id: string
+          limite_anual: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alerta_threshold_percent?: number | null
+          ano_referencia: number
+          created_at?: string
+          id?: string
+          limite_anual?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alerta_threshold_percent?: number | null
+          ano_referencia?: number
+          created_at?: string
+          id?: string
+          limite_anual?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       monthly_closings: {
         Row: {
           ano: number
@@ -686,6 +805,9 @@ export type Database = {
           id: string
           mes: number
           pendencias: Json | null
+          reaberto_em: string | null
+          reaberto_por: string | null
+          reabertura_motivo: string | null
           resumo: string | null
           saldo: number | null
           status: Database["public"]["Enums"]["closing_status"] | null
@@ -702,6 +824,9 @@ export type Database = {
           id?: string
           mes: number
           pendencias?: Json | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          reabertura_motivo?: string | null
           resumo?: string | null
           saldo?: number | null
           status?: Database["public"]["Enums"]["closing_status"] | null
@@ -718,6 +843,9 @@ export type Database = {
           id?: string
           mes?: number
           pendencias?: Json | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          reabertura_motivo?: string | null
           resumo?: string | null
           saldo?: number | null
           status?: Database["public"]["Enums"]["closing_status"] | null
@@ -876,12 +1004,21 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          annual_amount: number | null
+          billing_day: number | null
           categoria_id: string | null
           created_at: string
           data_cobranca: number | null
+          detection_method: string | null
+          frequency: string | null
           id: string
+          last_amount: number | null
+          last_charge_date: string | null
+          next_charge_date: string | null
           nome_servico: string
           observacoes: string | null
+          origin: string | null
+          renewal_date: string | null
           scope: Database["public"]["Enums"]["scope_type"] | null
           status: Database["public"]["Enums"]["subscription_status"] | null
           updated_at: string
@@ -889,12 +1026,21 @@ export type Database = {
           valor_mensal: number
         }
         Insert: {
+          annual_amount?: number | null
+          billing_day?: number | null
           categoria_id?: string | null
           created_at?: string
           data_cobranca?: number | null
+          detection_method?: string | null
+          frequency?: string | null
           id?: string
+          last_amount?: number | null
+          last_charge_date?: string | null
+          next_charge_date?: string | null
           nome_servico: string
           observacoes?: string | null
+          origin?: string | null
+          renewal_date?: string | null
           scope?: Database["public"]["Enums"]["scope_type"] | null
           status?: Database["public"]["Enums"]["subscription_status"] | null
           updated_at?: string
@@ -902,12 +1048,21 @@ export type Database = {
           valor_mensal: number
         }
         Update: {
+          annual_amount?: number | null
+          billing_day?: number | null
           categoria_id?: string | null
           created_at?: string
           data_cobranca?: number | null
+          detection_method?: string | null
+          frequency?: string | null
           id?: string
+          last_amount?: number | null
+          last_charge_date?: string | null
+          next_charge_date?: string | null
           nome_servico?: string
           observacoes?: string | null
+          origin?: string | null
+          renewal_date?: string | null
           scope?: Database["public"]["Enums"]["scope_type"] | null
           status?: Database["public"]["Enums"]["subscription_status"] | null
           updated_at?: string
@@ -935,6 +1090,8 @@ export type Database = {
           created_by: string | null
           data: string
           data_status: Database["public"]["Enums"]["data_status"] | null
+          deleted_at: string | null
+          deleted_by: string | null
           descricao: string | null
           e_mei: boolean | null
           emprestimo_id: string | null
@@ -959,6 +1116,8 @@ export type Database = {
           created_by?: string | null
           data?: string
           data_status?: Database["public"]["Enums"]["data_status"] | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           descricao?: string | null
           e_mei?: boolean | null
           emprestimo_id?: string | null
@@ -983,6 +1142,8 @@ export type Database = {
           created_by?: string | null
           data?: string
           data_status?: Database["public"]["Enums"]["data_status"] | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           descricao?: string | null
           e_mei?: boolean | null
           emprestimo_id?: string | null
@@ -1026,7 +1187,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_transaction_trash: {
+        Args: never
+        Returns: {
+          data: string
+          deleted_at: string
+          descricao: string
+          expires_at: string
+          id: string
+          tipo: string
+          valor: number
+        }[]
+      }
+      get_user_familia_id: { Args: { _user_id: string }; Returns: string }
+      hard_delete_transaction: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
+      purge_expired_deleted_transactions: { Args: never; Returns: undefined }
+      restore_transaction: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       ai_message_role: "user" | "assistant" | "system"
