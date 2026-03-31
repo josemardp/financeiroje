@@ -18,7 +18,11 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/constants";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ArrowLeftRight, Search, Filter, Trash2, Pencil, Loader2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, ArrowLeftRight, Search, Filter, Trash2, Pencil, Loader2, ShieldAlert } from "lucide-react";
 
 export default function Transactions() {
   const { user } = useAuth();
