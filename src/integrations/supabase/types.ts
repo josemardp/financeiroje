@@ -1090,6 +1090,8 @@ export type Database = {
           created_by: string | null
           data: string
           data_status: Database["public"]["Enums"]["data_status"] | null
+          deleted_at: string | null
+          deleted_by: string | null
           descricao: string | null
           e_mei: boolean | null
           emprestimo_id: string | null
@@ -1114,6 +1116,8 @@ export type Database = {
           created_by?: string | null
           data?: string
           data_status?: Database["public"]["Enums"]["data_status"] | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           descricao?: string | null
           e_mei?: boolean | null
           emprestimo_id?: string | null
@@ -1138,6 +1142,8 @@ export type Database = {
           created_by?: string | null
           data?: string
           data_status?: Database["public"]["Enums"]["data_status"] | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           descricao?: string | null
           e_mei?: boolean | null
           emprestimo_id?: string | null
@@ -1181,7 +1187,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_transaction_trash: {
+        Args: never
+        Returns: {
+          data: string
+          deleted_at: string
+          descricao: string
+          expires_at: string
+          id: string
+          tipo: string
+          valor: number
+        }[]
+      }
       get_user_familia_id: { Args: { _user_id: string }; Returns: string }
+      hard_delete_transaction: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
+      purge_expired_deleted_transactions: { Args: never; Returns: undefined }
+      restore_transaction: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       ai_message_role: "user" | "assistant" | "system"
