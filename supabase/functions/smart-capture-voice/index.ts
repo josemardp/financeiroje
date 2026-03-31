@@ -1,5 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// ── Rate limiting (in-memory, per-isolate — resets on cold start) ──
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 10; // max requests per window per user
+const RATE_WINDOW_MS = 60_000; // 1 minute
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT;
+}
+
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 const ALLOWED_AUDIO_TYPES = new Set([
   "audio/webm",
@@ -132,6 +148,22 @@ serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return json({ error: "Unauthorized" }, 401);
+  }
+
+  // Extract user ID from JWT for rate limiting (decode payload without verification — auth is already validated by Supabase)
+  let userId = "anonymous";
+  try {
+    const token = authHeader.replace("Bearer ", "");
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.sub) userId = payload.sub;
+  } catch { /* fallback to anonymous */ }
+
+  if (!checkRateLimit(userId)) {
+    return json({
+      ok: false,
+      code: "VOICE_RATE_LIMITED",
+      message: "Limite de requisições de voz excedido. Aguarde um momento antes de tentar novamente.",
+    }, 429);
   }
 
   const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
