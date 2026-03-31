@@ -173,26 +173,31 @@ export default function Transactions() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader title="Transações" description={`Histórico de lançamentos (${scopeLabel})`}>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" /> Nova transação</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Nova Transação</DialogTitle>
-            </DialogHeader>
-            <NewTransactionForm 
-              categories={categories || []} 
-              onSuccess={() => {
-                setIsOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["transactions"] });
-                queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
-                queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
-                queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
-              }} 
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setIsTrashOpen(true)}>
+            <Trash2 className="h-4 w-4" /> Lixeira
+          </Button>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2"><Plus className="h-4 w-4" /> Nova transação</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Nova Transação</DialogTitle>
+              </DialogHeader>
+              <NewTransactionForm 
+                categories={categories || []} 
+                onSuccess={() => {
+                  setIsOpen(false);
+                  queryClient.invalidateQueries({ queryKey: ["transactions"] });
+                  queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+                  queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+                  queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
+                }} 
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-4">
