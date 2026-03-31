@@ -59,18 +59,17 @@ Object.defineProperty(global, "Blob", {
 });
 
 // Mocking FileReader
-class MockFileReader {
-  onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
-  onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
-  result: string | ArrayBuffer | null = null;
-
+const MockFileReader = vi.fn().mockImplementation(() => ({
+  onload: null as any,
+  onerror: null as any,
+  result: null as any,
   readAsDataURL(blob: Blob) {
-    this.result = `data:${blob.type};base64,SGVsbG8gV29ybGQ=`; // Mock base64 content
+    this.result = `data:${blob.type};base64,SGVsbG8gV29ybGQ=`;
     if (this.onload) {
       this.onload(new ProgressEvent('load'));
     }
-  }
-}
+  },
+}));
 
 Object.defineProperty(global, "FileReader", {
   value: MockFileReader,
