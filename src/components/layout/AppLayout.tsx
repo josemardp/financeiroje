@@ -2,7 +2,6 @@ import { Outlet, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { ScopeSwitcher } from "./ScopeSwitcher";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { PwaInstallBanner } from "@/components/pwa/PwaInstallBanner";
 
 export function AppLayout() {
@@ -36,7 +35,6 @@ export function AppLayout() {
 
             <div className="flex items-center gap-2">
               <ScopeSwitcher />
-              <ThemeToggle />
             </div>
           </header>
 
