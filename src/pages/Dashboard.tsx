@@ -13,8 +13,16 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { calculateMonthlySummary, filterOfficialTransactions } from "@/services/financeEngine";
 import type { TransactionRaw, MonthlySummary } from "@/services/financeEngine/types";
 import {
-  DollarSign, TrendingUp, TrendingDown, PiggyBank, ArrowLeftRight,
-  Plus, Bell, Landmark, Shield, AlertTriangle,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  PiggyBank,
+  ArrowLeftRight,
+  Plus,
+  Bell,
+  Landmark,
+  Shield,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -40,9 +48,19 @@ export default function Dashboard() {
       const { data } = await query.order("data", { ascending: false });
 
       return (data || []).map((t: any): TransactionRaw => ({
-        id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data, descricao: t.descricao,
-        categoria_id: t.categoria_id, categoria_nome: t.categories?.nome, categoria_icone: t.categories?.icone,
-        scope: t.scope, data_status: t.data_status, source_type: t.source_type, confidence: t.confidence, e_mei: t.e_mei,
+        id: t.id,
+        valor: Number(t.valor),
+        tipo: t.tipo,
+        data: t.data,
+        descricao: t.descricao,
+        categoria_id: t.categoria_id,
+        categoria_nome: t.categories?.nome,
+        categoria_icone: t.categories?.icone,
+        scope: t.scope,
+        data_status: t.data_status,
+        source_type: t.source_type,
+        confidence: t.confidence,
+        e_mei: t.e_mei,
       }));
     },
     enabled: !!user,
@@ -106,7 +124,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="space-y=4 animate-fade-in sm:space-y-6">
-        <PageHeader title="Dashboard" description={`Vis�o geral (${scopeLabel})`} />
+        <PageHeader title="Dashboard" description={`Visão geral (${scopeLabel})`} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}><CardContent className="p-5"><div className="h-20 bg-muted animate-pulse rounded-lg" /></CardContent></Card>
@@ -117,26 +135,42 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y=4 animate-fade-in sm:space-y-6">
-      <PageHeader title={`Olá, ${profile?.nome || "Usuário"}`} description={`Vis�o geral (${scopeLabel})`}>
-        <Button asChild><Link to="/transacoes"><Plus className="h-4 w-4 mr-1" /> Nova transação</Link></Button>
+    <div className="space-y-4 animate-fade-in sm:space-y-6">
+      <PageHeader title={`Olá, ${profile?.nome || "Usuário"}`} description={`Visão geral (${scopeLabel})`}>
+        <Button asChild>
+          <Link to="/transacoes">
+            <Plus className="h-4 w-4 mr-1" /> Nova transação
+          </Link>
+        </Button>
       </PageHeader>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard title="Receitas" value={formatCurrency(summaryConfirmed?.totalIncome || 0)} icon={TrendingUp} variant="success" />
         <KpiCard title="Despesas" value={formatCurrency(summaryConfirmed?.totalExpense || 0)} icon={TrendingDown} variant="destructive" />
-        <KpiCard title="Saldo Líquido do Mês" value={formatCurrency(summaryConfirmed?.balance || 0)} icon={DollarSign}
-          variant={summaryConfirmed && summaryConfirmed.balance >= 0 ? "success" : "destructive"} />
-        <KpiCard title="Taxa de Economia" value={`${(summaryConfirmed?.savingsRate || 0).toFixed(1)}%`} icon={PiggyBank}
-          variant={summaryConfirmed && summaryConfirmed.savingsRate >= 20 ? "success" : "warning"} />
+        <KpiCard
+          title="Saldo Líquido do Mês"
+          value={formatCurrency(summaryConfirmed?.balance || 0)}
+          icon={DollarSign}
+          variant={summaryConfirmed && summaryConfirmed.balance >= 0 ? "success" : "destructive"}
+        />
+        <KpiCard
+          title="Taxa de Economia"
+          value={`${(summaryConfirmed?.savingsRate || 0).toFixed(1)}%`}
+          icon={PiggyBank}
+          variant={summaryConfirmed && summaryConfirmed.savingsRate >= 20 ? "success" : "warning"}
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {(accounts || []).length > 0 && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base flex items-center gap-2"><Landmark className="h-4 w-4" /> Saldo das Contas</CardTitle>
-              <Button variant="ghost" size="sm" asChild><Link to="/contas">Ver</Link></Button>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Landmark className="h-4 w-4" /> Saldo das Contas
+              </CardTitle>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/contas">Ver</Link>
+              </Button>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold font-mono">{formatCurrency(totalAccountBalance)}</p>
@@ -148,7 +182,9 @@ export default function Dashboard() {
         {reserveConfigured && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Reserva de Emergência</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Shield className="h-4 w-4" /> Reserva de Emergência
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold font-mono">{formatCurrency(reserveValue)}</p>
@@ -170,7 +206,9 @@ export default function Dashboard() {
         {(goalsAtRisk || []).length > 0 && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2 text-warning"><AlertTriangle className="h-4 w-4" /> Metas em Risco</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2 text-warning">
+                <AlertTriangle className="h-4 w-4" /> Metas em Risco
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -182,7 +220,9 @@ export default function Dashboard() {
                     </span>
                   </div>
                 ))}
-                <Button variant="ghost" size="sm" asChild className="w-full"><Link to="/metas">Ver metas</Link></Button>
+                <Button variant="ghost" size="sm" asChild className="w-full">
+                  <Link to="/metas">Ver metas</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -190,9 +230,9 @@ export default function Dashboard() {
       </div>
 
       {summary && summary.suggestedCount > 0 && (
-        <div className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-[11px] leading-4 text-muted-foreground sm:items-center sm:text-xs">
+        <div className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text[11px] leading-4 text-muted-foreground sm:items-center sm:text-xs">
           <DataStatusBadge status="suggested" showLabel={false} />
-          <span>{summary.suggestedCount} transações)ões sugerida(s) pendente(s) — não incluídas nos KPIs.</span>
+          <span>{summary.suggestedCount} transações sugerida(s) pendente(s) — não incluídas nos KPI.</span>
         </div>
       )}
 
@@ -200,29 +240,36 @@ export default function Dashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Transações Recentes</CardTitle>
-            <Button variant="ghost" size="sm" asChild><Link to="/transacoes">Ver todas</Link></Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/transacoes">Ver todas</Link>
+            </Button>
           </CardHeader>
           <CardContent className="pt-0">
             {!hasData ? (
               <EmptyState icon={ArrowLeftRight} title="Sem transações este mês" description="Começe registrando receitas e despesas.">
-                <Button asChild size="sm"><Link to="/transacoes"><Plus className="h-4 w-4 mr-1" /> Adicionar</Link></Button>
+                <Button asChild size="sm">
+                  <Link to="/transacoes"><Plus className="h-4 w-4 mr-1" /> Adicionar</Link>
+                </Button>
               </EmptyState>
             ) : (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {recentTransactions.map((t) => (
-                  <div key={t.id}
+                  <div
+                    key={t.id}
                     className="flex items-start justify-between gap-3 border-b border-border py-2 last:border-0 sm:items-center"
                   >
                     <div className="flex min-w-0 items-start gap-3">
-                      <span className="shrink-0 text-lg">{t.categoria_icone || "📋"}</span>
+                      <span className="shrink-0 text-lg">{t.categoria_icone || "📋쀈"}</span>
                       <div className="min-w-0 max-w-[11rem] sm:max-w-none">
-                        <p className="truncate text-sm font-medium leading-tight">{t.descricao || t.categoria_nome || "Sem descrição"}</p>
+                        <p className="line-clamp-2 text-sm font-medium leading-tight">{t.descricao || t.categoria_nome || "Sem descrigão"}</p>
                         <p className="truncate text-[11px] text-muted-foreground">{formatDate(t.data)}</p>
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1 pl-2 sm:flex-row sm:items-center sm:gap-2">
                       <DataStatusBadge status={t.data_status || "confirmed"} showLabel={false} />
-                      <span className={`max-w-[7.5rem] truncate text-right text-sm font-mono font-semibold leading-tight ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
+                      <span
+                        className={`max-w-[7.5rem] truncate text-right text-sm font-mono font-semibold leading-tight ${t.tipo === "income" ? "text-success" : "text-destructive"}`}
+                      >
                         {t.tipo === "income" ? "+" : "-"}{formatCurrency(t.valor)}
                       </span>
                     </div>
@@ -236,7 +283,9 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Alertas</CardTitle>
-            <Button variant="ghost" size="sm" asChild><Link to="/alertas">Ver todos</Link></Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/alertas">Ver todos</Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {(!unreadAlerts || unreadAlerts.length === 0) ? (
@@ -245,13 +294,15 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground">Nenhum alerta pendente</p>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {unreadAlerts.map((alert: any) => (
                   <div key={alert.id} className="flex items-start gap-2 rounded-lg bg-muted/50 px-2.5 py-2">
                     <Bell className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium leading-tight">{alert.titulo}</p>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground break-words">{alert.mensagem}</p>
+                      <p className="mt-px line-clamp-2 text-[11px] leading-[1.15rem] text-muted-foreground break-words">
+                        {alert.mensagem}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -263,7 +314,9 @@ export default function Dashboard() {
 
       {summaryConfirmed && summaryConfirmed.expenseByCategory.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Despesas por Categoria (dados oficiais)</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Despesas por Categoria (dados oficiais)</CardTitle>
+          </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {summaryConfirmed.expenseByCategory.slice(0, 6).map((cat) => (
