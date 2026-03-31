@@ -35,7 +35,6 @@ export function AppLayout() {
 
             <div className="flex items-center gap-2">
               <ScopeSwitcher />
-              <ThemeToggle />
             </div>
           </header>
 
