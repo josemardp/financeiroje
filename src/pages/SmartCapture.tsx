@@ -148,7 +148,7 @@ export default function SmartCapture() {
   useEffect(() => {
     if (voiceResult) {
       setTextInput(voiceResult.text);
-      handleParse(voiceResult.text, "voice");
+      handleParse(voiceResult.text, "voice", voiceResult.metadata);
       resetVoice();
     }
   }, [voiceResult]);
@@ -170,7 +170,7 @@ export default function SmartCapture() {
         data: parsed.data,
         categoriaSugerida: parsed.categoriaSugerida,
         escopo: parsed.escopo,
-        confianca: parsed.confianca,
+        confianca: voiceResult?.confidence || ocrResult?.confidence || parsed.confianca,
         textoOriginal: parsed.textoOriginal,
       }
     : null;
@@ -195,10 +195,13 @@ export default function SmartCapture() {
 
     const result = parseTransactionText(textToParse);
 
-    if (source === "photo_ocr" && ocrMetadata) {
+    if ((source === "photo_ocr" && ocrMetadata) || (source === "voice" && ocrMetadata)) {
       if (ocrMetadata.totalAmount !== undefined) result.valor = ocrMetadata.totalAmount;
+      if (ocrMetadata.valor !== undefined) result.valor = ocrMetadata.valor;
       if (ocrMetadata.date) result.data = ocrMetadata.date;
+      if (ocrMetadata.data) result.data = ocrMetadata.data;
       if (ocrMetadata.merchantName) result.descricao = ocrMetadata.merchantName;
+      if (ocrMetadata.descricao) result.descricao = ocrMetadata.descricao;
       if (ocrMetadata.tipo) result.tipo = ocrMetadata.tipo;
       if (ocrMetadata.categoria) result.categoriaSugerida = ocrMetadata.categoria;
       result.warnings = mergeUniqueWarnings(result.warnings, ocrMetadata.warnings);
@@ -273,7 +276,7 @@ export default function SmartCapture() {
       scope: editForm.scope as any,
       data_status: "confirmed" as any,
       source_type: editForm.source_type as any,
-      confidence: (parsed?.confianca || "media") as any,
+      confidence: (voiceResult?.confidence || ocrResult?.confidence || parsed?.confianca || "media") as any,
       created_by: user.id,
       updated_by: user.id,
       validation_notes: JSON.stringify(baseValidationPayload),
