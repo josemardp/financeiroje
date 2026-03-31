@@ -210,10 +210,10 @@ export default function Transactions() {
                 <div key={t.id} className={`flex items-center justify-between p-4 transition-colors ${
                   t.data_status === "confirmed" ? "hover:bg-muted/30" : "bg-yellow-50/50 dark:bg-yellow-950/10 hover:bg-yellow-100/50 dark:hover:bg-yellow-950/20"
                 }`}>
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
                     <span className="text-xl shrink-0">{t.categories?.icone || "📋"}</span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{t.descricao || t.categories?.nome || "Sem descrição"}</p>
+                    <div className="min-w-0 max-w-full">
+                      <p className="text-sm font-medium truncate max-w-[40ch] sm:max-w-[60ch]" title={t.descricao || t.categories?.nome || "Sem descrição"}>{t.descricao || t.categories?.nome || "Sem descrição"}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-xs text-muted-foreground">{formatDate(t.data)}</span>
                         <DataStatusBadge status={t.data_status} showLabel={true} />
