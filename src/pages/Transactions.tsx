@@ -22,7 +22,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, ArrowLeftRight, Search, Filter, Trash2, Pencil, Loader2, ShieldAlert } from "lucide-react";
+import { Plus, ArrowLeftRight, Search, Filter, Trash2, Pencil, Loader2, ShieldAlert, RotateCcw } from "lucide-react";
 
 export default function Transactions() {
   const { user } = useAuth();
