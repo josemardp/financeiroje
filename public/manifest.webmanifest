@@ -1,13 +1,16 @@
 {
+  "id": "/",
   "name": "FinanceAI",
   "short_name": "FinanceAI",
-  "description": "Assistente Pessoal de Finanças do Casal",
+  "description": "Assistente pessoal de finanças do casal",
+  "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
-  "orientation": "portrait",
+  "categories": ["finance", "productivity"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
