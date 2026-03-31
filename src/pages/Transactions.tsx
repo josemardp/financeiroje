@@ -340,16 +340,16 @@ export default function Transactions() {
             </CardContent>
           </Card>
 
-          {/* Delete confirmation dialog */}
+          {/* Delete confirmation dialog — soft delete (lixeira) */}
           <AlertDialog open={!!deletingTransaction} onOpenChange={(open) => !open && setDeletingTransaction(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-                  <ShieldAlert className="h-5 w-5" />
-                  Excluir transação permanentemente?
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <Trash2 className="h-5 w-5 text-muted-foreground" />
+                  Mover transação para a lixeira?
                 </AlertDialogTitle>
                 <AlertDialogDescription className="space-y-2">
-                  <span className="block">Esta ação <strong>não pode ser desfeita</strong>. A transação será removida de todos os cálculos e relatórios.</span>
+                  <span className="block">A transação poderá ser restaurada por até <strong>30 dias</strong>. Após esse período, será excluída automaticamente.</span>
                   {deletingTransaction && (
                     <span className="block rounded-md bg-muted p-3 text-sm font-mono">
                       {deletingTransaction.tipo === "income" ? "+" : "-"}{formatCurrency(Number(deletingTransaction.valor))}
@@ -372,13 +372,86 @@ export default function Transactions() {
                     }
                   }}
                 >
-                  Sim, excluir
+                  Mover para lixeira
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </>
       )}
+
+      {/* Trash dialog */}
+      <Dialog open={isTrashOpen} onOpenChange={setIsTrashOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-muted-foreground" />
+              Lixeira de Transações
+            </DialogTitle>
+          </DialogHeader>
+
+          {isTrashLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : !trashItems || trashItems.length === 0 ? (
+            <EmptyState icon={Trash2} title="Lixeira vazia" description="Nenhuma transação deletada nos últimos 30 dias." />
+          ) : (
+            <div className="divide-y divide-border rounded-md border">
+              {trashItems.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between p-3 gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate max-w-[30ch] sm:max-w-[40ch]" title={t.descricao || "Sem descrição"}>
+                      {t.descricao || "Sem descrição"}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                      <span className={`font-mono font-bold ${t.tipo === "income" ? "text-success" : "text-destructive"}`}>
+                        {t.tipo === "income" ? "+" : "-"}{formatCurrency(Number(t.valor))}
+                      </span>
+                      <span>Data: {formatDate(t.data)}</span>
+                      {t.deleted_at && <span>Excluído: {formatDate(t.deleted_at)}</span>}
+                      {t.expires_at && <span>Expira: {formatDate(t.expires_at)}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => restoreMutation.mutate(t.id)} title="Restaurar"
+                      disabled={restoreMutation.isPending}>
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setHardDeletingId(t.id)} title="Excluir definitivamente">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Hard delete confirmation */}
+      <AlertDialog open={!!hardDeletingId} onOpenChange={(open) => !open && setHardDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Excluir transação permanentemente?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação <strong>não pode ser desfeita</strong>. A transação será removida definitivamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (hardDeletingId) hardDeleteMutation.mutate(hardDeletingId); }}
+            >
+              Sim, excluir definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
