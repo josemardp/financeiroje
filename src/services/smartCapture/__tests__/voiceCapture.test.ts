@@ -111,7 +111,7 @@ describe("VoiceAdapter", () => {
       error: null,
     };
 
-    (supabase.functions.invoke as vi.Mock).mockResolvedValue(mockResponse);
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
 
     const result = await VoiceAdapter.transcribe(mockAudioBlob);
 
