@@ -290,31 +290,31 @@ export default function SmartCapture() {
               </div>
             )}
 
-            {mode === "photo" && (
+            {mode === "file" && (
               <div className="flex flex-col items-center space-y-4 rounded-xl border-2 border-dashed border-muted py-8">
-                <div className={`rounded-full bg-muted p-6 ${isOcrProcessing ? "animate-pulse" : ""}`}>
-                  {isOcrProcessing ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <ImageIcon className="h-12 w-12 text-muted-foreground" />}
+                <div className={`rounded-full bg-muted p-6 ${isOcrProcessing || isExtractingFile ? "animate-pulse" : ""}`}>
+                  {isOcrProcessing || isExtractingFile ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <Paperclip className="h-12 w-12 text-muted-foreground" />}
                 </div>
                 <div className="px-4 text-center">
-                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : "Selecione uma foto ou recibo"}</p>
-                  <p className="text-sm text-muted-foreground">Formatos suportados: JPG, PNG. Extração via OCR inteligente.</p>
+                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : isExtractingFile ? "Lendo documento..." : "Selecione um arquivo"}</p>
+                  <p className="text-sm text-muted-foreground">Formatos: JPG, PNG, PDF, DOCX, XLSX</p>
                 </div>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.pdf,.docx,.xlsx,.xls"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
-                  disabled={isOcrProcessing}
+                  disabled={isOcrProcessing || isExtractingFile}
                 />
                 <Button
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isOcrProcessing}
+                  disabled={isOcrProcessing || isExtractingFile}
                   variant="outline"
                   size="lg"
                   className="w-full sm:w-auto"
                 >
-                  <Camera className="mr-2 h-4 w-4" /> Escolher Foto
+                  <Paperclip className="mr-2 h-4 w-4" /> Escolher Arquivo
                 </Button>
               </div>
             )}
