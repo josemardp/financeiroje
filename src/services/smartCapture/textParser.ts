@@ -38,8 +38,48 @@ function isValidCalendarDate(year: number, month: number, day: number) {
   );
 }
 
+function parseLocalizedAmount(raw: string) {
+  const cleaned = raw
+    .replace(/R\$/gi, "")
+    .replace(/\s+/g, "")
+    .trim();
+
+  if (!cleaned) return null;
+
+  let normalized = cleaned;
+  if (cleaned.includes(",") && cleaned.includes(".")) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else if (cleaned.includes(",")) {
+    normalized = cleaned.replace(",", ".");
+  }
+
+  const value = Number(normalized);
+  if (!Number.isFinite(value) || value <= 0 || value > 1_000_000) {
+    return null;
+  }
+
+  return value;
+}
+
 function extractDateFromText(text: string, observacoes: string[]) {
   const today = new Date().toISOString().split("T")[0];
+
+  const labeledDateRegex = /\b(?:data|data da transa[cç][aã]o|data do pagamento|data do recebimento|emiss[aã]o|lan[çc]amento|ocorr[êe]ncia)\b[^\n\r]{0,18}?(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b/gi;
+  const labeledDateMatch = labeledDateRegex.exec(text);
+  if (labeledDateMatch) {
+    const day = Number(labeledDateMatch[1]);
+    const month = Number(labeledDateMatch[2]);
+    const rawYear = Number(labeledDateMatch[3]);
+    const year = labeledDateMatch[3].length === 2 ? 2000 + rawYear : rawYear;
+
+    if (isValidCalendarDate(year, month, day)) {
+      return {
+        data: formatIsoDate(year, month, day),
+        explicitDateFound: true,
+        inferredDate: false,
+      };
+    }
+  }
 
   const fullDateRegex = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b/g;
   let fullDateMatch: RegExpExecArray | null;
@@ -77,7 +117,8 @@ function extractDateFromText(text: string, observacoes: string[]) {
   }
 
   if (/\bhoje\b/i.test(text)) {
-    return { data: today, explicitDateFound: false, inferredDate: false };
+    observacoes.push("Data inferida pela palavra 'hoje'.");
+    return { data: today, explicitDateFound: false, inferredDate: true };
   }
 
   if (/\bontem\b/i.test(text)) {
@@ -163,14 +204,14 @@ function buildCompactDescriptionFromLines(text: string) {
     .map((line) => sanitizeDescription(line))
     .filter(Boolean);
 
-  const ignoredLinePattern = /^(?:comprovante|recibo|extrato|nota fiscal|arquivo|p[aá]gina|sheet\d*|planilha|total geral|subtotal|header|rodap[eé])\b/i;
+  const ignoredLinePattern = /^(?:comprovante|recibo|extrato|nota fiscal|arquivo|p[aá]gina|sheet\d*|planilha|total geral|subtotal|header|rodap[eé]|banco|ag[êe]ncia|conta|autentica[cç][aã]o|transa[cç][aã]o|valor|data)\b/i;
 
   const semanticLine = lines.find((line) => {
     if (ignoredLinePattern.test(line)) return false;
     if (line.length < 3 || line.length > 90) return false;
     if ((line.match(/[,;|]/g) || []).length > 4) return false;
     const digits = (line.match(/\d/g) || []).length;
-    return digits <= Math.max(8, Math.floor(line.length * 0.35));
+    return digits <= Math.max(6, Math.floor(line.length * 0.25));
   });
 
   return semanticLine ?? "";
@@ -247,6 +288,69 @@ function extractScope(text: string, observacoes: string[]) {
   return { escopo, strongScopeEvidence };
 }
 
+function extractAmountFromText(text: string, observacoes: string[]) {
+  const candidates: Array<{ value: number; score: number; index: number; source: string }> = [];
+
+  const addCandidate = (raw: string, index: number, score: number, source: string) => {
+    const value = parseLocalizedAmount(raw);
+    if (value === null) return;
+    candidates.push({ value, score, index, source });
+  };
+
+  const contextualPatterns = [
+    {
+      regex: /\b(?:valor total|total a pagar|valor pago|valor recebido|valor|total|pagamento|recebimento|recebido|pago|pix recebido|pix enviado|transfer[êe]ncia|compra|gasto|despesa)\b[^\n\r]{0,24}?(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2}|\d{1,5})/gi,
+      score: 5,
+      source: "contextual",
+    },
+    {
+      regex: /\b(?:gastei|paguei|comprei|entrou|recebi|ganhei|sal[aá]rio|mercado|uber|ifood|pix|transferi)\b[^\n\r]{0,16}?(?:R\$\s*)?(\d{1,5}(?:[.,]\d{1,2})?)/gi,
+      score: 4,
+      source: "verb",
+    },
+    {
+      regex: /R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2}|\d{1,5})/gi,
+      score: 3,
+      source: "currency",
+    },
+  ];
+
+  for (const pattern of contextualPatterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.regex.exec(text)) !== null) {
+      addCandidate(match[1], match.index, pattern.score, pattern.source);
+    }
+  }
+
+  if (!candidates.length) {
+    observacoes.push("Nenhum valor monetário claro foi encontrado no texto.");
+    return { valor: null, explicitAmountFound: false, ambiguousAmount: false };
+  }
+
+  const ranked = [...candidates].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return b.index - a.index;
+  });
+
+  const best = ranked[0];
+  const conflictingTopCandidates = ranked.filter((candidate) =>
+    candidate !== best &&
+    candidate.score >= best.score - 1 &&
+    Math.abs(candidate.value - best.value) > 0.009
+  );
+
+  if (best.score < 4 && conflictingTopCandidates.length > 0) {
+    observacoes.push("Valor monetário ambíguo: múltiplos candidatos relevantes encontrados no texto.");
+    return { valor: null, explicitAmountFound: false, ambiguousAmount: true };
+  }
+
+  if (conflictingTopCandidates.length > 1 && best.source !== "contextual") {
+    observacoes.push("Valor monetário potencialmente ambíguo; reduzindo confiança da sugestão.");
+  }
+
+  return { valor: best.value, explicitAmountFound: true, ambiguousAmount: false };
+}
+
 /**
  * Parser local determinístico para texto livre.
  * Extrai valor, tipo, data e descrição com regex.
@@ -257,14 +361,13 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const observacoes: string[] = [];
   const camposFaltantes: string[] = [];
 
-  // Extract valor
-  const valorMatch = text.match(/(?:R\$\s*)?(\d{1,}[.,]?\d{0,2})\s*(?:reais|real)?/i);
-  const valor = valorMatch ? parseFloat(valorMatch[1].replace(",", ".")) : null;
+  // Extract valor conservatively to avoid hallucinating from OCR noise / IDs / dates
+  const { valor, explicitAmountFound, ambiguousAmount } = extractAmountFromText(text, observacoes);
   if (!valor) camposFaltantes.push("valor");
 
-  // Detect tipo
-  const incomePatterns = /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento|freelance|receita|ganho|ganh[ei])\b/i;
-  const expensePatterns = /\b(gastei|paguei|comprei|debito|d[eé]bito|despesa|sa[ií]da|retirada)\b/i;
+  // Detect tipo conservatively
+  const incomePatterns = /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento recebido|receita|ganho|ganh[ei]|pix recebido|transfer[êe]ncia recebida|dep[oó]sito)\b/i;
+  const expensePatterns = /\b(gastei|paguei|comprei|d[eé]bito|despesa|sa[ií]da|retirada|pix enviado|transfer[êe]ncia enviada|compra aprovada)\b/i;
   const hasIncomeSignal = incomePatterns.test(text);
   const hasExpenseSignal = expensePatterns.test(text);
   const tipo = hasIncomeSignal && !hasExpenseSignal ? "income" : "expense";
@@ -272,9 +375,16 @@ export function parseTransactionText(input: string): ParsedTransaction {
   if (hasIncomeSignal && hasExpenseSignal) {
     observacoes.push("Texto contém sinais mistos de receita e despesa.");
   }
+  if (!hasIncomeSignal && !hasExpenseSignal) {
+    camposFaltantes.push("tipo");
+    observacoes.push("Tipo da transação não foi identificado com clareza; mantido padrão conservador.");
+  }
 
   // Detect date with priority for explicit dates in the content
   const { data, explicitDateFound, inferredDate } = extractDateFromText(text, observacoes);
+  if (!explicitDateFound) {
+    camposFaltantes.push("data");
+  }
 
   // Detect category hints
   const categoryHints: Record<string, string> = {
@@ -311,17 +421,21 @@ export function parseTransactionText(input: string): ParsedTransaction {
 
   let score = 0;
 
-  if (valor) score += 2;
+  if (valor && explicitAmountFound) score += 2;
   if (categoriaSugerida) score += 1;
   if (explicitDateFound) score += 1;
   if (!inferredDate && !descriptionTooGeneric) score += 1;
   if (strongScopeEvidence) score += 0.5;
+  if (hasIncomeSignal || hasExpenseSignal) score += 0.5;
 
   if (hasIncomeSignal && hasExpenseSignal) score -= 1;
   if (inferredDate) score -= 1;
   if (looksRawOrDense) score -= 0.5;
   if (descriptionTooGeneric) score -= 0.5;
   if (!strongScopeEvidence && escopo !== "private") score -= 0.5;
+  if (!valor) score -= 1.5;
+  if (ambiguousAmount) score -= 1.5;
+  if (!hasIncomeSignal && !hasExpenseSignal) score -= 0.5;
 
   const confianca: ConfidenceValue =
     score >= 4 ? "alta" :
