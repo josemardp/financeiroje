@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataStatusBadge } from "@/components/shared/DataStatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
+import { extractTextFromSupportedFile } from "@/services/smartCapture/fileExtraction";
 import {
   Mic,
   Camera,
@@ -35,6 +36,7 @@ import {
   FileText,
   Image as ImageIcon,
   Sparkles,
+  Paperclip,
 } from "lucide-react";
 
 type CaptureMode = "text" | "voice" | "photo";
