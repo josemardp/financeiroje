@@ -1,23 +1,86 @@
 /**
  * FinanceAI — OCR Adapter
- * Extrai texto de imagens via Edge Function smart-capture-ocr (OpenAI Vision).
+ * Extrai texto e campos estruturados de imagens via Edge Function smart-capture-ocr.
  */
 import { supabase } from "@/integrations/supabase/client";
+
+export interface OcrStructuredMetadata {
+  merchantName?: string;
+  totalAmount?: number;
+  date?: string;
+  transactionType?: "income" | "expense" | "unknown";
+  amount?: number | null;
+  description?: string;
+  scope?: "private" | "family" | "business" | "unknown";
+  categoryHint?: string;
+  counterparty?: string;
+  evidence?: string[];
+  confidence?: "alta" | "media" | "baixa";
+}
 
 export interface OcrExtractionResult {
   text: string;
   confidence: number;
-  metadata?: {
-    merchantName?: string;
-    totalAmount?: number;
-    date?: string;
-  };
+  metadata?: OcrStructuredMetadata;
 }
 
 const MAX_OCR_IMAGE_DIMENSION = 1800;
 const MAX_OCR_UPLOAD_BYTES = 2 * 1024 * 1024;
 const OCR_OUTPUT_MIME = "image/jpeg";
 const OCR_OUTPUT_QUALITY = 0.88;
+
+function formatDateToPtBr(date?: string) {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function formatAmountToPtBr(amount?: number | null) {
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) return "";
+  return amount.toFixed(2).replace(".", ",");
+}
+
+function buildStructuredNarrative(metadata: OcrStructuredMetadata | undefined, fallbackText: string) {
+  if (!metadata) return fallbackText;
+
+  const amount = formatAmountToPtBr(metadata.amount ?? metadata.totalAmount);
+  const date = formatDateToPtBr(metadata.date);
+  const description = metadata.description?.trim() || metadata.merchantName?.trim() || metadata.counterparty?.trim() || "";
+  const scope = metadata.scope === "family"
+    ? "família"
+    : metadata.scope === "business"
+      ? "negócio"
+      : metadata.scope === "private"
+        ? "pessoal"
+        : "";
+
+  const parts: string[] = [];
+
+  if (metadata.transactionType === "expense") {
+    parts.push("paguei");
+  } else if (metadata.transactionType === "income") {
+    parts.push("recebi");
+  }
+
+  if (amount) {
+    parts.push(`R$ ${amount}`);
+  }
+
+  if (description) {
+    parts.push(`referente a ${description}`);
+  }
+
+  if (date) {
+    parts.push(`em ${date}`);
+  }
+
+  if (scope) {
+    parts.push(`no escopo ${scope}`);
+  }
+
+  const structuredText = parts.join(" ").trim();
+  return structuredText || fallbackText;
+}
 
 async function normalizeImageForOcr(imageFile: File | Blob): Promise<File | Blob> {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof createImageBitmap === "undefined") {
@@ -107,10 +170,12 @@ export class OcrAdapter {
       throw new Error("OCR não retornou texto utilizável para esta imagem.");
     }
 
+    const metadata = payload?.metadata as OcrStructuredMetadata | undefined;
+
     return {
-      text: extractedText,
+      text: buildStructuredNarrative(metadata, extractedText),
       confidence: typeof payload?.confidence === "number" ? payload.confidence : 0.6,
-      metadata: payload?.metadata,
+      metadata,
     };
   }
 }

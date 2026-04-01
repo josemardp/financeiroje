@@ -12,6 +12,24 @@ const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
+type StructuredTransactionType = "income" | "expense" | "unknown";
+type StructuredScope = "private" | "family" | "business" | "unknown";
+type StructuredConfidence = "alta" | "media" | "baixa";
+
+interface StructuredOcrPayload {
+  extracted_text: string;
+  transaction_type: StructuredTransactionType;
+  amount: number | null;
+  date: string | null;
+  description: string | null;
+  merchant_name: string | null;
+  counterparty: string | null;
+  scope: StructuredScope;
+  category_hint: string | null;
+  confidence: StructuredConfidence;
+  evidence: string[];
+}
+
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(userId);
@@ -45,7 +63,7 @@ function toBase64(arrayBuffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-function extractOpenAiText(payload: any) {
+function extractMessageContent(payload: any) {
   const rawContent = payload?.choices?.[0]?.message?.content;
 
   if (typeof rawContent === "string") {
@@ -60,6 +78,108 @@ function extractOpenAiText(payload: any) {
   }
 
   return "";
+}
+
+function parseLocalizedAmount(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 && value <= 1_000_000 ? value : null;
+  }
+
+  if (typeof value !== "string") return null;
+
+  const cleaned = value.replace(/R\$/gi, "").replace(/\s+/g, "").trim();
+  if (!cleaned) return null;
+
+  let normalized = cleaned;
+  if (cleaned.includes(",") && cleaned.includes(".")) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else if (cleaned.includes(",")) {
+    normalized = cleaned.replace(",", ".");
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 && parsed <= 1_000_000 ? parsed : null;
+}
+
+function normalizeTransactionType(value: unknown): StructuredTransactionType {
+  return value === "income" || value === "expense" ? value : "unknown";
+}
+
+function normalizeScope(value: unknown): StructuredScope {
+  return value === "private" || value === "family" || value === "business" ? value : "unknown";
+}
+
+function normalizeConfidence(value: unknown): StructuredConfidence {
+  return value === "alta" || value === "media" ? value : "baixa";
+}
+
+function normalizeDate(value: unknown) {
+  if (typeof value !== "string") return null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim()) ? value.trim() : null;
+}
+
+function sanitizeNullableString(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeEvidence(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function parseStructuredPayload(content: string): StructuredOcrPayload | null {
+  if (!content) return null;
+
+  const tryParse = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw);
+      const extractedText = sanitizeNullableString(parsed?.extracted_text ?? parsed?.text) ?? "";
+      if (!extractedText) return null;
+
+      return {
+        extracted_text: extractedText,
+        transaction_type: normalizeTransactionType(parsed?.transaction_type),
+        amount: parseLocalizedAmount(parsed?.amount),
+        date: normalizeDate(parsed?.date),
+        description: sanitizeNullableString(parsed?.description),
+        merchant_name: sanitizeNullableString(parsed?.merchant_name),
+        counterparty: sanitizeNullableString(parsed?.counterparty),
+        scope: normalizeScope(parsed?.scope),
+        category_hint: sanitizeNullableString(parsed?.category_hint),
+        confidence: normalizeConfidence(parsed?.confidence),
+        evidence: normalizeEvidence(parsed?.evidence),
+      } satisfies StructuredOcrPayload;
+    } catch {
+      return null;
+    }
+  };
+
+  const direct = tryParse(content);
+  if (direct) return direct;
+
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return tryParse(jsonMatch[0]);
+  }
+
+  return null;
+}
+
+function confidenceToNumber(confidence: StructuredConfidence) {
+  switch (confidence) {
+    case "alta":
+      return 0.9;
+    case "media":
+      return 0.7;
+    default:
+      return 0.45;
+  }
 }
 
 serve(async (req) => {
@@ -148,17 +268,17 @@ serve(async (req) => {
           {
             role: "system",
             content:
-              "Você é um assistente de OCR financeiro. Extraia apenas o texto visível da imagem, preservando valores, datas, nomes, estabelecimentos e identificadores relevantes. Não invente nada. Retorne somente o texto extraído.",
+              "Você é um extrator inteligente de transações financeiras a partir de imagens. Analise a imagem do ponto de vista do usuário que está registrando a transação. Classifique transaction_type como expense quando houver evidência de pagamento feito pelo usuário, compra no cartão, PIX enviado, transferência enviada, boleto pago, débito ou compra. Classifique como income apenas quando houver evidência clara de entrada de dinheiro para o usuário, como PIX recebido, transferência recebida, depósito recebido ou salário creditado. A palavra crédito em compra no cartão normalmente ainda significa despesa, não receita. Se não houver segurança, use unknown. Escolha amount como o valor principal da transação, nunca saldo, limite, parcelas, taxa ou código. Use date em formato YYYY-MM-DD somente se a data estiver explícita. Retorne somente JSON válido com as chaves: extracted_text, transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence.",
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Extraia o texto desta imagem de comprovante, recibo ou documento financeiro." },
+              { type: "text", text: "Analise esta imagem financeira e devolva somente o JSON solicitado." },
               { type: "image_url", image_url: { url: dataUri } },
             ],
           },
         ],
-        max_tokens: 1000,
+        max_tokens: 1200,
       }),
     });
 
@@ -172,19 +292,33 @@ serve(async (req) => {
     }
 
     const ocrData = await ocrRes.json();
-    const extractedText = extractOpenAiText(ocrData);
+    const content = extractMessageContent(ocrData);
+    const structured = parseStructuredPayload(content);
 
-    if (!extractedText) {
+    if (!structured?.extracted_text) {
       return new Response(
-        JSON.stringify({ error: "OCR não retornou texto utilizável para esta imagem." }),
+        JSON.stringify({ error: "OCR não retornou dados estruturados utilizáveis para esta imagem." }),
         { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
       JSON.stringify({
-        text: extractedText,
-        confidence: extractedText.length >= 40 ? 0.72 : 0.55,
+        text: structured.extracted_text,
+        confidence: confidenceToNumber(structured.confidence),
+        metadata: {
+          merchantName: structured.merchant_name ?? undefined,
+          totalAmount: structured.amount ?? undefined,
+          date: structured.date ?? undefined,
+          transactionType: structured.transaction_type,
+          amount: structured.amount,
+          description: structured.description ?? undefined,
+          scope: structured.scope,
+          categoryHint: structured.category_hint ?? undefined,
+          counterparty: structured.counterparty ?? undefined,
+          evidence: structured.evidence,
+          confidence: structured.confidence,
+        },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
