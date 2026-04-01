@@ -1,6 +1,6 @@
 /**
  * FinanceAI — Captura Inteligente: Parser de Texto Livre
- * 
+ *
  * Extrai dados estruturados de texto livre do usuário.
  * Resultado SEMPRE tem status "suggested" — nunca salva automaticamente.
  * Passa pelo Modo Espelho para validação humana.
@@ -19,6 +19,234 @@ export interface ParsedTransaction {
   camposFaltantes: string[];
 }
 
+type ScopeValue = ParsedTransaction["escopo"];
+type ConfidenceValue = ParsedTransaction["confianca"];
+
+function formatIsoDate(year: number, month: number, day: number) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function isValidCalendarDate(year: number, month: number, day: number) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+  if (year < 2000 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) return false;
+
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
+function extractDateFromText(text: string, observacoes: string[]) {
+  const today = new Date().toISOString().split("T")[0];
+
+  const fullDateRegex = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b/g;
+  let fullDateMatch: RegExpExecArray | null;
+
+  while ((fullDateMatch = fullDateRegex.exec(text)) !== null) {
+    const day = Number(fullDateMatch[1]);
+    const month = Number(fullDateMatch[2]);
+    const rawYear = Number(fullDateMatch[3]);
+    const year = fullDateMatch[3].length === 2 ? 2000 + rawYear : rawYear;
+
+    if (isValidCalendarDate(year, month, day)) {
+      return {
+        data: formatIsoDate(year, month, day),
+        explicitDateFound: true,
+        inferredDate: false,
+      };
+    }
+  }
+
+  const partialDateRegex = /\b(\d{1,2})[\/\-.](\d{1,2})\b/g;
+  let partialDateMatch: RegExpExecArray | null;
+  while ((partialDateMatch = partialDateRegex.exec(text)) !== null) {
+    const day = Number(partialDateMatch[1]);
+    const month = Number(partialDateMatch[2]);
+    const year = new Date().getFullYear();
+
+    if (isValidCalendarDate(year, month, day)) {
+      observacoes.push("Data sem ano explícito; assumido ano atual.");
+      return {
+        data: formatIsoDate(year, month, day),
+        explicitDateFound: true,
+        inferredDate: true,
+      };
+    }
+  }
+
+  if (/\bhoje\b/i.test(text)) {
+    return { data: today, explicitDateFound: false, inferredDate: false };
+  }
+
+  if (/\bontem\b/i.test(text)) {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    observacoes.push("Data inferida pela palavra 'ontem'.");
+    return {
+      data: d.toISOString().split("T")[0],
+      explicitDateFound: false,
+      inferredDate: true,
+    };
+  }
+
+  observacoes.push("Nenhuma data explícita encontrada; usado o dia atual como fallback.");
+  return { data: today, explicitDateFound: false, inferredDate: true };
+}
+
+function buildCompactDescriptionFromFields(text: string) {
+  const fieldPatterns = [
+    /(?:descri[cç][aã]o|descrição da transação|hist[oó]rico|histórico|referente a)\s*[:\-]\s*([^\n;|]{3,120})/i,
+    /(?:estabelecimento|loja|merchant)\s*[:\-]\s*([^\n;|]{3,120})/i,
+    /(?:favorecido|benefici[aá]rio|recebedor(?:a)?|destinat[aá]rio|pagador(?:a)?)\s*[:\-]\s*([^\n;|]{3,120})/i,
+  ];
+
+  for (const pattern of fieldPatterns) {
+    const match = text.match(pattern);
+    const value = match?.[1]?.trim();
+    if (value) return value;
+  }
+
+  return "";
+}
+
+function buildPixDescription(text: string) {
+  const pixMatch = text.match(
+    /\b(PIX(?:\s+(?:recebido|recebida|recebimento|enviado|enviada|pago|pagamento|transfer[êe]ncia|transferido|transferida))?)\b[^\n\r]{0,25}?\b(?:para|de|do|da|favorecido|benefici[aá]rio|recebedor(?:a)?)\b\s*[:\-]?\s*([A-ZÀ-ÿ][A-ZÀ-ÿ0-9.'\-]+(?:\s+[A-ZÀ-ÿ0-9.'\-]+){0,4})/i
+  );
+
+  if (!pixMatch) return "";
+
+  const movement = pixMatch[1]
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const counterpart = pixMatch[2]
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return `${movement} ${counterpart}`;
+}
+
+function buildMerchantDescription(text: string) {
+  const merchantPatterns = [
+    /\b(supermercado\s+[A-ZÀ-ÿ0-9][^\n,;|]{2,60})/i,
+    /\b(farm[aá]cia\s+[A-ZÀ-ÿ0-9][^\n,;|]{2,60})/i,
+    /\b(padaria\s+[A-ZÀ-ÿ0-9][^\n,;|]{2,60})/i,
+    /\b(restaurante\s+[A-ZÀ-ÿ0-9][^\n,;|]{2,60})/i,
+    /\b(mercado\s+[A-ZÀ-ÿ0-9][^\n,;|]{2,60})/i,
+    /\b(uber(?:\s+trip)?|99(?:\s*pop)?|ifood)\b/i,
+  ];
+
+  for (const pattern of merchantPatterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return match[1].trim();
+  }
+
+  return "";
+}
+
+function sanitizeDescription(value: string) {
+  return value
+    .replace(/[_*#]+/g, " ")
+    .replace(/\b(?:cnpj|cpf|ag[êe]ncia|conta|autentica[cç][aã]o|protocolo|nsu|documento|id)\b\s*[:\-]?\s*[\w./-]+/gi, " ")
+    .replace(/\b(?:observa[cç][aã]o|obs|teste|auxiliar|rodap[eé])\b\s*[:\-]?\s*/gi, " ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s,;:|.-]+|[\s,;:|.-]+$/g, "")
+    .trim();
+}
+
+function buildCompactDescriptionFromLines(text: string) {
+  const lines = text
+    .split(/[\n\r]+/)
+    .map((line) => sanitizeDescription(line))
+    .filter(Boolean);
+
+  const ignoredLinePattern = /^(?:comprovante|recibo|extrato|nota fiscal|arquivo|p[aá]gina|sheet\d*|planilha|total geral|subtotal|header|rodap[eé])\b/i;
+
+  const semanticLine = lines.find((line) => {
+    if (ignoredLinePattern.test(line)) return false;
+    if (line.length < 3 || line.length > 90) return false;
+    if ((line.match(/[,;|]/g) || []).length > 4) return false;
+    const digits = (line.match(/\d/g) || []).length;
+    return digits <= Math.max(8, Math.floor(line.length * 0.35));
+  });
+
+  return semanticLine ?? "";
+}
+
+function buildCompactDescriptionFromText(text: string, tipo: ParsedTransaction["tipo"]) {
+  const explicitField = buildCompactDescriptionFromFields(text);
+  if (explicitField) return explicitField;
+
+  const pixDescription = buildPixDescription(text);
+  if (pixDescription) return pixDescription;
+
+  const merchantDescription = buildMerchantDescription(text);
+  if (merchantDescription) return merchantDescription;
+
+  const byLines = buildCompactDescriptionFromLines(text);
+  if (byLines) return byLines;
+
+  const fallback = text
+    .replace(/\b\d{1,2}[\/\-.]\d{1,2}(?:[\/\-.]\d{2,4})?\b/g, " ")
+    .replace(/R\$\s*\d+[.,]?\d*/gi, " ")
+    .replace(/\d+[.,]?\d*\s*reais?/gi, " ")
+    .replace(/\b(?:gastei|paguei|comprei|entrou|recebi|transferi|pix|debito|d[eé]bito|credito|cr[eé]dito)\b/gi, " ")
+    .replace(/\b(?:de|com|no|na|em|do|da|para|pra|por)\b/gi, " ")
+    .replace(/[;,|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const words = fallback.split(" ").filter(Boolean).slice(0, 8).join(" ");
+  if (words) return words;
+
+  return tipo === "income" ? "Receita identificada" : "Despesa identificada";
+}
+
+function normalizeDescription(text: string, tipo: ParsedTransaction["tipo"], observacoes: string[]) {
+  const compact = sanitizeDescription(buildCompactDescriptionFromText(text, tipo));
+
+  let descricao = compact;
+  if (!descricao) {
+    descricao = tipo === "income" ? "Receita identificada" : "Despesa identificada";
+    observacoes.push("Descrição não encontrada com clareza; usado fallback seguro.");
+  }
+
+  if (descricao.length > 80) {
+    descricao = `${descricao.slice(0, 77).trimEnd()}...`;
+    observacoes.push("Descrição encurtada para evitar texto cru/excessivo.");
+  }
+
+  return descricao.charAt(0).toUpperCase() + descricao.slice(1);
+}
+
+function extractScope(text: string, observacoes: string[]) {
+  const businessPattern = /\b(business|empresa|profissional|neg[oó]cio|mei|cnpj|fornecedor|cliente|nota fiscal|servi[cç]o profissional|comercial)\b/i;
+  const familyPattern = /\b(family|fam[ií]lia|familiar|casa|filh[oa]|esposa|marido|lar)\b/i;
+  const privatePattern = /\b(personal|pessoal|privado|individual|particular)\b/i;
+
+  let escopo: ScopeValue = "private";
+  let strongScopeEvidence = false;
+
+  if (businessPattern.test(text)) {
+    escopo = "business";
+    strongScopeEvidence = true;
+    observacoes.push("Escopo mapeado como negócio por evidência textual.");
+  } else if (familyPattern.test(text)) {
+    escopo = "family";
+    strongScopeEvidence = true;
+    observacoes.push("Escopo mapeado como família/familiar por evidência textual.");
+  } else if (privatePattern.test(text)) {
+    escopo = "private";
+    strongScopeEvidence = true;
+    observacoes.push("Escopo mapeado como pessoal por evidência textual.");
+  }
+
+  return { escopo, strongScopeEvidence };
+}
+
 /**
  * Parser local determinístico para texto livre.
  * Extrai valor, tipo, data e descrição com regex.
@@ -26,7 +254,6 @@ export interface ParsedTransaction {
  */
 export function parseTransactionText(input: string): ParsedTransaction {
   const text = input.trim();
-  const today = new Date().toISOString().split("T")[0];
   const observacoes: string[] = [];
   const camposFaltantes: string[] = [];
 
@@ -37,31 +264,23 @@ export function parseTransactionText(input: string): ParsedTransaction {
 
   // Detect tipo
   const incomePatterns = /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento|freelance|receita|ganho|ganh[ei])\b/i;
-  const tipo = incomePatterns.test(text) ? "income" : "expense";
+  const expensePatterns = /\b(gastei|paguei|comprei|debito|d[eé]bito|despesa|sa[ií]da|retirada)\b/i;
+  const hasIncomeSignal = incomePatterns.test(text);
+  const hasExpenseSignal = expensePatterns.test(text);
+  const tipo = hasIncomeSignal && !hasExpenseSignal ? "income" : "expense";
 
-  // Detect date
-  let data = today;
-  if (/\bhoje\b/i.test(text)) {
-    data = today;
-  } else if (/\bontem\b/i.test(text)) {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    data = d.toISOString().split("T")[0];
-  } else {
-    const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
-    if (dateMatch) {
-      const day = parseInt(dateMatch[1]);
-      const month = parseInt(dateMatch[2]);
-      const year = dateMatch[3] ? (dateMatch[3].length === 2 ? 2000 + parseInt(dateMatch[3]) : parseInt(dateMatch[3])) : new Date().getFullYear();
-      data = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    }
+  if (hasIncomeSignal && hasExpenseSignal) {
+    observacoes.push("Texto contém sinais mistos de receita e despesa.");
   }
+
+  // Detect date with priority for explicit dates in the content
+  const { data, explicitDateFound, inferredDate } = extractDateFromText(text, observacoes);
 
   // Detect category hints
   const categoryHints: Record<string, string> = {
     "mercado|supermercado|feira": "Alimentação",
     "aluguel|condom[ií]nio": "Moradia",
-    "uber|99|gasolina|combustível|transporte|ônibus": "Transporte",
+    "uber|99|gasolina|combust[ií]vel|transporte|ônibus": "Transporte",
     "farmácia|médico|consulta|exame|saúde|plano de saúde": "Saúde",
     "escola|faculdade|curso|educação|livro": "Educação",
     "netflix|spotify|streaming|assinatura": "Assinaturas",
@@ -80,37 +299,39 @@ export function parseTransactionText(input: string): ParsedTransaction {
   }
 
   // Detect scope
-  let escopo: ParsedTransaction["escopo"] = "private";
-  if (/\b(mei|empresa|negócio|nota fiscal|cnpj|embalagem|fornecedor)\b/i.test(text)) {
-    escopo = "business";
-    observacoes.push("Detectado como transação de negócio/MEI");
-  } else if (/\b(família|casa|filh[oa]|esposa|marido)\b/i.test(text)) {
-    escopo = "family";
-  }
+  const { escopo, strongScopeEvidence } = extractScope(text, observacoes);
 
-  // Build description (remove extracted numeric values)
-  let descricao = text
-    .replace(/R\$\s*\d+[.,]?\d*/gi, "")
-    .replace(/\d+[.,]?\d*\s*reais/gi, "")
-    .replace(/\b(hoje|ontem)\b/gi, "")
-    .replace(/\b(gastei|paguei|comprei|gast[oa]|entrou|recebi)\b/gi, "")
-    .replace(/\b(de|com|no|na|em|do|da|para|pra)\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!descricao) descricao = text.substring(0, 50);
-
-  // Confidence
-  const confianca: ParsedTransaction["confianca"] = 
-    valor && categoriaSugerida ? "alta" :
-    valor ? "media" : "baixa";
+  // Build description
+  const descricao = normalizeDescription(text, tipo, observacoes);
 
   if (!categoriaSugerida) camposFaltantes.push("categoria");
+
+  const looksRawOrDense = text.length > 240 || /[\n\r]/.test(text) || (text.match(/[,;|]/g) || []).length > 6;
+  const descriptionTooGeneric = /^(Receita identificada|Despesa identificada)$/i.test(descricao);
+
+  let score = 0;
+
+  if (valor) score += 2;
+  if (categoriaSugerida) score += 1;
+  if (explicitDateFound) score += 1;
+  if (!inferredDate && !descriptionTooGeneric) score += 1;
+  if (strongScopeEvidence) score += 0.5;
+
+  if (hasIncomeSignal && hasExpenseSignal) score -= 1;
+  if (inferredDate) score -= 1;
+  if (looksRawOrDense) score -= 0.5;
+  if (descriptionTooGeneric) score -= 0.5;
+  if (!strongScopeEvidence && escopo !== "private") score -= 0.5;
+
+  const confianca: ConfidenceValue =
+    score >= 4 ? "alta" :
+    score >= 2 ? "media" :
+    "baixa";
 
   return {
     valor,
     tipo,
-    descricao: descricao.charAt(0).toUpperCase() + descricao.slice(1),
+    descricao,
     data,
     categoriaSugerida,
     escopo,

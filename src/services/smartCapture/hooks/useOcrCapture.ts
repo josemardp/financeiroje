@@ -12,7 +12,10 @@ export function useOcrCapture() {
       const extraction = await OcrAdapter.extract(file);
       setResult(extraction);
     } catch (error) {
-      toast.error("Erro no processamento da imagem (OCR)");
+      const message = error instanceof Error ? error.message : "Erro no processamento da imagem (OCR)";
+      toast.error("Erro no processamento da imagem (OCR)", {
+        description: message,
+      });
       console.error(error);
     } finally {
       setIsProcessing(false);

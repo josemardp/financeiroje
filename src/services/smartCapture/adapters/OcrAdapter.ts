@@ -34,15 +34,21 @@ export class OcrAdapter {
       body: formData,
     });
 
+    const payload = await response.json().catch(() => null);
+
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ error: "Erro desconhecido" }));
-      throw new Error(err.error || `Erro ${response.status} no OCR`);
+      throw new Error(payload?.error || `Erro ${response.status} no OCR`);
     }
 
-    const result = await response.json();
+    const extractedText = typeof payload?.text === "string" ? payload.text.trim() : "";
+    if (!extractedText) {
+      throw new Error("OCR não retornou texto utilizável para esta imagem.");
+    }
+
     return {
-      text: result.text,
-      confidence: result.confidence ?? 0.85,
+      text: extractedText,
+      confidence: typeof payload?.confidence === "number" ? payload.confidence : 0.6,
+      metadata: payload?.metadata,
     };
   }
 }

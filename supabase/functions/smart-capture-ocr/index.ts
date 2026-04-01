@@ -10,6 +10,7 @@ const corsHeaders = {
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
@@ -20,6 +21,46 @@ function checkRateLimit(userId: string): boolean {
   }
   entry.count++;
   return entry.count <= RATE_LIMIT;
+}
+
+function inferMimeType(fileName: string) {
+  const normalized = fileName.toLowerCase();
+
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+
+  return "image/jpeg";
+}
+
+function toBase64(arrayBuffer: ArrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+
+  return btoa(binary);
+}
+
+function extractOpenAiText(payload: any) {
+  const rawContent = payload?.choices?.[0]?.message?.content;
+
+  if (typeof rawContent === "string") {
+    return rawContent.trim();
+  }
+
+  if (Array.isArray(rawContent)) {
+    return rawContent
+      .map((item) => typeof item?.text === "string" ? item.text : "")
+      .join("\n")
+      .trim();
+  }
+
+  return "";
 }
 
 serve(async (req) => {
@@ -74,10 +115,27 @@ serve(async (req) => {
       );
     }
 
-    // Convert image to base64 data URI
+    if (imageFile.size > MAX_IMAGE_SIZE_BYTES) {
+      return new Response(
+        JSON.stringify({ error: "Imagem muito grande para OCR (limite: 10MB)." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const mimeType = imageFile.type?.startsWith("image/")
+      ? imageFile.type
+      : inferMimeType(imageFile.name || "image.jpg");
+
+    if (!mimeType.startsWith("image/")) {
+      return new Response(
+        JSON.stringify({ error: "Formato de imagem não suportado para OCR." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Convert image to base64 data URI using chunking to avoid stack overflow on larger files
     const arrayBuffer = await imageFile.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    const mimeType = imageFile.type || "image/jpeg";
+    const base64 = toBase64(arrayBuffer);
     const dataUri = `data:${mimeType};base64,${base64}`;
 
     const ocrRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -92,12 +150,12 @@ serve(async (req) => {
           {
             role: "system",
             content:
-              "Você é um assistente de OCR financeiro. Extraia TODO o texto visível da imagem, preservando valores, datas, nomes de estabelecimentos e CNPJs. Retorne apenas o texto extraído, sem comentários.",
+              "Você é um assistente de OCR financeiro. Extraia apenas o texto visível da imagem, preservando valores, datas, nomes, estabelecimentos e identificadores relevantes. Não invente nada. Retorne somente o texto extraído.",
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Extraia todo o texto desta imagem de comprovante/recibo financeiro:" },
+              { type: "text", text: "Extraia o texto desta imagem de comprovante, recibo ou documento financeiro." },
               { type: "image_url", image_url: { url: dataUri } },
             ],
           },
@@ -116,10 +174,20 @@ serve(async (req) => {
     }
 
     const ocrData = await ocrRes.json();
-    const extractedText = ocrData.choices?.[0]?.message?.content || "";
+    const extractedText = extractOpenAiText(ocrData);
+
+    if (!extractedText) {
+      return new Response(
+        JSON.stringify({ error: "OCR não retornou texto utilizável para esta imagem." }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
-      JSON.stringify({ text: extractedText, confidence: 0.85 }),
+      JSON.stringify({
+        text: extractedText,
+        confidence: extractedText.length >= 40 ? 0.72 : 0.55,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
