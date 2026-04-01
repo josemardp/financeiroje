@@ -165,11 +165,42 @@ export default function SmartCapture() {
     toast.info("Captura descartada");
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      processImage(file);
+    if (!file) return;
+
+    const name = file.name.toLowerCase();
+    const isImage = file.type.startsWith("image/");
+    const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
+    const isDocx = name.endsWith(".docx");
+    const isSpreadsheet = name.endsWith(".xlsx") || name.endsWith(".xls");
+    const isDoc = name.endsWith(".doc") && !name.endsWith(".docx");
+
+    if (isDoc) {
+      toast.error("Formato .doc não suportado. Converta para .docx.");
+      return;
     }
+
+    if (isImage) {
+      processImage(file);
+      return;
+    }
+
+    if (isPdf || isDocx || isSpreadsheet) {
+      setIsExtractingFile(true);
+      try {
+        const result = await extractTextFromSupportedFile(file);
+        handleParse(result.text, "free_text");
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Erro ao processar arquivo";
+        toast.error(msg);
+      } finally {
+        setIsExtractingFile(false);
+      }
+      return;
+    }
+
+    toast.error("Formato de arquivo não suportado");
   };
 
   return (
