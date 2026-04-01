@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { ScopeBadge } from "@/components/shared/ScopeBadge";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import { CalendarDays, Plus, Loader2, Trash2, Pencil, Pause, Play } from "lucide-react";
