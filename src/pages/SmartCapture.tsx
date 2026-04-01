@@ -39,7 +39,7 @@ import {
   Paperclip,
 } from "lucide-react";
 
-type CaptureMode = "text" | "voice" | "photo";
+type CaptureMode = "text" | "voice" | "file";
 
 export default function SmartCapture() {
   const { user } = useAuth();
