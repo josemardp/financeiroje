@@ -1,8 +1,8 @@
 /**
  * FinanceAI — Voice Adapter
- * Responsável por transcrever áudio para texto.
- * Preparado para integração com OpenAI Whisper ou similar.
+ * Transcreve áudio via Edge Function smart-capture-voice (OpenAI Whisper).
  */
+import { supabase } from "@/integrations/supabase/client";
 
 export interface VoiceTranscriptionResult {
   text: string;
@@ -11,26 +11,33 @@ export interface VoiceTranscriptionResult {
 }
 
 export class VoiceAdapter {
-  /**
-   * Transcreve um Blob de áudio para texto.
-   * Atualmente implementa um mock/fallback que simula a transcrição.
-   */
-  static async transcribe(audioBlob: Blob): Promise<VoiceTranscriptionResult> {
-    console.log("Transcrevendo áudio de tamanho:", audioBlob.size);
-    
-    // Simulação de processamento
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // TODO: Implementar chamada real para API (ex: OpenAI Whisper)
-    // const formData = new FormData();
-    // formData.append("file", audioBlob);
-    // const response = await fetch("api/transcribe", { method: "POST", body: formData });
-    
-    // Fallback/Mock para demonstração do fluxo
+  static async transcribe(audioBlob: Blob, fileName: string = "audio.webm"): Promise<VoiceTranscriptionResult> {
+    const formData = new FormData();
+    formData.append("audio", audioBlob, fileName);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error("Sessão não encontrada. Faça login novamente.");
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const response = await fetch(`${supabaseUrl}/functions/v1/smart-capture-voice`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: "Erro desconhecido" }));
+      throw new Error(err.error || `Erro ${response.status} na transcrição`);
+    }
+
+    const result = await response.json();
     return {
-      text: "Gastei 45 reais com almoço hoje no restaurante",
-      confidence: 0.95,
-      duration: 2.5
+      text: result.text,
+      confidence: result.confidence ?? 0.9,
     };
   }
 }
