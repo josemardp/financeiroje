@@ -56,6 +56,7 @@ export default function SmartCapture() {
   const { isProcessing: isOcrProcessing, result: ocrResult, processImage, resetOcr } = useOcrCapture();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isExtractingFile, setIsExtractingFile] = useState(false);
 
   const [editForm, setEditForm] = useState({
     valor: "",
