@@ -242,7 +242,7 @@ export default function SmartCapture() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-primary" />
-              {mode === "text" ? "O que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Suba uma foto do recibo"}
+              {mode === "text" ? "O que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Envie uma foto ou documento"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
