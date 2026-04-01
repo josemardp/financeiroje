@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataStatusBadge } from "@/components/shared/DataStatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
+import { extractTextFromSupportedFile } from "@/services/smartCapture/fileExtraction";
 import {
   Mic,
   Camera,
@@ -35,9 +36,10 @@ import {
   FileText,
   Image as ImageIcon,
   Sparkles,
+  Paperclip,
 } from "lucide-react";
 
-type CaptureMode = "text" | "voice" | "photo";
+type CaptureMode = "text" | "voice" | "file";
 
 export default function SmartCapture() {
   const { user } = useAuth();
@@ -54,6 +56,7 @@ export default function SmartCapture() {
   const { isProcessing: isOcrProcessing, result: ocrResult, processImage, resetOcr } = useOcrCapture();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isExtractingFile, setIsExtractingFile] = useState(false);
 
   const [editForm, setEditForm] = useState({
     valor: "",
@@ -83,7 +86,7 @@ export default function SmartCapture() {
 
   useEffect(() => {
     if (ocrResult) {
-      handleParse(ocrResult.text, "ocr");
+      handleParse(ocrResult.text, "photo_ocr");
       resetOcr();
     }
   }, [ocrResult]);
@@ -162,11 +165,42 @@ export default function SmartCapture() {
     toast.info("Captura descartada");
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      processImage(file);
+    if (!file) return;
+
+    const name = file.name.toLowerCase();
+    const isImage = file.type.startsWith("image/");
+    const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
+    const isDocx = name.endsWith(".docx");
+    const isSpreadsheet = name.endsWith(".xlsx") || name.endsWith(".xls");
+    const isDoc = name.endsWith(".doc") && !name.endsWith(".docx");
+
+    if (isDoc) {
+      toast.error("Formato .doc não suportado. Converta para .docx.");
+      return;
     }
+
+    if (isImage) {
+      processImage(file);
+      return;
+    }
+
+    if (isPdf || isDocx || isSpreadsheet) {
+      setIsExtractingFile(true);
+      try {
+        const result = await extractTextFromSupportedFile(file);
+        handleParse(result.text, "free_text");
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Erro ao processar arquivo";
+        toast.error(msg);
+      } finally {
+        setIsExtractingFile(false);
+      }
+      return;
+    }
+
+    toast.error("Formato de arquivo não suportado");
   };
 
   return (
@@ -194,12 +228,12 @@ export default function SmartCapture() {
           <Mic className="mr-2 h-4 w-4" /> Voz (Beta)
         </Button>
         <Button
-          variant={mode === "photo" ? "default" : "outline"}
+          variant={mode === "file" ? "default" : "outline"}
           size="sm"
-          onClick={() => setMode("photo")}
+          onClick={() => setMode("file")}
           className="flex-1 justify-center transition-all sm:flex-none"
         >
-          <Camera className="mr-2 h-4 w-4" /> Foto / OCR
+          <Paperclip className="mr-2 h-4 w-4" /> Arquivo / OCR
         </Button>
       </div>
 
@@ -208,7 +242,7 @@ export default function SmartCapture() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-primary" />
-              {mode === "text" ? "O que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Suba uma foto do recibo"}
+              {mode === "text" ? "O que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Envie uma foto ou documento"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -256,31 +290,31 @@ export default function SmartCapture() {
               </div>
             )}
 
-            {mode === "photo" && (
+            {mode === "file" && (
               <div className="flex flex-col items-center space-y-4 rounded-xl border-2 border-dashed border-muted py-8">
-                <div className={`rounded-full bg-muted p-6 ${isOcrProcessing ? "animate-pulse" : ""}`}>
-                  {isOcrProcessing ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <ImageIcon className="h-12 w-12 text-muted-foreground" />}
+                <div className={`rounded-full bg-muted p-6 ${isOcrProcessing || isExtractingFile ? "animate-pulse" : ""}`}>
+                  {isOcrProcessing || isExtractingFile ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <Paperclip className="h-12 w-12 text-muted-foreground" />}
                 </div>
                 <div className="px-4 text-center">
-                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : "Selecione uma foto ou recibo"}</p>
-                  <p className="text-sm text-muted-foreground">Formatos suportados: JPG, PNG. Extração via OCR inteligente.</p>
+                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : isExtractingFile ? "Lendo documento..." : "Selecione um arquivo"}</p>
+                  <p className="text-sm text-muted-foreground">Formatos: JPG, PNG, PDF, DOCX, XLSX</p>
                 </div>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.pdf,.docx,.xlsx,.xls"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
-                  disabled={isOcrProcessing}
+                  disabled={isOcrProcessing || isExtractingFile}
                 />
                 <Button
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isOcrProcessing}
+                  disabled={isOcrProcessing || isExtractingFile}
                   variant="outline"
                   size="lg"
                   className="w-full sm:w-auto"
                 >
-                  <Camera className="mr-2 h-4 w-4" /> Escolher Foto
+                  <Paperclip className="mr-2 h-4 w-4" /> Escolher Arquivo
                 </Button>
               </div>
             )}
