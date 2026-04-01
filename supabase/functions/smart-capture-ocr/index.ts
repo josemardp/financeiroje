@@ -35,8 +35,15 @@ function inferMimeType(fileName: string) {
   return "image/jpeg";
 }
 
-function toBase64(arrayBuffer: ArrayBuffer) {
-  return encodeBase64(new Uint8Array(arrayBuffer));
+function toBase64(arrayBuffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
 }
 
 function extractOpenAiText(payload: any) {
