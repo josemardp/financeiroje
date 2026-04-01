@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encodeBase64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
@@ -35,15 +36,7 @@ function inferMimeType(fileName: string) {
 }
 
 function toBase64(arrayBuffer: ArrayBuffer) {
-  const bytes = new Uint8Array(arrayBuffer);
-  const chunkSize = 0x8000;
-  let binary = "";
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-
-  return btoa(binary);
+  return encodeBase64(new Uint8Array(arrayBuffer));
 }
 
 function extractOpenAiText(payload: any) {
@@ -133,7 +126,6 @@ serve(async (req) => {
       );
     }
 
-    // Convert image to base64 data URI using chunking to avoid stack overflow on larger files
     const arrayBuffer = await imageFile.arrayBuffer();
     const base64 = toBase64(arrayBuffer);
     const dataUri = `data:${mimeType};base64,${base64}`;
