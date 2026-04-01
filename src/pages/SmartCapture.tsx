@@ -228,12 +228,12 @@ export default function SmartCapture() {
           <Mic className="mr-2 h-4 w-4" /> Voz (Beta)
         </Button>
         <Button
-          variant={mode === "photo" ? "default" : "outline"}
+          variant={mode === "file" ? "default" : "outline"}
           size="sm"
-          onClick={() => setMode("photo")}
+          onClick={() => setMode("file")}
           className="flex-1 justify-center transition-all sm:flex-none"
         >
-          <Camera className="mr-2 h-4 w-4" /> Foto / OCR
+          <Paperclip className="mr-2 h-4 w-4" /> Arquivo / OCR
         </Button>
       </div>
 
