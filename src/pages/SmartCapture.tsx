@@ -85,7 +85,7 @@ export default function SmartCapture() {
 
   useEffect(() => {
     if (ocrResult) {
-      handleParse(ocrResult.text, "ocr");
+      handleParse(ocrResult.text, "photo_ocr");
       resetOcr();
     }
   }, [ocrResult]);
