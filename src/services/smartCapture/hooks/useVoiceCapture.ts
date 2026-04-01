@@ -9,11 +9,30 @@ export function useVoiceCapture() {
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const mimeTypeRef = useRef<string>("audio/webm");
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+
+      // Detect best supported MIME type
+      const preferredTypes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+      ];
+      let selectedMime = "";
+      for (const mime of preferredTypes) {
+        if (MediaRecorder.isTypeSupported(mime)) {
+          selectedMime = mime;
+          break;
+        }
+      }
+      mimeTypeRef.current = selectedMime || "audio/webm";
+
+      const options: MediaRecorderOptions = selectedMime ? { mimeType: selectedMime } : {};
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -24,13 +43,19 @@ export function useVoiceCapture() {
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+        const mime = mimeTypeRef.current;
+        const audioBlob = new Blob(audioChunksRef.current, { type: mime });
+        
+        // Determine file extension from mime
+        const ext = mime.includes("webm") ? "webm" : mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "m4a" : "webm";
+        
         setIsTranscribing(true);
         try {
-          const transcription = await VoiceAdapter.transcribe(audioBlob);
+          const transcription = await VoiceAdapter.transcribe(audioBlob, `audio.${ext}`);
           setResult(transcription);
         } catch (error) {
-          toast.error("Erro na transcrição de voz");
+          const msg = error instanceof Error ? error.message : "Erro na transcrição de voz";
+          toast.error(msg);
           console.error(error);
         } finally {
           setIsTranscribing(false);
@@ -41,7 +66,7 @@ export function useVoiceCapture() {
       setIsRecording(true);
       toast.info("Gravando áudio...");
     } catch (error) {
-      toast.error("Permissão de microfone negada");
+      toast.error("Permissão de microfone negada ou não suportada pelo navegador");
       console.error(error);
     }
   };
@@ -50,7 +75,6 @@ export function useVoiceCapture() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      // Stop all tracks to release the microphone
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     }
   };
