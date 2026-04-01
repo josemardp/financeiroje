@@ -136,39 +136,27 @@ function normalizeEvidence(value: unknown) {
 function parseStructuredPayload(content: string): StructuredOcrPayload | null {
   if (!content) return null;
 
-  const tryParse = (raw: string) => {
-    try {
-      const parsed = JSON.parse(raw);
-      const extractedText = sanitizeNullableString(parsed?.extracted_text ?? parsed?.text) ?? "";
-      if (!extractedText) return null;
+  try {
+    const parsed = JSON.parse(content);
+    const extractedText = sanitizeNullableString(parsed?.extracted_text ?? parsed?.text) ?? "";
+    if (!extractedText) return null;
 
-      return {
-        extracted_text: extractedText,
-        transaction_type: normalizeTransactionType(parsed?.transaction_type),
-        amount: parseLocalizedAmount(parsed?.amount),
-        date: normalizeDate(parsed?.date),
-        description: sanitizeNullableString(parsed?.description),
-        merchant_name: sanitizeNullableString(parsed?.merchant_name),
-        counterparty: sanitizeNullableString(parsed?.counterparty),
-        scope: normalizeScope(parsed?.scope),
-        category_hint: sanitizeNullableString(parsed?.category_hint),
-        confidence: normalizeConfidence(parsed?.confidence),
-        evidence: normalizeEvidence(parsed?.evidence),
-      } satisfies StructuredOcrPayload;
-    } catch {
-      return null;
-    }
-  };
-
-  const direct = tryParse(content);
-  if (direct) return direct;
-
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return tryParse(jsonMatch[0]);
+    return {
+      extracted_text: extractedText,
+      transaction_type: normalizeTransactionType(parsed?.transaction_type),
+      amount: parseLocalizedAmount(parsed?.amount),
+      date: normalizeDate(parsed?.date),
+      description: sanitizeNullableString(parsed?.description),
+      merchant_name: sanitizeNullableString(parsed?.merchant_name),
+      counterparty: sanitizeNullableString(parsed?.counterparty),
+      scope: normalizeScope(parsed?.scope),
+      category_hint: sanitizeNullableString(parsed?.category_hint),
+      confidence: normalizeConfidence(parsed?.confidence),
+      evidence: normalizeEvidence(parsed?.evidence),
+    } satisfies StructuredOcrPayload;
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 function confidenceToNumber(confidence: StructuredConfidence) {
@@ -264,16 +252,17 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
+        response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
             content:
-              "Você é um extrator inteligente de transações financeiras a partir de imagens. Analise a imagem do ponto de vista do usuário que está registrando a transação. Classifique transaction_type como expense quando houver evidência de pagamento feito pelo usuário, compra no cartão, PIX enviado, transferência enviada, boleto pago, débito ou compra. Classifique como income apenas quando houver evidência clara de entrada de dinheiro para o usuário, como PIX recebido, transferência recebida, depósito recebido ou salário creditado. A palavra crédito em compra no cartão normalmente ainda significa despesa, não receita. Se não houver segurança, use unknown. Escolha amount como o valor principal da transação, nunca saldo, limite, parcelas, taxa ou código. Use date em formato YYYY-MM-DD somente se a data estiver explícita. Retorne somente JSON válido com as chaves: extracted_text, transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence.",
+              "Você é um extrator inteligente de transações financeiras a partir de imagens. Responda somente com JSON válido. Interprete do ponto de vista do usuário que está registrando a transação. Se houver comprovante de venda, link de pagamento, compra em cartão, PIX enviado, transferência enviada, boleto pago, débito ou pagamento efetuado pelo usuário, classifique como expense. Só classifique como income quando houver evidência inequívoca de entrada de dinheiro para o usuário, como PIX recebido, transferência recebida, depósito recebido ou salário creditado. A palavra crédito em compra no cartão normalmente ainda é despesa, não receita. Não invente valor, data ou descrição. Se não houver segurança, use null ou unknown. Retorne obrigatoriamente um JSON com as chaves: extracted_text, transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence.",
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Analise esta imagem financeira e devolva somente o JSON solicitado." },
+              { type: "text", text: "Analise esta imagem financeira e devolva somente o JSON solicitado. Se conseguir identificar origem e destino, use isso para decidir corretamente entre despesa e receita." },
               { type: "image_url", image_url: { url: dataUri } },
             ],
           },
