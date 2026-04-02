@@ -559,6 +559,14 @@ export function parseTransactionText(input: string): ParsedTransaction {
 
   const confianca: ConfidenceValue = score >= 4 ? "alta" : score >= 2 ? "media" : "baixa";
 
+  // Determine status
+  const hasCriticalFields = valor !== null && (hasIncomeSignal || hasExpenseSignal);
+  const status: ParsedTransaction["status"] = ambiguousAmount
+    ? "ambiguous"
+    : hasCriticalFields
+      ? "complete"
+      : "partial";
+
   return {
     valor,
     tipo,
@@ -570,5 +578,7 @@ export function parseTransactionText(input: string): ParsedTransaction {
     textoOriginal: text,
     observacoes,
     camposFaltantes,
+    installmentText,
+    status,
   };
 }
