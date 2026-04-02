@@ -19,7 +19,7 @@ import {
   PiggyBank,
   ArrowLeftRight,
   Plus,
-  Zap,
+  Sparkles,
   Bell,
   Landmark,
   Shield,
@@ -139,15 +139,20 @@ export default function Dashboard() {
   return (
     <div className="space-y-4 animate-fade-in sm:space-y-6">
       <PageHeader title={`Olá, ${profile?.nome || "Usuário"}`} description={`Visão geral (${scopeLabel})`}>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button asChild variant="outline" className="order-2 sm:order-1">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button
+            asChild
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white border-green-600"
+          >
             <Link to="/captura">
-              <Zap className="h-4 w-4 mr-1 text-amber-500" /> Captura Inteligente
+              <Sparkles className="mr-1 h-4 w-4" />
+              Captura Inteligente
             </Link>
           </Button>
-          <Button asChild className="order-1 sm:order-2">
+          <Button variant="secondary" asChild className="w-full sm:w-auto">
             <Link to="/transacoes">
-              <Plus className="h-4 w-4 mr-1" /> Nova transação
+              <Plus className="mr-1 h-4 w-4" />
+              Nova transação
             </Link>
           </Button>
         </div>
