@@ -12,6 +12,36 @@ const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+const BLOCKED_IMAGE_MIME_TYPES = new Set([
+  "image/heic",
+  "image/heif",
+  "image/bmp",
+  "image/tiff",
+  "image/svg+xml",
+]);
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".bmp": "image/bmp",
+  ".tif": "image/tiff",
+  ".tiff": "image/tiff",
+  ".svg": "image/svg+xml",
+};
+
 type StructuredTransactionType = "income" | "expense" | "unknown";
 type StructuredScope = "private" | "family" | "business" | "unknown";
 type StructuredConfidence = "alta" | "media" | "baixa";
@@ -31,6 +61,25 @@ interface StructuredOcrPayload {
   installment_text: string | null;
 }
 
+function jsonError(
+  status: number,
+  error: string,
+  code: string,
+  extras?: Record<string, unknown>
+) {
+  return new Response(
+    JSON.stringify({
+      error,
+      code,
+      ...(extras || {}),
+    }),
+    {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
+}
+
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(userId);
@@ -42,15 +91,69 @@ function checkRateLimit(userId: string): boolean {
   return entry.count <= RATE_LIMIT;
 }
 
-function inferMimeType(fileName: string) {
-  const normalized = fileName.toLowerCase();
+function normalizeMimeType(mimeType?: string | null) {
+  if (!mimeType) return null;
+  const normalized = mimeType.trim().toLowerCase();
+  return normalized || null;
+}
 
-  if (normalized.endsWith(".png")) return "image/png";
-  if (normalized.endsWith(".webp")) return "image/webp";
-  if (normalized.endsWith(".gif")) return "image/gif";
-  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+function extractExtension(fileName?: string | null) {
+  if (!fileName) return null;
+  const match = fileName.toLowerCase().match(/\.[^.]+$/);
+  return match?.[0] ?? null;
+}
 
-  return "image/jpeg";
+function inferMimeTypeFromName(fileName: string) {
+  const extension = extractExtension(fileName);
+  return extension ? MIME_BY_EXTENSION[extension] ?? null : null;
+}
+
+function resolveIncomingMimeType(imageFile: File) {
+  const declaredMimeType = normalizeMimeType(imageFile.type);
+  const inferredMimeType = inferMimeTypeFromName(imageFile.name || "image");
+
+  const blockedMimeType =
+    (declaredMimeType && BLOCKED_IMAGE_MIME_TYPES.has(declaredMimeType) && declaredMimeType) ||
+    (inferredMimeType && BLOCKED_IMAGE_MIME_TYPES.has(inferredMimeType) && inferredMimeType) ||
+    null;
+
+  if (blockedMimeType) {
+    return {
+      ok: false as const,
+      error: "Formato de imagem não suportado no OCR. Use JPG, JPEG, PNG, WEBP ou GIF.",
+      mimeType: blockedMimeType,
+    };
+  }
+
+  if (
+    declaredMimeType &&
+    declaredMimeType.startsWith("image/") &&
+    !SUPPORTED_IMAGE_MIME_TYPES.has(declaredMimeType)
+  ) {
+    return {
+      ok: false as const,
+      error: "Formato de imagem não suportado no OCR. Use JPG, JPEG, PNG, WEBP ou GIF.",
+      mimeType: declaredMimeType,
+    };
+  }
+
+  const effectiveMimeType =
+    (declaredMimeType && SUPPORTED_IMAGE_MIME_TYPES.has(declaredMimeType) && declaredMimeType) ||
+    (inferredMimeType && SUPPORTED_IMAGE_MIME_TYPES.has(inferredMimeType) && inferredMimeType) ||
+    null;
+
+  if (!effectiveMimeType) {
+    return {
+      ok: false as const,
+      error: "Formato de imagem não suportado no OCR. Use JPG, JPEG, PNG, WEBP ou GIF.",
+      mimeType: declaredMimeType || inferredMimeType || null,
+    };
+  }
+
+  return {
+    ok: true as const,
+    mimeType: effectiveMimeType === "image/jpg" ? "image/jpeg" : effectiveMimeType,
+  };
 }
 
 function toBase64(arrayBuffer: ArrayBuffer): string {
@@ -72,7 +175,7 @@ function extractMessageContent(payload: any) {
 
   if (Array.isArray(rawContent)) {
     return rawContent
-      .map((item) => typeof item?.text === "string" ? item.text : "")
+      .map((item) => (typeof item?.text === "string" ? item.text : ""))
       .join("\n")
       .trim();
   }
@@ -106,7 +209,9 @@ function normalizeTransactionType(value: unknown): StructuredTransactionType {
 }
 
 function normalizeScope(value: unknown): StructuredScope {
-  return value === "private" || value === "family" || value === "business" ? value : "unknown";
+  return value === "private" || value === "family" || value === "business"
+    ? value
+    : "unknown";
 }
 
 function normalizeConfidence(value: unknown): StructuredConfidence {
@@ -179,10 +284,7 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonError(401, "Não autorizado.", "OCR_AUTH_REQUIRED");
     }
 
     const supabase = createClient(
@@ -191,104 +293,134 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Sessão inválida" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonError(
+        401,
+        "Sessão inválida ou expirada para uso do OCR.",
+        "OCR_INVALID_SESSION"
+      );
     }
 
     if (!checkRateLimit(user.id)) {
-      return new Response(
-        JSON.stringify({ error: "Limite de requisições excedido. Aguarde um momento.", code: "OCR_RATE_LIMITED" }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonError(
+        429,
+        "Limite de requisições excedido. Aguarde um momento.",
+        "OCR_RATE_LIMITED"
       );
     }
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "OPENAI_API_KEY não configurada no servidor" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonError(
+        503,
+        "OCR indisponível: OPENAI_API_KEY não configurada no servidor.",
+        "OCR_BACKEND_KEY_MISSING"
       );
     }
 
     const formData = await req.formData();
     const imageFile = formData.get("image") as File | null;
+
     if (!imageFile) {
-      return new Response(
-        JSON.stringify({ error: "Arquivo de imagem não enviado" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonError(400, "Arquivo de imagem não enviado.", "OCR_FILE_MISSING");
     }
 
     if (imageFile.size > MAX_IMAGE_SIZE_BYTES) {
-      return new Response(
-        JSON.stringify({ error: "Imagem muito grande para OCR (limite: 10MB)." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonError(
+        400,
+        "Imagem muito grande para OCR (limite: 10MB).",
+        "OCR_FILE_TOO_LARGE"
       );
     }
 
-    const mimeType = imageFile.type?.startsWith("image/")
-      ? imageFile.type
-      : inferMimeType(imageFile.name || "image.jpg");
-
-    if (!mimeType.startsWith("image/")) {
-      return new Response(
-        JSON.stringify({ error: "Formato de imagem não suportado para OCR." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const resolvedMime = resolveIncomingMimeType(imageFile);
+    if (!resolvedMime.ok) {
+      return jsonError(415, resolvedMime.error, "OCR_UNSUPPORTED_MIME", {
+        mime_type: resolvedMime.mimeType,
+      });
     }
 
     const arrayBuffer = await imageFile.arrayBuffer();
     const base64 = toBase64(arrayBuffer);
-    const dataUri = `data:${mimeType};base64,${base64}`;
+    const dataUri = `data:${resolvedMime.mimeType};base64,${base64}`;
 
-    const ocrRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-                 "Você é um extrator inteligente de transações financeiras a partir de imagens. Responda somente com JSON válido. Interprete do ponto de vista do usuário que está registrando a transação. amount deve ser sempre o valor principal total da transação. Nunca use o valor unitário da parcela como amount quando houver um total maior explícito. Exemplo: se a imagem tiver 'R$ 365,67' e também '12x de R$ 30,47', amount deve ser 365.67. date deve ser convertida para ISO YYYY-MM-DD e você deve entender formatos como '28 Mar, 2026', '28 março 2026' e '28/03/2026'. Se houver comprovante de venda, link de pagamento, compra em cartão, PIX enviado, transferência enviada, boleto pago, débito ou pagamento efetuado pelo usuário, classifique como expense. Só classifique como income quando houver evidência inequívoca de entrada de dinheiro para o usuário, como PIX recebido, transferência recebida, depósito recebido ou salário creditado. A palavra crédito em compra no cartão normalmente ainda é despesa, não receita. Em description prefira o estabelecimento ou o contexto principal da transação. Em evidence inclua trechos curtos que provem amount, date, parcelas, origem e destino quando existirem. installment_text deve capturar o texto original do parcelamento (ex: '3x', '12x de R$ 30,47', '2x sem juros'). Se não houver parcelamento, installment_text deve ser null. Não invente valor, data ou descrição. Se não houver segurança, use null ou unknown. Retorne obrigatoriamente um JSON com as chaves: extracted_text, transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, installment_text.",
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Analise esta imagem financeira e devolva somente o JSON solicitado. Priorize o valor total principal da transação. Se houver parcelas, registre o total em amount e cite a parcela apenas em evidence. Se conseguir identificar origem e destino, use isso para decidir corretamente entre despesa e receita." },
-              { type: "image_url", image_url: { url: dataUri } },
-            ],
-          },
-        ],
-        max_tokens: 1200,
-      }),
-    });
-
-    if (!ocrRes.ok) {
-      const errText = await ocrRes.text();
-      console.error("OpenAI Vision error:", ocrRes.status, errText);
-      return new Response(
-        JSON.stringify({ error: "Erro na extração de texto da imagem" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    let ocrRes: Response;
+    try {
+      ocrRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "Você é um extrator inteligente de transações financeiras a partir de imagens. Responda somente com JSON válido. Interprete do ponto de vista do usuário que está registrando a transação. amount deve ser sempre o valor principal total da transação. Nunca use o valor unitário da parcela como amount quando houver um total maior explícito. Exemplo: se a imagem tiver 'R$ 365,67' e também '12x de R$ 30,47', amount deve ser 365.67. date deve ser convertida para ISO YYYY-MM-DD e você deve entender formatos como '28 Mar, 2026', '28 março 2026' e '28/03/2026'. Se houver comprovante de venda, link de pagamento, compra em cartão, PIX enviado, transferência enviada, boleto pago, débito ou pagamento efetuado pelo usuário, classifique como expense. Só classifique como income quando houver evidência inequívoca de entrada de dinheiro para o usuário, como PIX recebido, transferência recebida, depósito recebido ou salário creditado. A palavra crédito em compra no cartão normalmente ainda é despesa, não receita. Em description prefira o estabelecimento ou o contexto principal da transação. Em evidence inclua trechos curtos que provem amount, date, parcelas, origem e destino quando existirem. installment_text deve capturar o texto original do parcelamento (ex: '3x', '12x de R$ 30,47', '2x sem juros'). Se não houver parcelamento, installment_text deve ser null. Não invente valor, data ou descrição. Se não houver segurança, use null ou unknown. Retorne obrigatoriamente um JSON com as chaves: extracted_text, transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, installment_text.",
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Analise esta imagem financeira e devolva somente o JSON solicitado. Priorize o valor total principal da transação. Se houver parcelas, registre o total em amount e cite a parcela apenas em evidence. Se conseguir identificar origem e destino, use isso para decidir corretamente entre despesa e receita.",
+                },
+                { type: "image_url", image_url: { url: dataUri } },
+              ],
+            },
+          ],
+          max_tokens: 1200,
+        }),
+      });
+    } catch (error) {
+      console.error("OpenAI Vision fetch error:", error);
+      return jsonError(
+        502,
+        "Falha de comunicação com o provider OCR.",
+        "OCR_PROVIDER_ERROR"
       );
     }
 
-    const ocrData = await ocrRes.json();
+    if (!ocrRes.ok) {
+      const errText = await ocrRes.text().catch(() => "");
+      console.error("OpenAI Vision error:", ocrRes.status, errText);
+
+      return jsonError(
+        502,
+        "O provider OCR falhou ao processar a imagem.",
+        "OCR_PROVIDER_ERROR",
+        {
+          provider_status: ocrRes.status,
+          provider_excerpt: errText.slice(0, 300),
+        }
+      );
+    }
+
+    const ocrData = await ocrRes.json().catch(() => null);
+    if (!ocrData || typeof ocrData !== "object") {
+      return jsonError(
+        502,
+        "O provider OCR retornou um payload inválido.",
+        "OCR_INVALID_RESPONSE"
+      );
+    }
+
     const content = extractMessageContent(ocrData);
     const structured = parseStructuredPayload(content);
 
     if (!structured?.extracted_text) {
-      return new Response(
-        JSON.stringify({ error: "OCR não retornou dados estruturados utilizáveis para esta imagem." }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonError(
+        422,
+        "OCR não retornou dados estruturados utilizáveis para esta imagem.",
+        "OCR_INVALID_RESPONSE"
       );
     }
 
@@ -315,9 +447,10 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("smart-capture-ocr error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    return jsonError(
+      500,
+      e instanceof Error ? e.message : "Erro desconhecido no processamento OCR.",
+      "OCR_PROCESSING_FAILED"
     );
   }
 });
