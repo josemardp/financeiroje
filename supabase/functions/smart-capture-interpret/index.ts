@@ -167,6 +167,7 @@ function parseStructuredPayload(content: string): StructuredInterpretPayload | n
       confidence: normalizeConfidence(parsed?.confidence),
       evidence: normalizeEvidence(parsed?.evidence),
       missing_fields: normalizeMissingFields(parsed?.missing_fields),
+      installment_text: sanitizeNullableString(parsed?.installment_text),
     };
   } catch {
     return null;
