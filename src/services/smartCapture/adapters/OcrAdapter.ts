@@ -60,6 +60,7 @@ const MAX_OCR_IMAGE_DIMENSION = 1800;
 const MAX_OCR_UPLOAD_BYTES = 2 * 1024 * 1024;
 const OCR_OUTPUT_MIME = "image/jpeg";
 const OCR_OUTPUT_QUALITY = 0.88;
+const OCR_TIMEOUT_MS = 30_000;
 
 function formatDateToPtBr(date?: string) {
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
@@ -286,6 +287,9 @@ export class OcrAdapter {
       );
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), OCR_TIMEOUT_MS);
+
     let response: Response;
     try {
       response = await fetch(`${supabaseUrl}/functions/v1/smart-capture-ocr`, {
@@ -294,12 +298,21 @@ export class OcrAdapter {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: formData,
+        signal: controller.signal,
       });
-    } catch {
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") {
+        throw new OcrAdapterError(
+          "backend_unavailable",
+          "Tempo limite excedido no OCR (30s). Tente uma imagem menor."
+        );
+      }
       throw new OcrAdapterError(
         "backend_unavailable",
         "Não foi possível alcançar a edge function smart-capture-ocr."
       );
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     const payload = await response.json().catch(() => null);

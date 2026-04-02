@@ -248,6 +248,8 @@ export default function SmartCapture() {
   } = useOcrCapture();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const interpretAbortRef = useRef<AbortController | null>(null);
+  const [isInterpreting, setIsInterpreting] = useState(false);
   const [isExtractingFile, setIsExtractingFile] = useState(false);
   const [sourceLabel, setSourceLabel] = useState("Texto Livre");
 
@@ -371,7 +373,7 @@ export default function SmartCapture() {
 
       const interpreted = await InterpretAdapter.interpret({
         text: ocrText,
-        sourceKind: "free_text",
+        sourceKind: "ocr_text",
       });
 
       if (!active) return;
@@ -419,11 +421,21 @@ export default function SmartCapture() {
     const textToParse = (input || textInput).trim();
     if (!textToParse) return;
 
+    // Cancel any in-flight interpret request before starting a new one
+    interpretAbortRef.current?.abort();
+    const controller = new AbortController();
+    interpretAbortRef.current = controller;
+
+    setIsInterpreting(true);
+
     try {
       const interpreted = await InterpretAdapter.interpret({
         text: textToParse,
         sourceKind,
+        signal: controller.signal,
       });
+
+      if (controller.signal.aborted) return;
 
       const result = mapStructuredInterpretToParsed(interpreted);
       applyParsedResult(result, source, label);
@@ -432,6 +444,9 @@ export default function SmartCapture() {
         description: "Revise no Modo Espelho abaixo.",
       });
     } catch (error) {
+      // Ignore abort errors — a newer request is already in flight
+      if ((error as Error)?.name === "AbortError") return;
+
       const fallback = appendFallbackWarning(
         parseTransactionText(textToParse),
         error instanceof Error ? error.message : undefined
@@ -444,6 +459,10 @@ export default function SmartCapture() {
       toast.warning("Interpretação parcialmente degradada", {
         description: `${msg} Revise com atenção no Modo Espelho.`,
       });
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsInterpreting(false);
+      }
     }
   };
 
@@ -481,14 +500,16 @@ export default function SmartCapture() {
 
       const installmentRows = Array.from({ length: installCount }, (_, i) => {
         const installDate = new Date(now.getFullYear(), now.getMonth() + startMonth + i, 1);
-        const baseDay = editForm.data ? new Date(editForm.data).getDate() : 1;
+        // Parse day directly from ISO string to avoid UTC-3 offset bug (new Date("YYYY-MM-DD") is UTC midnight)
+        const baseDay = editForm.data ? parseInt(editForm.data.split("-")[2], 10) : 1;
         const safeDay = Math.min(
           baseDay,
           new Date(installDate.getFullYear(), installDate.getMonth() + 1, 0).getDate()
         );
         installDate.setDate(safeDay);
 
-        const isoDate = installDate.toISOString().split("T")[0];
+        // Use local date parts to avoid UTC offset shifting the date back one day
+        const isoDate = `${installDate.getFullYear()}-${String(installDate.getMonth() + 1).padStart(2, "0")}-${String(installDate.getDate()).padStart(2, "0")}`;
 
         return {
           user_id: user.id,
@@ -520,6 +541,8 @@ export default function SmartCapture() {
         setInstallmentStart(null);
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
       }
     } else {
       const { error } = await supabase.from("transactions").insert({
@@ -555,6 +578,8 @@ export default function SmartCapture() {
         setInstallmentStart(null);
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
       }
     }
 
@@ -710,10 +735,13 @@ export default function SmartCapture() {
 
                 <Button
                   onClick={() => void handleParse("")}
-                  disabled={!textInput.trim()}
+                  disabled={!textInput.trim() || isInterpreting}
                   className="w-full sm:w-auto"
                 >
-                  <Send className="mr-2 h-4 w-4" /> Interpretar com IA
+                  {isInterpreting
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Interpretando...</>
+                    : <><Send className="mr-2 h-4 w-4" /> Interpretar com IA</>
+                  }
                 </Button>
               </div>
             )}
