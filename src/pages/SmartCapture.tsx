@@ -116,6 +116,8 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
   const hasFinalDescription = Boolean(finalDescription);
 
   const installmentText = metadata?.installmentText || fallback.installmentText || null;
+  const installmentCountMatch = installmentText?.match(/^(\d{1,2})/);
+  const installmentCount = installmentCountMatch ? parseInt(installmentCountMatch[1], 10) : fallback.installmentCount || null;
 
   const observacoes = [
     ...((metadata?.evidence || []).slice(0, 6).map((item) => `Evidência IA: ${item}`)),
@@ -180,6 +182,7 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
     observacoes,
     camposFaltantes,
     installmentText,
+    installmentCount,
     status,
   };
 }
@@ -218,7 +221,7 @@ export default function SmartCapture() {
   const [parsed, setParsed] = useState<ParsedTransaction | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
+  const [installmentStart, setInstallmentStart] = useState<"this_month" | "next_month" | null>(null);
   const {
     isRecording,
     isTranscribing,
@@ -260,6 +263,7 @@ export default function SmartCapture() {
   const applyParsedResult = (result: ParsedTransaction, source: string, label?: string) => {
     setParsed(result);
     setIsEditing(false);
+    setInstallmentStart(null);
     setSourceLabel(
       label ||
         (source === "free_text"
@@ -392,9 +396,17 @@ export default function SmartCapture() {
     }
   };
 
+  const hasInstallment = parsed && parsed.installmentCount && parsed.installmentCount > 1;
+  const needsInstallmentAnswer = hasInstallment && installmentStart === null;
+
   const handleSave = async () => {
     if (!user || !editForm.valor || Number(editForm.valor) <= 0) {
       toast.error("Valor inválido");
+      return;
+    }
+
+    if (needsInstallmentAnswer) {
+      toast.error("Selecione quando começa a primeira parcela antes de salvar.");
       return;
     }
 
@@ -407,38 +419,92 @@ export default function SmartCapture() {
         : []),
     ].join("\n");
 
-    const { error } = await supabase.from("transactions").insert({
-      user_id: user.id,
-      valor: Number(editForm.valor),
-      tipo: editForm.tipo as any,
-      categoria_id: editForm.categoria_id || null,
-      descricao: editForm.descricao,
-      data: editForm.data,
-      scope: editForm.scope as any,
-      data_status: "confirmed" as any,
-      source_type: editForm.source_type as any,
-      confidence: (parsed?.confianca as any) || "media",
-      created_by: user.id,
-      validation_notes: validationNotes,
-    });
+    const totalValue = Number(editForm.valor);
+    const installCount = parsed?.installmentCount || 1;
+    const isInstallmentPurchase = installCount > 1 && installmentStart !== null;
 
-    if (error) {
-      toast.error("Erro ao salvar", { description: error.message });
-    } else {
-      toast.success("Transação confirmada com sucesso", {
-        description: `Salva no escopo: ${
-          editForm.scope === "private"
-            ? "Pessoal"
-            : editForm.scope === "family"
-              ? "Família"
-              : "Negócio"
-        }.`,
+    if (isInstallmentPurchase) {
+      // Create one transaction per installment
+      const parcelaValue = Math.round((totalValue / installCount) * 100) / 100;
+      const now = new Date();
+      const startMonth = installmentStart === "next_month" ? 1 : 0;
+
+      const installmentRows = Array.from({ length: installCount }, (_, i) => {
+        const installDate = new Date(now.getFullYear(), now.getMonth() + startMonth + i, 1);
+        // Use day from editForm.data if available, else 1st of month
+        const baseDay = editForm.data ? new Date(editForm.data).getDate() : 1;
+        const safeDay = Math.min(baseDay, new Date(installDate.getFullYear(), installDate.getMonth() + 1, 0).getDate());
+        installDate.setDate(safeDay);
+
+        const isoDate = installDate.toISOString().split("T")[0];
+
+        return {
+          user_id: user.id,
+          valor: parcelaValue,
+          tipo: editForm.tipo as any,
+          categoria_id: editForm.categoria_id || null,
+          descricao: `${editForm.descricao} (${i + 1}/${installCount})`,
+          data: isoDate,
+          scope: editForm.scope as any,
+          data_status: "confirmed" as any,
+          source_type: editForm.source_type as any,
+          confidence: (parsed?.confianca as any) || "media",
+          created_by: user.id,
+          validation_notes: `${validationNotes}\nParcela ${i + 1}/${installCount} — Total: ${totalValue} — Início: ${installmentStart}`,
+        };
       });
 
-      setParsed(null);
-      setTextInput("");
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+      const { error } = await supabase.from("transactions").insert(installmentRows);
+
+      if (error) {
+        toast.error("Erro ao salvar parcelas", { description: error.message });
+      } else {
+        toast.success(`${installCount} parcelas criadas com sucesso`, {
+          description: `Valor por parcela: R$ ${parcelaValue.toFixed(2)} — de ${installmentRows[0].data} a ${installmentRows[installCount - 1].data}`,
+        });
+
+        setParsed(null);
+        setTextInput("");
+        setInstallmentStart(null);
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+      }
+    } else {
+      // Single transaction (original flow)
+      const { error } = await supabase.from("transactions").insert({
+        user_id: user.id,
+        valor: totalValue,
+        tipo: editForm.tipo as any,
+        categoria_id: editForm.categoria_id || null,
+        descricao: editForm.descricao,
+        data: editForm.data,
+        scope: editForm.scope as any,
+        data_status: "confirmed" as any,
+        source_type: editForm.source_type as any,
+        confidence: (parsed?.confianca as any) || "media",
+        created_by: user.id,
+        validation_notes: validationNotes,
+      });
+
+      if (error) {
+        toast.error("Erro ao salvar", { description: error.message });
+      } else {
+        toast.success("Transação confirmada com sucesso", {
+          description: `Salva no escopo: ${
+            editForm.scope === "private"
+              ? "Pessoal"
+              : editForm.scope === "family"
+                ? "Família"
+                : "Negócio"
+          }.`,
+        });
+
+        setParsed(null);
+        setTextInput("");
+        setInstallmentStart(null);
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
+      }
     }
 
     setIsSaving(false);
@@ -740,6 +806,46 @@ export default function SmartCapture() {
                 </div>
               </div>
             )}
+
+            {hasInstallment && (
+              <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-primary" />
+                  <p className="font-semibold text-sm">
+                    Parcelamento detectado: {parsed.installmentText}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  A primeira parcela é para este mês ou para o próximo mês?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={installmentStart === "this_month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInstallmentStart("this_month")}
+                  >
+                    Neste mês
+                  </Button>
+                  <Button
+                    variant={installmentStart === "next_month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInstallmentStart("next_month")}
+                  >
+                    Próximo mês
+                  </Button>
+                </div>
+                {installmentStart && (
+                  <p className="text-xs text-muted-foreground">
+                    ✓ {parsed.installmentCount} parcelas de{" "}
+                    {parsed.valor
+                      ? formatCurrency(Math.round((parsed.valor / parsed.installmentCount!) * 100) / 100)
+                      : "valor a definir"}{" "}
+                    — início: {installmentStart === "this_month" ? "este mês" : "próximo mês"}
+                  </p>
+                )}
+              </div>
+            )}
+
 
             {!isEditing ? (
               <div className="grid gap-4 sm:grid-cols-2">
