@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { VoiceAdapter, VoiceTranscriptionResult } from "../adapters/VoiceAdapter";
 import { toast } from "sonner";
 
@@ -6,7 +6,7 @@ export function useVoiceCapture() {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [result, setResult] = useState<VoiceTranscriptionResult | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const mimeTypeRef = useRef<string>("audio/webm");
@@ -15,13 +15,13 @@ export function useVoiceCapture() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      // Detect best supported MIME type
       const preferredTypes = [
         "audio/webm;codecs=opus",
         "audio/webm",
         "audio/ogg;codecs=opus",
         "audio/mp4",
       ];
+
       let selectedMime = "";
       for (const mime of preferredTypes) {
         if (MediaRecorder.isTypeSupported(mime)) {
@@ -29,6 +29,7 @@ export function useVoiceCapture() {
           break;
         }
       }
+
       mimeTypeRef.current = selectedMime || "audio/webm";
 
       const options: MediaRecorderOptions = selectedMime ? { mimeType: selectedMime } : {};
@@ -45,11 +46,17 @@ export function useVoiceCapture() {
       mediaRecorder.onstop = async () => {
         const mime = mimeTypeRef.current;
         const audioBlob = new Blob(audioChunksRef.current, { type: mime });
-        
-        // Determine file extension from mime
-        const ext = mime.includes("webm") ? "webm" : mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "m4a" : "webm";
-        
+
+        const ext = mime.includes("webm")
+          ? "webm"
+          : mime.includes("ogg")
+            ? "ogg"
+            : mime.includes("mp4")
+              ? "m4a"
+              : "webm";
+
         setIsTranscribing(true);
+
         try {
           const transcription = await VoiceAdapter.transcribe(audioBlob, `audio.${ext}`);
           setResult(transcription);
@@ -75,15 +82,15 @@ export function useVoiceCapture() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
     }
   };
 
-  const resetVoice = () => {
+  const resetVoice = useCallback(() => {
     setResult(null);
     setIsRecording(false);
     setIsTranscribing(false);
-  };
+  }, []);
 
   return {
     isRecording,
@@ -91,6 +98,6 @@ export function useVoiceCapture() {
     result,
     startRecording,
     stopRecording,
-    resetVoice
+    resetVoice,
   };
 }
