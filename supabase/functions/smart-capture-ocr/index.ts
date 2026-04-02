@@ -154,6 +154,7 @@ function parseStructuredPayload(content: string): StructuredOcrPayload | null {
       category_hint: sanitizeNullableString(parsed?.category_hint),
       confidence: normalizeConfidence(parsed?.confidence),
       evidence: normalizeEvidence(parsed?.evidence),
+      installment_text: sanitizeNullableString(parsed?.installment_text),
     } satisfies StructuredOcrPayload;
   } catch {
     return null;
