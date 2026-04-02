@@ -67,6 +67,7 @@ type StructuredCaptureMetadata = {
   confidence?: "alta" | "media" | "baixa";
   merchantName?: string;
   counterparty?: string;
+  installmentText?: string | null;
 };
 
 type StructuredCaptureResult = {
