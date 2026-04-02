@@ -180,6 +180,22 @@ function mapStructuredInterpretToParsed(result: InterpretResult): ParsedTransact
   return mapStructuredCaptureToParsed(result);
 }
 
+function appendFallbackWarning(
+  result: ParsedTransaction,
+  reason?: string
+): ParsedTransaction {
+  const details = reason?.trim();
+  const warning = details
+    ? `Interpretação estruturada indisponível; aplicado fallback local. Motivo: ${details}`
+    : "Interpretação estruturada indisponível; aplicado fallback local.";
+
+  return {
+    ...result,
+    confianca: result.confianca === "alta" ? "media" : "baixa",
+    observacoes: [warning, ...(result.observacoes || [])].slice(0, 8),
+  };
+}
+
 export default function SmartCapture() {
   const { user } = useAuth();
   const { currentScope, scopeLabel } = useScope();
@@ -287,11 +303,10 @@ export default function SmartCapture() {
       } catch (error) {
         if (!active) return;
 
-        const fallback = parseTransactionText(voiceResult.text);
-        fallback.observacoes = [
-          "Interpretação estruturada indisponível; aplicado fallback local.",
-          ...fallback.observacoes,
-        ].slice(0, 8);
+        const fallback = appendFallbackWarning(
+          parseTransactionText(voiceResult.text),
+          error instanceof Error ? error.message : undefined
+        );
 
         applyParsedResult(fallback, "voice", "Voz");
 
@@ -350,11 +365,10 @@ export default function SmartCapture() {
         description: "Revise no Modo Espelho abaixo.",
       });
     } catch (error) {
-      const fallback = parseTransactionText(textToParse);
-      fallback.observacoes = [
-        "Interpretação estruturada indisponível; aplicado fallback local.",
-        ...fallback.observacoes,
-      ].slice(0, 8);
+      const fallback = appendFallbackWarning(
+        parseTransactionText(textToParse),
+        error instanceof Error ? error.message : undefined
+      );
 
       applyParsedResult(fallback, source, label);
 
@@ -771,11 +785,22 @@ export default function SmartCapture() {
                       <Label className="text-xs text-muted-foreground">Observações</Label>
                       <div className="space-y-2">
                         {parsed.observacoes.length > 0 ? (
-                          parsed.observacoes.map((obs, idx) => (
-                            <p key={idx} className="rounded-md bg-muted p-2 text-sm">
-                              {obs}
-                            </p>
-                          ))
+                          parsed.observacoes.map((obs, idx) => {
+                            const isFallbackWarning = obs.toLowerCase().includes("fallback local");
+
+                            return (
+                              <div
+                                key={`${obs}-${idx}`}
+                                className={`rounded-md border px-3 py-2 text-sm ${
+                                  isFallbackWarning
+                                    ? "border-amber-300 bg-amber-50 text-amber-900"
+                                    : "border-muted bg-muted/40 text-muted-foreground"
+                                }`}
+                              >
+                                {obs}
+                              </div>
+                            );
+                          })
                         ) : (
                           <p className="rounded-md bg-muted p-2 text-sm">Sem observações.</p>
                         )}
