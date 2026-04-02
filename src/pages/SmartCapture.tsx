@@ -67,6 +67,7 @@ type StructuredCaptureMetadata = {
   confidence?: "alta" | "media" | "baixa";
   merchantName?: string;
   counterparty?: string;
+  installmentText?: string | null;
 };
 
 type StructuredCaptureResult = {
@@ -87,7 +88,15 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
   const hasDateFromMetadata =
     typeof metadata?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(metadata.date);
 
-  const finalValor = hasAmountFromMetadata ? metadata!.amount ?? null : fallback.valor;
+  // REGRA: Se a IA respondeu (metadata existe) mas NÃO retornou amount,
+  // NÃO completar com fallback local silenciosamente. Manter null.
+  const aiResponded = metadata !== undefined;
+  const finalValor = hasAmountFromMetadata
+    ? metadata!.amount ?? null
+    : aiResponded
+      ? null  // IA respondeu mas sem amount → manter null, não usar fallback
+      : fallback.valor;
+
   const finalTipo = hasTypeFromMetadata
     ? (metadata!.transactionType as "income" | "expense")
     : fallback.tipo;
@@ -106,6 +115,8 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
     typeof finalData === "string" && /^\d{4}-\d{2}-\d{2}$/.test(finalData);
   const hasFinalDescription = Boolean(finalDescription);
 
+  const installmentText = metadata?.installmentText || fallback.installmentText || null;
+
   const observacoes = [
     ...((metadata?.evidence || []).slice(0, 6).map((item) => `Evidência IA: ${item}`)),
     ...(!hasTypeFromMetadata && hasFinalType
@@ -113,9 +124,9 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
       : !hasFinalType
         ? ["Tipo da transação não foi identificado com segurança."]
         : []),
-    ...(!hasAmountFromMetadata && hasFinalAmount
-      ? ["Valor principal preenchido por fallback local; revise no Modo Espelho."]
-      : !hasFinalAmount
+    ...(aiResponded && !hasAmountFromMetadata
+      ? ["Valor principal não retornado pela IA; preencha manualmente no Modo Espelho."]
+      : !aiResponded && !hasFinalAmount
         ? ["Valor principal não foi identificado com segurança."]
         : []),
     ...(!hasDateFromMetadata && hasFinalDate
@@ -123,21 +134,16 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
       : !hasFinalDate
         ? ["Data não foi identificada com segurança."]
         : []),
+    ...(installmentText ? [`Parcelamento detectado: ${installmentText}`] : []),
     ...fallback.observacoes.filter((obs) => {
       if (
         obs === "Tipo da transação não foi identificado com clareza; mantido padrão conservador." &&
         hasFinalType
-      ) {
-        return false;
-      }
-
+      ) return false;
       if (
         obs === "Nenhuma data explícita encontrada; usado o dia atual como fallback." &&
         hasDateFromMetadata
-      ) {
-        return false;
-      }
-
+      ) return false;
       return true;
     }),
   ].slice(0, 8);
@@ -152,6 +158,10 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
       ...((result.missingFields || []).filter(Boolean)),
     ])
   );
+
+  // Determine status
+  const status: ParsedTransaction["status"] =
+    hasFinalAmount && hasFinalType ? "complete" : camposFaltantes.length > 2 ? "ambiguous" : "partial";
 
   return {
     valor: finalValor,
@@ -169,6 +179,8 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
     textoOriginal: result.text,
     observacoes,
     camposFaltantes,
+    installmentText,
+    status,
   };
 }
 
