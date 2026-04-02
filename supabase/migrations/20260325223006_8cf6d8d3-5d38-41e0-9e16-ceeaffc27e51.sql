@@ -1,1 +1,1 @@
-ALTER TABLE public.alerts ADD COLUMN scope public.scope_type NULL DEFAULT 'private'::scope_type;
+ALTER TABLE public.alerts ADD COLUMN IF NOT EXISTS scope public.scope_type NULL DEFAULT 'private'::scope_type;
