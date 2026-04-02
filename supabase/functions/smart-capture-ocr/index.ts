@@ -1,130 +1,156 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-    
-    if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY não configurada')
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Não autorizado", code: "OCR_AUTH_REQUIRED" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const { file } = await req.json()
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
-    if (!file) {
-      throw new Error('Nenhum arquivo fornecido')
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Sessão inválida ou expirada.", code: "OCR_INVALID_SESSION" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Detectar tipo de arquivo pelo base64 ou MIME type
-    const isImage = file.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file)
-    const isPDF = file.startsWith('data:application/pdf') || file.endsWith('.pdf')
-
-    let extractedText = ''
-    let confidence = 0
-
-    if (isImage) {
-      // Processar imagem com OpenAI Vision
-      console.log('Processando imagem com OpenAI Vision...')
-      
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'system',
-              content: `Você é um assistente especializado em extrair texto de recibos, notas fiscais e documentos financeiros.
-Extraia TODO o texto visível na imagem de forma estruturada e organizada.
-Inclua: valores, datas, descrições, estabelecimento, itens, totais.
-Mantenha a formatação e hierarquia do texto original.`
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Extraia todo o texto desta imagem de forma estruturada:'
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: file
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 1000
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(`Erro na API OpenAI: ${JSON.stringify(errorData)}`)
-      }
-
-      const data = await response.json()
-      extractedText = data.choices[0]?.message?.content || ''
-      confidence = 0.9 // Alta confiança para GPT-4 Vision
-
-    } else if (isPDF) {
-      // Para PDFs, usar uma biblioteca de parsing
-      // Por enquanto, retornar mensagem de não suportado
-      throw new Error('Processamento de PDF não implementado. Use imagens (JPG, PNG) para melhor resultado.')
-      
-    } else {
-      throw new Error('Formato de arquivo não suportado. Use imagens (JPG, PNG, WEBP) ou PDFs.')
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "OCR indisponível: chave de API não configurada.", code: "OCR_BACKEND_KEY_MISSING" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error('Nenhum texto foi extraído da imagem. Tente com uma imagem mais clara.')
+    // Recebe FormData com campo "image" enviado pelo OcrAdapter
+    const formData = await req.formData();
+    const imageFile = formData.get("image") as File | null;
+
+    if (!imageFile) {
+      return new Response(
+        JSON.stringify({ error: "Nenhuma imagem enviada. Use o campo 'image'.", code: "OCR_UNSUPPORTED_MIME" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log('Texto extraído com sucesso:', extractedText.substring(0, 100) + '...')
+    const supportedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    const mimeType = imageFile.type || "image/jpeg";
+
+    if (!supportedMimes.includes(mimeType)) {
+      return new Response(
+        JSON.stringify({
+          error: `Formato de imagem não suportado: ${mimeType}. Use JPG, PNG, WEBP ou GIF.`,
+          code: "OCR_UNSUPPORTED_MIME",
+        }),
+        { status: 415, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Converte o arquivo para base64 para enviar ao GPT-4o Vision
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const base64 = btoa(binary);
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
+    const openAiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você é um extrator de dados financeiros a partir de imagens de recibos, comprovantes e notas fiscais. Extraia o texto completo visível e retorne um JSON com: text (texto extraído completo), metadata (objeto com: transactionType ['income'|'expense'|'unknown'], amount [número ou null], totalAmount [número ou null], date [ISO YYYY-MM-DD ou null], description [string ou null], merchantName [string ou null], counterparty [string ou null], scope ['private'|'family'|'business'|'unknown'], categoryHint [string ou null], confidence ['alta'|'media'|'baixa'], evidence [array de strings com evidências encontradas], installmentText [string ou null]). Nunca invente dados que não estejam visíveis na imagem.",
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Extraia os dados financeiros desta imagem e retorne o JSON conforme instruído:" },
+              { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
+            ],
+          },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1200,
+      }),
+    });
+
+    if (!openAiRes.ok) {
+      const errBody = await openAiRes.text();
+      console.error("OpenAI OCR error:", openAiRes.status, errBody);
+      return new Response(
+        JSON.stringify({ error: "Erro no provedor OCR.", code: "OCR_PROVIDER_ERROR", provider_status: openAiRes.status }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const openAiData = await openAiRes.json();
+    const rawContent = openAiData?.choices?.[0]?.message?.content;
+
+    let parsed: any = {};
+    try {
+      parsed = typeof rawContent === "string" ? JSON.parse(rawContent) : (rawContent ?? {});
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Resposta da IA não pôde ser parseada.", code: "OCR_INVALID_RESPONSE" }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const extractedText = typeof parsed?.text === "string" ? parsed.text.trim() : "";
+
+    if (!extractedText) {
+      return new Response(
+        JSON.stringify({ error: "OCR não conseguiu extrair texto desta imagem.", code: "OCR_INVALID_RESPONSE" }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const conf = parsed?.metadata?.confidence;
+    const confidence = conf === "alta" ? 0.9 : conf === "media" ? 0.7 : 0.5;
 
     return new Response(
       JSON.stringify({
         text: extractedText,
-        confidence: confidence,
-        metadata: {
-          method: isImage ? 'openai-vision' : 'pdf-parse',
-          textLength: extractedText.length
-        }
+        confidence,
+        metadata: parsed?.metadata ?? {},
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
-
-  } catch (error) {
-    console.error('Erro no OCR:', error)
-    
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    console.error("smart-capture-ocr error:", e);
     return new Response(
-      JSON.stringify({
-        error: error.message,
-        text: '',
-        confidence: 0,
-        metadata: {}
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200, // Retornar 200 para o frontend processar o erro
-      },
-    )
+      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido no OCR" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
-})
+});
