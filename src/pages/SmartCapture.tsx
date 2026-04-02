@@ -16,6 +16,12 @@ import {
   type InterpretSourceKind,
 } from "@/services/smartCapture/adapters/InterpretAdapter";
 import type { OcrExtractionResult } from "@/services/smartCapture/adapters/OcrAdapter";
+import {
+  OCR_IMAGE_FILE_ACCEPT,
+  getSupportedOcrImageFormatsLabel,
+  looksLikeImageFile,
+  validateOcrImageFile,
+} from "@/services/smartCapture/ocrImageFormats";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,7 +100,7 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
   const finalValor = hasAmountFromMetadata
     ? metadata!.amount ?? null
     : aiResponded
-      ? null  // IA respondeu mas sem amount → manter null, não usar fallback
+      ? null
       : fallback.valor;
 
   const finalTipo = hasTypeFromMetadata
@@ -117,7 +123,9 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
 
   const installmentText = metadata?.installmentText || fallback.installmentText || null;
   const installmentCountMatch = installmentText?.match(/^(\d{1,2})/);
-  const installmentCount = installmentCountMatch ? parseInt(installmentCountMatch[1], 10) : fallback.installmentCount || null;
+  const installmentCount = installmentCountMatch
+    ? parseInt(installmentCountMatch[1], 10)
+    : fallback.installmentCount || null;
 
   const observacoes = [
     ...((metadata?.evidence || []).slice(0, 6).map((item) => `Evidência IA: ${item}`)),
@@ -161,7 +169,6 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
     ])
   );
 
-  // Determine status
   const status: ParsedTransaction["status"] =
     hasFinalAmount && hasFinalType ? "complete" : camposFaltantes.length > 2 ? "ambiguous" : "partial";
 
@@ -222,6 +229,7 @@ export default function SmartCapture() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [installmentStart, setInstallmentStart] = useState<"this_month" | "next_month" | null>(null);
+
   const {
     isRecording,
     isTranscribing,
@@ -463,16 +471,17 @@ export default function SmartCapture() {
     const isInstallmentPurchase = installCount > 1 && installmentStart !== null;
 
     if (isInstallmentPurchase) {
-      // Create one transaction per installment
       const parcelaValue = Math.round((totalValue / installCount) * 100) / 100;
       const now = new Date();
       const startMonth = installmentStart === "next_month" ? 1 : 0;
 
       const installmentRows = Array.from({ length: installCount }, (_, i) => {
         const installDate = new Date(now.getFullYear(), now.getMonth() + startMonth + i, 1);
-        // Use day from editForm.data if available, else 1st of month
         const baseDay = editForm.data ? new Date(editForm.data).getDate() : 1;
-        const safeDay = Math.min(baseDay, new Date(installDate.getFullYear(), installDate.getMonth() + 1, 0).getDate());
+        const safeDay = Math.min(
+          baseDay,
+          new Date(installDate.getFullYear(), installDate.getMonth() + 1, 0).getDate()
+        );
         installDate.setDate(safeDay);
 
         const isoDate = installDate.toISOString().split("T")[0];
@@ -509,7 +518,6 @@ export default function SmartCapture() {
         queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
       }
     } else {
-      // Single transaction (original flow)
       const { error } = await supabase.from("transactions").insert({
         user_id: user.id,
         valor: totalValue,
@@ -565,7 +573,8 @@ export default function SmartCapture() {
     if (!file) return;
 
     const name = file.name.toLowerCase();
-    const isImage = file.type.startsWith("image/");
+    const isImage = looksLikeImageFile(file);
+    const imageValidation = validateOcrImageFile(file);
     const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
     const isDocx = name.endsWith(".docx");
     const isSpreadsheet = name.endsWith(".xlsx") || name.endsWith(".xls");
@@ -586,6 +595,14 @@ export default function SmartCapture() {
     }
 
     if (isImage) {
+      if (!imageValidation.ok) {
+        toast.error("Formato de imagem não suportado", {
+          description: imageValidation.reason,
+        });
+        resetInput();
+        return;
+      }
+
       try {
         await processImage(file);
       } finally {
@@ -772,14 +789,14 @@ export default function SmartCapture() {
                   </p>
 
                   <p className="text-sm text-muted-foreground">
-                    Suportados aqui: JPG, PNG, PDF textual e DOCX. XLS/XLSX ficam para
-                    importação estruturada.
+                    Suportados aqui: {getSupportedOcrImageFormatsLabel()}, PDF textual e DOCX.
+                    HEIC/HEIF, BMP, TIFF e SVG são bloqueados no OCR.
                   </p>
                 </div>
 
                 <input
                   type="file"
-                  accept="image/*,.pdf,.docx"
+                  accept={`${OCR_IMAGE_FILE_ACCEPT},.pdf,.docx`}
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
@@ -897,7 +914,6 @@ export default function SmartCapture() {
                 )}
               </div>
             )}
-
 
             {!isEditing ? (
               <div className="grid gap-4 sm:grid-cols-2">
