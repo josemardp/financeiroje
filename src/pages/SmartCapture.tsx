@@ -345,18 +345,57 @@ export default function SmartCapture() {
   }, [voiceResult, resetVoice]);
 
   useEffect(() => {
-    if (ocrResult) {
-      const mapped = mapStructuredOcrToParsed(ocrResult);
-      applyParsedResult(mapped, "photo_ocr", "OCR/Foto");
+    if (!ocrResult) return;
+
+    let active = true;
+
+    void (async () => {
+      const ocrText = ocrResult.text?.trim();
       resetOcr();
 
-      toast.success("Dados extraídos com IA", {
-        description:
-          mapped.confianca === "baixa"
-            ? "A IA encontrou evidências, mas com baixa confiança. Revise com atenção."
-            : "Revise no Modo Espelho abaixo.",
-      });
-    }
+      if (!ocrText) {
+        const mapped = mapStructuredOcrToParsed(ocrResult);
+        applyParsedResult(mapped, "photo_ocr", "OCR/Foto");
+        toast.warning("OCR não conseguiu extrair texto legível.");
+        return;
+      }
+
+      try {
+        const interpreted = await InterpretAdapter.interpret({
+          text: ocrText,
+          sourceKind: "free_text",
+        });
+
+        if (!active) return;
+
+        const result = mapStructuredInterpretToParsed(interpreted);
+        applyParsedResult(result, "photo_ocr", "OCR/Foto");
+
+        toast.success("Dados extraídos com IA (OCR + Interpretação)", {
+          description:
+            result.confianca === "baixa"
+              ? "A IA encontrou evidências, mas com baixa confiança. Revise com atenção."
+              : "Revise no Modo Espelho abaixo.",
+        });
+      } catch (error) {
+        if (!active) return;
+
+        const fallback = appendFallbackWarning(
+          parseTransactionText(ocrText),
+          error instanceof Error ? error.message : undefined
+        );
+
+        applyParsedResult(fallback, "photo_ocr", "OCR/Foto");
+
+        toast.warning("OCR concluído com fallback local", {
+          description: "A interpretação estruturada falhou. Revise no Modo Espelho.",
+        });
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [ocrResult, resetOcr]);
 
   const handleParse = async (
