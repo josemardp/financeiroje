@@ -807,7 +807,46 @@ export default function SmartCapture() {
               </div>
             )}
 
-            {!isEditing ? (
+            {hasInstallment && (
+              <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-primary" />
+                  <p className="font-semibold text-sm">
+                    Parcelamento detectado: {parsed.installmentText}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  A primeira parcela é para este mês ou para o próximo mês?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={installmentStart === "this_month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInstallmentStart("this_month")}
+                  >
+                    Neste mês
+                  </Button>
+                  <Button
+                    variant={installmentStart === "next_month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInstallmentStart("next_month")}
+                  >
+                    Próximo mês
+                  </Button>
+                </div>
+                {installmentStart && (
+                  <p className="text-xs text-muted-foreground">
+                    ✓ {parsed.installmentCount} parcelas de{" "}
+                    {parsed.valor
+                      ? formatCurrency(Math.round((parsed.valor / parsed.installmentCount!) * 100) / 100)
+                      : "valor a definir"}{" "}
+                    — início: {installmentStart === "this_month" ? "este mês" : "próximo mês"}
+                  </p>
+                )}
+              </div>
+            )}
+
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <Card>
                   <CardHeader>
