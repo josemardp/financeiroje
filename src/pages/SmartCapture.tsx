@@ -182,6 +182,7 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
     observacoes,
     camposFaltantes,
     installmentText,
+    installmentCount,
     status,
   };
 }
