@@ -17,6 +17,8 @@ export interface ParsedTransaction {
   textoOriginal: string;
   observacoes: string[];
   camposFaltantes: string[];
+  installmentText: string | null;
+  status: "complete" | "partial" | "ambiguous";
 }
 
 type ScopeValue = ParsedTransaction["escopo"];
