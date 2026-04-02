@@ -289,6 +289,10 @@ serve(async (req) => {
 
     const missingFields = buildMissingFields(structured);
 
+    // Determine status
+    const hasCriticalFields = structured.amount !== null && structured.transaction_type !== "unknown";
+    const status = hasCriticalFields ? "complete" : missingFields.length > 2 ? "ambiguous" : "partial";
+
     return new Response(
       JSON.stringify({
         text,
@@ -305,8 +309,10 @@ serve(async (req) => {
           categoryHint: structured.category_hint ?? undefined,
           evidence: structured.evidence,
           confidence: structured.confidence,
+          installmentText: structured.installment_text ?? undefined,
         },
         missingFields,
+        status,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
