@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useScope } from "@/contexts/ScopeContext";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -10,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { calculateMonthlySummary, filterOfficialTransactions } from "@/services/financeEngine";
+import { calculateMonthlySummary } from "@/services/financeEngine/monthlySummary";
+import { filterOfficialTransactions } from "@/services/financeEngine";
 import type { TransactionRaw, MonthlySummary } from "@/services/financeEngine/types";
 import {
   DollarSign,
@@ -105,17 +107,15 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  const { data: summary } = useQuery<MonthlySummary>({
-    queryKey: ["dashboard-summary", rawTransactions],
-    queryFn: () => calculateMonthlySummary(rawTransactions!),
-    enabled: !!rawTransactions && rawTransactions.length > 0,
-  });
+  const summary = useMemo<MonthlySummary | undefined>(
+    () => rawTransactions && rawTransactions.length > 0 ? calculateMonthlySummary(rawTransactions) : undefined,
+    [rawTransactions],
+  );
 
-  const { data: summaryConfirmed } = useQuery<MonthlySummary>({
-    queryKey: ["dashboard-summary-confirmed", rawTransactions],
-    queryFn: () => calculateMonthlySummary(filterOfficialTransactions(rawTransactions!)),
-    enabled: !!rawTransactions && rawTransactions.length > 0,
-  });
+  const summaryConfirmed = useMemo<MonthlySummary | undefined>(
+    () => rawTransactions && rawTransactions.length > 0 ? calculateMonthlySummary(filterOfficialTransactions(rawTransactions)) : undefined,
+    [rawTransactions],
+  );
 
   const recentTransactions = rawTransactions ? rawTransactions.slice(0, 5) : [];
   const totalAccountBalance = (accounts || []).reduce((acc: number, curr: any) => acc + Number(curr.saldo_actual || curr.saldo_inicial || 0), 0);
