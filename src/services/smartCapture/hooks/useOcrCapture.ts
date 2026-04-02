@@ -59,19 +59,29 @@ function getOcrToast(error: unknown) {
 export function useOcrCapture() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<OcrExtractionResult | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const processImage = async (file: File) => {
     setIsProcessing(true);
+    setLastError(null);
 
     try {
       const extraction = await OcrAdapter.extract(file);
       setResult(extraction);
+      return extraction;
     } catch (error) {
       const toastPayload = getOcrToast(error);
+      setLastError(toastPayload.description);
+
       toast.error(toastPayload.title, {
         description: toastPayload.description,
       });
+
       console.error("useOcrCapture.processImage", error);
+
+      throw error instanceof Error
+        ? error
+        : new Error(toastPayload.description);
     } finally {
       setIsProcessing(false);
     }
@@ -80,6 +90,7 @@ export function useOcrCapture() {
   const resetOcr = () => {
     setResult(null);
     setIsProcessing(false);
+    setLastError(null);
   };
 
   return {
@@ -87,5 +98,6 @@ export function useOcrCapture() {
     result,
     processImage,
     resetOcr,
+    lastError,
   };
 }
