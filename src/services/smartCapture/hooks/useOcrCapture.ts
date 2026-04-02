@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   OcrAdapter,
   OcrAdapterError,
@@ -87,11 +87,11 @@ export function useOcrCapture() {
     }
   };
 
-  const resetOcr = () => {
+  const resetOcr = useCallback(() => {
     setResult(null);
     setIsProcessing(false);
     setLastError(null);
-  };
+  }, []);
 
   return {
     isProcessing,
