@@ -10,7 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { parseTransactionText, type ParsedTransaction } from "@/services/smartCapture";
 import { useVoiceCapture } from "@/services/smartCapture/hooks/useVoiceCapture";
 import { useOcrCapture } from "@/services/smartCapture/hooks/useOcrCapture";
-import type { OcrExtractionResult, OcrStructuredMetadata } from "@/services/smartCapture/adapters/OcrAdapter";
+import {
+  InterpretAdapter,
+  type InterpretResult,
+  type InterpretSourceKind,
+} from "@/services/smartCapture/adapters/InterpretAdapter";
+import type { OcrExtractionResult } from "@/services/smartCapture/adapters/OcrAdapter";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,7 +45,10 @@ import {
 
 type CaptureMode = "text" | "voice" | "file";
 
-function mapOcrConfidence(metadata?: OcrStructuredMetadata, raw = 0.6): ParsedTransaction["confianca"] {
+function mapOcrConfidence(
+  metadata?: { confidence?: "alta" | "media" | "baixa" },
+  raw = 0.6
+): ParsedTransaction["confianca"] {
   const explicit = metadata?.confidence;
   if (explicit === "alta" || explicit === "media" || explicit === "baixa") return explicit;
   if (raw >= 0.85) return "alta";
@@ -48,43 +56,85 @@ function mapOcrConfidence(metadata?: OcrStructuredMetadata, raw = 0.6): ParsedTr
   return "baixa";
 }
 
-function mapStructuredOcrToParsed(result: OcrExtractionResult): ParsedTransaction {
+type StructuredCaptureMetadata = {
+  transactionType?: "income" | "expense" | "unknown";
+  amount?: number | null;
+  date?: string;
+  description?: string;
+  scope?: "private" | "family" | "business" | "unknown";
+  categoryHint?: string;
+  evidence?: string[];
+  confidence?: "alta" | "media" | "baixa";
+  merchantName?: string;
+  counterparty?: string;
+};
+
+type StructuredCaptureResult = {
+  text: string;
+  confidence: number;
+  metadata?: StructuredCaptureMetadata;
+  missingFields?: string[];
+};
+
+function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTransaction {
   const fallback = parseTransactionText(result.text);
   const metadata = result.metadata;
+
   const hasType = metadata?.transactionType === "income" || metadata?.transactionType === "expense";
   const hasAmount = typeof metadata?.amount === "number" && metadata.amount > 0;
   const hasDate = typeof metadata?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(metadata.date);
-  const hasDescription = !!metadata?.description?.trim() || !!metadata?.merchantName?.trim() || !!metadata?.counterparty?.trim();
+
+  const resolvedDescription = (
+    metadata?.description?.trim() ||
+    metadata?.merchantName?.trim() ||
+    metadata?.counterparty?.trim() ||
+    fallback.descricao
+  ).trim();
 
   const observacoes = [
     ...((metadata?.evidence || []).slice(0, 6).map((item) => `Evidência IA: ${item}`)),
     ...(hasType ? [] : ["IA não classificou o tipo com segurança."]),
-    ...(hasAmount ? [] : ["IA não encontrou valor principal com segurança."]),
+    ...(hasAmount ? [] : ["IA não encontrou o valor principal com segurança."]),
+    ...(hasDate ? [] : ["IA não confirmou a data com segurança."]),
     ...fallback.observacoes,
   ].slice(0, 8);
 
-  const camposFaltantes = Array.from(new Set([
-    ...(hasAmount || fallback.valor ? [] : ["valor"]),
-    ...(hasType ? [] : ["tipo"]),
-    ...(hasDate ? [] : ["data"]),
-    ...(hasDescription || fallback.descricao ? [] : ["descricao"]),
-    ...((metadata?.categoryHint || fallback.categoriaSugerida) ? [] : ["categoria"]),
-  ]));
+  const camposFaltantes = Array.from(
+    new Set([
+      ...(hasAmount ? [] : ["valor"]),
+      ...(hasType ? [] : ["tipo"]),
+      ...(hasDate ? [] : ["data"]),
+      ...(resolvedDescription ? [] : ["descricao"]),
+      ...((metadata?.categoryHint || fallback.categoriaSugerida) ? [] : ["categoria"]),
+      ...((result.missingFields || []).filter(Boolean)),
+    ])
+  );
 
   return {
     valor: hasAmount ? metadata!.amount ?? null : fallback.valor,
-    tipo: hasType ? metadata!.transactionType as "income" | "expense" : fallback.tipo,
-    descricao: (metadata?.description?.trim() || metadata?.merchantName?.trim() || metadata?.counterparty?.trim() || fallback.descricao).trim(),
+    tipo: hasType ? (metadata!.transactionType as "income" | "expense") : fallback.tipo,
+    descricao: resolvedDescription || fallback.descricao,
     data: hasDate ? metadata!.date! : fallback.data,
     categoriaSugerida: metadata?.categoryHint || fallback.categoriaSugerida,
-    escopo: metadata?.scope === "family" || metadata?.scope === "business" || metadata?.scope === "private"
-      ? metadata.scope
-      : fallback.escopo,
+    escopo:
+      metadata?.scope === "family" ||
+      metadata?.scope === "business" ||
+      metadata?.scope === "private"
+        ? metadata.scope
+        : fallback.escopo,
     confianca: mapOcrConfidence(metadata, result.confidence),
     textoOriginal: result.text,
     observacoes,
     camposFaltantes,
   };
+}
+
+function mapStructuredOcrToParsed(result: OcrExtractionResult): ParsedTransaction {
+  return mapStructuredCaptureToParsed(result);
+}
+
+function mapStructuredInterpretToParsed(result: InterpretResult): ParsedTransaction {
+  return mapStructuredCaptureToParsed(result);
 }
 
 export default function SmartCapture() {
@@ -98,11 +148,25 @@ export default function SmartCapture() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const { isRecording, isTranscribing, result: voiceResult, startRecording, stopRecording, resetVoice } = useVoiceCapture();
-  const { isProcessing: isOcrProcessing, result: ocrResult, processImage, resetOcr } = useOcrCapture();
+  const {
+    isRecording,
+    isTranscribing,
+    result: voiceResult,
+    startRecording,
+    stopRecording,
+    resetVoice,
+  } = useVoiceCapture();
+
+  const {
+    isProcessing: isOcrProcessing,
+    result: ocrResult,
+    processImage,
+    resetOcr,
+  } = useOcrCapture();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isExtractingFile, setIsExtractingFile] = useState(false);
+  const [sourceLabel, setSourceLabel] = useState("Texto Livre");
 
   const [editForm, setEditForm] = useState({
     valor: "",
@@ -122,9 +186,17 @@ export default function SmartCapture() {
     },
   });
 
-  const applyParsedResult = (result: ParsedTransaction, source: string) => {
+  const applyParsedResult = (result: ParsedTransaction, source: string, label?: string) => {
     setParsed(result);
     setIsEditing(false);
+    setSourceLabel(
+      label ||
+        (source === "free_text"
+          ? "Texto Livre"
+          : source === "voice"
+            ? "Voz"
+            : "OCR/Foto")
+    );
 
     setEditForm({
       valor: result.valor?.toString() || "",
@@ -137,7 +209,10 @@ export default function SmartCapture() {
     });
 
     if (result.categoriaSugerida && categories) {
-      const match = categories.find((c: any) => c.nome.toLowerCase().includes(result.categoriaSugerida!.toLowerCase()));
+      const match = categories.find((c: any) =>
+        c.nome.toLowerCase().includes(result.categoriaSugerida!.toLowerCase())
+      );
+
       if (match) {
         setEditForm((f) => ({ ...f, categoria_id: match.id }));
       }
@@ -145,36 +220,107 @@ export default function SmartCapture() {
   };
 
   useEffect(() => {
-    if (voiceResult) {
+    if (!voiceResult) return;
+
+    let active = true;
+
+    void (async () => {
       setTextInput(voiceResult.text);
-      const result = parseTransactionText(voiceResult.text);
-      applyParsedResult(result, "voice");
-      resetVoice();
-      toast.success("Dados extraídos com sucesso!", { description: "Revise no Modo Espelho abaixo." });
-    }
-  }, [voiceResult]);
+
+      try {
+        const interpreted = await InterpretAdapter.interpret({
+          text: voiceResult.text,
+          sourceKind: "voice_transcript",
+        });
+
+        if (!active) return;
+
+        const result = mapStructuredInterpretToParsed(interpreted);
+        applyParsedResult(result, "voice", "Voz");
+
+        toast.success("Dados extraídos com IA", {
+          description: "Revise no Modo Espelho abaixo.",
+        });
+      } catch (error) {
+        if (!active) return;
+
+        const fallback = parseTransactionText(voiceResult.text);
+        fallback.observacoes = [
+          "Interpretação estruturada indisponível; aplicado fallback local.",
+          ...fallback.observacoes,
+        ].slice(0, 8);
+
+        applyParsedResult(fallback, "voice", "Voz");
+
+        const msg =
+          error instanceof Error ? error.message : "Erro na interpretação da transcrição";
+
+        toast.warning("Transcrição concluída com fallback local", {
+          description: `${msg} Revise com atenção no Modo Espelho.`,
+        });
+      } finally {
+        if (active) {
+          resetVoice();
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [voiceResult, resetVoice]);
 
   useEffect(() => {
     if (ocrResult) {
       const mapped = mapStructuredOcrToParsed(ocrResult);
-      applyParsedResult(mapped, "photo_ocr");
+      applyParsedResult(mapped, "photo_ocr", "OCR/Foto");
       resetOcr();
+
       toast.success("Dados extraídos com IA", {
-        description: mapped.confianca === "baixa" ? "A IA encontrou evidências, mas com baixa confiança. Revise com atenção." : "Revise no Modo Espelho abaixo.",
+        description:
+          mapped.confianca === "baixa"
+            ? "A IA encontrou evidências, mas com baixa confiança. Revise com atenção."
+            : "Revise no Modo Espelho abaixo.",
       });
     }
-  }, [ocrResult]);
+  }, [ocrResult, resetOcr]);
 
-  const handleParse = (input: string, source: string = "free_text") => {
-    const textToParse = input || textInput;
-    if (!textToParse.trim()) return;
+  const handleParse = async (
+    input: string,
+    source: string = "free_text",
+    sourceKind: InterpretSourceKind = "free_text",
+    label?: string
+  ) => {
+    const textToParse = (input || textInput).trim();
+    if (!textToParse) return;
 
-    const result = parseTransactionText(textToParse);
-    applyParsedResult(result, source);
+    try {
+      const interpreted = await InterpretAdapter.interpret({
+        text: textToParse,
+        sourceKind,
+      });
 
-    toast.success("Dados extraídos com sucesso!", {
-      description: "Revise no Modo Espelho abaixo.",
-    });
+      const result = mapStructuredInterpretToParsed(interpreted);
+      applyParsedResult(result, source, label);
+
+      toast.success("Dados extraídos com IA", {
+        description: "Revise no Modo Espelho abaixo.",
+      });
+    } catch (error) {
+      const fallback = parseTransactionText(textToParse);
+      fallback.observacoes = [
+        "Interpretação estruturada indisponível; aplicado fallback local.",
+        ...fallback.observacoes,
+      ].slice(0, 8);
+
+      applyParsedResult(fallback, source, label);
+
+      const msg = error instanceof Error ? error.message : "Erro na interpretação";
+
+      toast.warning("Interpretação parcialmente degradada", {
+        description: `${msg} Revise com atenção no Modo Espelho.`,
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -182,11 +328,14 @@ export default function SmartCapture() {
       toast.error("Valor inválido");
       return;
     }
+
     setIsSaving(true);
 
     const validationNotes = [
       `Texto original: "${parsed?.textoOriginal || textInput}"`,
-      ...(parsed?.observacoes?.length ? [`Observações: ${parsed.observacoes.join(" | ")}`] : []),
+      ...(parsed?.observacoes?.length
+        ? [`Observações: ${parsed.observacoes.join(" | ")}`]
+        : []),
     ].join("\n");
 
     const { error } = await supabase.from("transactions").insert({
@@ -199,7 +348,7 @@ export default function SmartCapture() {
       scope: editForm.scope as any,
       data_status: "suggested" as any,
       source_type: editForm.source_type as any,
-      confidence: parsed?.confianca as any || "media",
+      confidence: (parsed?.confianca as any) || "media",
       created_by: user.id,
       validation_notes: validationNotes,
     });
@@ -208,13 +357,21 @@ export default function SmartCapture() {
       toast.error("Erro ao salvar", { description: error.message });
     } else {
       toast.success("Transação registrada como sugerida", {
-        description: `Salva no escopo: ${editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"}.`,
+        description: `Salva no escopo: ${
+          editForm.scope === "private"
+            ? "Pessoal"
+            : editForm.scope === "family"
+              ? "Família"
+              : "Negócio"
+        }.`,
       });
+
       setParsed(null);
       setTextInput("");
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
     }
+
     setIsSaving(false);
   };
 
@@ -240,22 +397,37 @@ export default function SmartCapture() {
       return;
     }
 
+    if (isSpreadsheet) {
+      toast.error(
+        "Planilhas ainda não são suportadas na Captura Inteligente. Use importação estruturada."
+      );
+      return;
+    }
+
     if (isImage) {
       processImage(file);
       return;
     }
 
-    if (isPdf || isDocx || isSpreadsheet) {
+    if (isPdf || isDocx) {
       setIsExtractingFile(true);
+
       try {
         const result = await extractTextFromSupportedFile(file);
-        handleParse(result.text, "free_text");
+
+        const sourceKind: InterpretSourceKind =
+          result.source === "pdf" ? "pdf_text" : "docx_text";
+
+        const sourceLabelForUi = result.source === "pdf" ? "PDF" : "DOCX";
+
+        await handleParse(result.text, "free_text", sourceKind, sourceLabelForUi);
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Erro ao processar arquivo";
         toast.error(msg);
       } finally {
         setIsExtractingFile(false);
       }
+
       return;
     }
 
@@ -264,16 +436,36 @@ export default function SmartCapture() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <PageHeader title="Captura Inteligente Premium" description={`Modo Espelho ativo — Escopo atual: ${scopeLabel}`} />
+      <PageHeader
+        title="Captura Inteligente Premium"
+        description={`Modo Espelho ativo — Escopo atual: ${scopeLabel}`}
+      />
 
       <div className="flex flex-wrap gap-2">
-        <Button variant={mode === "text" ? "default" : "outline"} size="sm" onClick={() => setMode("text")} className="flex-1 justify-center transition-all sm:flex-none">
+        <Button
+          variant={mode === "text" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setMode("text")}
+          className="flex-1 justify-center transition-all sm:flex-none"
+        >
           <Type className="mr-2 h-4 w-4" /> Texto Livre
         </Button>
-        <Button variant={mode === "voice" ? "default" : "outline"} size="sm" onClick={() => setMode("voice")} className="flex-1 justify-center transition-all sm:flex-none">
+
+        <Button
+          variant={mode === "voice" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setMode("voice")}
+          className="flex-1 justify-center transition-all sm:flex-none"
+        >
           <Mic className="mr-2 h-4 w-4" /> Voz (Beta)
         </Button>
-        <Button variant={mode === "file" ? "default" : "outline"} size="sm" onClick={() => setMode("file")} className="flex-1 justify-center transition-all sm:flex-none">
+
+        <Button
+          variant={mode === "file" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setMode("file")}
+          className="flex-1 justify-center transition-all sm:flex-none"
+        >
           <Paperclip className="mr-2 h-4 w-4" /> Arquivo / OCR
         </Button>
       </div>
@@ -283,9 +475,14 @@ export default function SmartCapture() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-primary" />
-              {mode === "text" ? "O que aconteceu?" : mode === "voice" ? "Fale para capturar" : "Envie uma foto ou documento"}
+              {mode === "text"
+                ? "O que aconteceu?"
+                : mode === "voice"
+                  ? "Fale para capturar"
+                  : "Envie uma foto ou documento"}
             </CardTitle>
           </CardHeader>
+
           <CardContent className="space-y-4">
             {mode === "text" && (
               <div className="space-y-4">
@@ -298,11 +495,16 @@ export default function SmartCapture() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      handleParse("");
+                      void handleParse("");
                     }
                   }}
                 />
-                <Button onClick={() => handleParse("")} disabled={!textInput.trim()} className="w-full sm:w-auto">
+
+                <Button
+                  onClick={() => void handleParse("")}
+                  disabled={!textInput.trim()}
+                  className="w-full sm:w-auto"
+                >
                   <Send className="mr-2 h-4 w-4" /> Interpretar com IA
                 </Button>
               </div>
@@ -310,18 +512,50 @@ export default function SmartCapture() {
 
             {mode === "voice" && (
               <div className="flex flex-col items-center space-y-4 py-8">
-                <div className={`rounded-full p-6 transition-all ${isRecording ? "animate-pulse bg-red-100" : "bg-muted"}`}>
-                  <Mic className={`h-12 w-12 ${isRecording ? "text-red-600" : "text-muted-foreground"}`} />
+                <div
+                  className={`rounded-full p-6 transition-all ${
+                    isRecording ? "animate-pulse bg-red-100" : "bg-muted"
+                  }`}
+                >
+                  <Mic
+                    className={`h-12 w-12 ${
+                      isRecording ? "text-red-600" : "text-muted-foreground"
+                    }`}
+                  />
                 </div>
+
                 <div className="text-center">
-                  <p className="font-medium">{isRecording ? "Gravando..." : isTranscribing ? "Transcrevendo áudio..." : "Clique para falar"}</p>
-                  <p className="text-sm text-muted-foreground">Descreva sua transação naturalmente</p>
+                  <p className="font-medium">
+                    {isRecording
+                      ? "Gravando..."
+                      : isTranscribing
+                        ? "Transcrevendo áudio..."
+                        : "Clique para falar"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Descreva sua transação naturalmente
+                  </p>
                 </div>
+
                 <div className="flex w-full gap-2 sm:w-auto">
                   {!isRecording ? (
-                    <Button onClick={startRecording} disabled={isTranscribing} size="lg" className="w-full rounded-full px-8 sm:w-auto">Começar a falar</Button>
+                    <Button
+                      onClick={startRecording}
+                      disabled={isTranscribing}
+                      size="lg"
+                      className="w-full rounded-full px-8 sm:w-auto"
+                    >
+                      Começar a falar
+                    </Button>
                   ) : (
-                    <Button onClick={stopRecording} variant="destructive" size="lg" className="w-full rounded-full px-8 sm:w-auto">Parar e Processar</Button>
+                    <Button
+                      onClick={stopRecording}
+                      variant="destructive"
+                      size="lg"
+                      className="w-full rounded-full px-8 sm:w-auto"
+                    >
+                      Parar e Processar
+                    </Button>
                   )}
                 </div>
               </div>
@@ -329,15 +563,49 @@ export default function SmartCapture() {
 
             {mode === "file" && (
               <div className="flex flex-col items-center space-y-4 rounded-xl border-2 border-dashed border-muted py-8">
-                <div className={`rounded-full bg-muted p-6 ${isOcrProcessing || isExtractingFile ? "animate-pulse" : ""}`}>
-                  {isOcrProcessing || isExtractingFile ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <Paperclip className="h-12 w-12 text-muted-foreground" />}
+                <div
+                  className={`rounded-full bg-muted p-6 ${
+                    isOcrProcessing || isExtractingFile ? "animate-pulse" : ""
+                  }`}
+                >
+                  {isOcrProcessing || isExtractingFile ? (
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  ) : (
+                    <Paperclip className="h-12 w-12 text-muted-foreground" />
+                  )}
                 </div>
+
                 <div className="px-4 text-center">
-                  <p className="font-medium">{isOcrProcessing ? "Extraindo dados da imagem..." : isExtractingFile ? "Lendo documento..." : "Selecione um arquivo"}</p>
-                  <p className="text-sm text-muted-foreground">Formatos: JPG, PNG, PDF, DOCX, XLSX</p>
+                  <p className="font-medium">
+                    {isOcrProcessing
+                      ? "Extraindo dados da imagem..."
+                      : isExtractingFile
+                        ? "Lendo documento..."
+                        : "Selecione um arquivo"}
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    Suportados aqui: JPG, PNG, PDF textual e DOCX. XLS/XLSX ficam para
+                    importação estruturada.
+                  </p>
                 </div>
-                <input type="file" accept="image/*,.pdf,.docx,.xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleFileUpload} disabled={isOcrProcessing || isExtractingFile} />
-                <Button onClick={() => fileInputRef.current?.click()} disabled={isOcrProcessing || isExtractingFile} variant="outline" size="lg" className="w-full sm:w-auto">
+
+                <input
+                  type="file"
+                  accept="image/*,.pdf,.docx"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  disabled={isOcrProcessing || isExtractingFile}
+                />
+
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isOcrProcessing || isExtractingFile}
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                >
                   <Paperclip className="mr-2 h-4 w-4" /> Escolher Arquivo
                 </Button>
               </div>
@@ -354,17 +622,42 @@ export default function SmartCapture() {
                 <Sparkles className="h-5 w-5 text-primary" />
                 <CardTitle className="text-lg">Modo Espelho — Confirme os Dados</CardTitle>
               </div>
+
               <div className="flex flex-wrap gap-2">
                 <DataStatusBadge status="suggested" />
-                <Badge variant={parsed.confianca === "alta" ? "default" : parsed.confianca === "media" ? "secondary" : "destructive"}>IA: {parsed.confianca}</Badge>
+                <Badge
+                  variant={
+                    parsed.confianca === "alta"
+                      ? "default"
+                      : parsed.confianca === "media"
+                        ? "secondary"
+                        : "destructive"
+                  }
+                >
+                  IA: {parsed.confianca}
+                </Badge>
               </div>
             </div>
           </CardHeader>
+
           <CardContent className="space-y-6 pt-6">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary" className="gap-1"><FileText className="h-3 w-3" /> Origem: {editForm.source_type === "free_text" ? "Texto Livre" : editForm.source_type === "voice" ? "Voz" : "OCR/Foto"}</Badge>
-              <Badge variant="secondary" className="gap-1"><Check className="h-3 w-3" /> Estado: Sugerida</Badge>
-              <Badge variant="outline" className="gap-1 border-primary/30 text-primary"><Sparkles className="h-3 w-3" /> Escopo: {editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"}</Badge>
+              <Badge variant="secondary" className="gap-1">
+                <FileText className="h-3 w-3" /> Origem: {sourceLabel}
+              </Badge>
+
+              <Badge variant="secondary" className="gap-1">
+                <Check className="h-3 w-3" /> Estado: Sugerida
+              </Badge>
+
+              <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
+                <Sparkles className="h-3 w-3" /> Escopo:{" "}
+                {editForm.scope === "private"
+                  ? "Pessoal"
+                  : editForm.scope === "family"
+                    ? "Família"
+                    : "Negócio"}
+              </Badge>
             </div>
 
             {parsed.camposFaltantes.length > 0 && (
@@ -372,92 +665,232 @@ export default function SmartCapture() {
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                 <div>
                   <p className="font-semibold">Campos não detectados</p>
-                  <p className="text-xs">A IA não encontrou com clareza: {parsed.camposFaltantes.join(", ")}</p>
+                  <p className="text-xs">
+                    A IA não encontrou com clareza: {parsed.camposFaltantes.join(", ")}
+                  </p>
                 </div>
               </div>
             )}
 
-            {isEditing ? (
-              <div className="grid gap-4 rounded-xl border bg-muted/30 p-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Valor (R$)</Label>
-                    <Input type="number" step="0.01" value={editForm.valor} onChange={(e) => setEditForm((f) => ({ ...f, valor: e.target.value }))} className="font-mono text-lg" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Tipo</Label>
-                    <Select value={editForm.tipo} onValueChange={(v) => setEditForm((f) => ({ ...f, tipo: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="expense">Despesa</SelectItem>
-                        <SelectItem value="income">Receita</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Descrição</Label>
-                  <Input value={editForm.descricao} onChange={(e) => setEditForm((f) => ({ ...f, descricao: e.target.value }))} />
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Data</Label>
-                    <Input type="date" value={editForm.data} onChange={(e) => setEditForm((f) => ({ ...f, data: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select value={editForm.categoria_id} onValueChange={(v) => setEditForm((f) => ({ ...f, categoria_id: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>
-                        {(categories || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.icone} {c.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Escopo</Label>
-                    <Select value={editForm.scope} onValueChange={(v) => setEditForm((f) => ({ ...f, scope: v as "private" | "family" | "business" }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="private">Pessoal</SelectItem>
-                        <SelectItem value="family">Família</SelectItem>
-                        <SelectItem value="business">Negócio</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+            {!isEditing ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Resumo da Sugestão</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Valor</Label>
+                      <p className="text-2xl font-bold">
+                        {parsed.valor ? formatCurrency(parsed.valor) : "Não detectado"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Tipo</Label>
+                      <p className="font-medium">
+                        {parsed.tipo === "income" ? "Receita" : "Despesa"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Descrição</Label>
+                      <p className="font-medium">{parsed.descricao || "Não detectada"}</p>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Data</Label>
+                      <p className="font-medium">{parsed.data || "Não detectada"}</p>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Categoria sugerida</Label>
+                      <p className="font-medium">
+                        {parsed.categoriaSugerida || "Não sugerida"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Observações e Evidências</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Texto original</Label>
+                      <p className="rounded-md bg-muted p-3 text-sm">
+                        {parsed.textoOriginal || textInput || "—"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Observações</Label>
+                      <div className="space-y-2">
+                        {parsed.observacoes.length > 0 ? (
+                          parsed.observacoes.map((obs, idx) => (
+                            <p key={idx} className="rounded-md bg-muted p-2 text-sm">
+                              {obs}
+                            </p>
+                          ))
+                        ) : (
+                          <p className="rounded-md bg-muted p-2 text-sm">Sem observações.</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 rounded-xl border border-dashed bg-muted/20 p-4 md:grid-cols-2">
-                <InfoRow label="Valor Extraído" value={editForm.valor ? formatCurrency(Number(editForm.valor)) : "Não detectado"} highlight={!editForm.valor} />
-                <InfoRow label="Tipo de Fluxo" value={editForm.tipo === "income" ? "Receita (+)" : "Despesa (-)"} highlight={parsed.camposFaltantes.includes("tipo")} />
-                <InfoRow label="Descrição" value={editForm.descricao || "—"} highlight={!editForm.descricao} />
-                <InfoRow label="Data da Ocorrência" value={editForm.data} highlight={parsed.camposFaltantes.includes("data")} />
-                <InfoRow label="Categoria Sugerida" value={parsed.categoriaSugerida || "Não detectada"} highlight={!parsed.categoriaSugerida} />
-                <InfoRow label="Escopo de Destino" value={editForm.scope === "private" ? "Pessoal" : editForm.scope === "family" ? "Família" : "Negócio"} isScope />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="valor">Valor</Label>
+                  <Input
+                    id="valor"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={editForm.valor}
+                    onChange={(e) => setEditForm((f) => ({ ...f, valor: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tipo">Tipo</Label>
+                  <Select
+                    value={editForm.tipo}
+                    onValueChange={(value) => setEditForm((f) => ({ ...f, tipo: value }))}
+                  >
+                    <SelectTrigger id="tipo">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="expense">Despesa</SelectItem>
+                      <SelectItem value="income">Receita</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="descricao">Descrição</Label>
+                  <Input
+                    id="descricao"
+                    value={editForm.descricao}
+                    onChange={(e) => setEditForm((f) => ({ ...f, descricao: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="data">Data</Label>
+                  <Input
+                    id="data"
+                    type="date"
+                    value={editForm.data}
+                    onChange={(e) => setEditForm((f) => ({ ...f, data: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="categoria">Categoria</Label>
+                  <Select
+                    value={editForm.categoria_id}
+                    onValueChange={(value) =>
+                      setEditForm((f) => ({ ...f, categoria_id: value }))
+                    }
+                  >
+                    <SelectTrigger id="categoria">
+                      <SelectValue placeholder="Selecionar categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories?.map((category: any) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="scope">Escopo</Label>
+                  <Select
+                    value={editForm.scope}
+                    onValueChange={(value) => setEditForm((f) => ({ ...f, scope: value }))}
+                    disabled={currentScope !== "all"}
+                  >
+                    <SelectTrigger id="scope">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">Pessoal</SelectItem>
+                      <SelectItem value="family">Família</SelectItem>
+                      <SelectItem value="business">Negócio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex flex-col gap-3 border-t bg-muted/10 p-6 sm:flex-row sm:flex-wrap">
-            <Button onClick={handleSave} disabled={isSaving || !editForm.valor} className="h-12 w-full text-lg sm:min-w-[200px] sm:flex-1">
-              {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />} Confirmar e Salvar
-            </Button>
-            <Button variant="outline" onClick={() => setIsEditing(!isEditing)} className="h-12 w-full sm:w-auto"><Edit className="mr-2 h-4 w-4" /> {isEditing ? "Ver Resumo" : "Ajustar Dados"}</Button>
-            <Button variant="ghost" onClick={handleDiscard} className="h-12 w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"><Trash2 className="mr-2 h-4 w-4" /> Descartar</Button>
+
+          <CardFooter className="flex flex-col gap-2 border-t bg-muted/20 pt-4 sm:flex-row sm:justify-end">
+            {!isEditing ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditing(true)}
+                  className="w-full sm:w-auto"
+                >
+                  <Edit className="mr-2 h-4 w-4" /> Editar
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={handleDiscard}
+                  className="w-full sm:w-auto"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Descartar
+                </Button>
+
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="w-full sm:w-auto"
+                >
+                  {isSaving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Confirmar e Salvar
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditing(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Cancelar edição
+                </Button>
+
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="w-full sm:w-auto"
+                >
+                  {isSaving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Salvar revisão
+                </Button>
+              </>
+            )}
           </CardFooter>
         </Card>
       )}
-    </div>
-  );
-}
-
-function InfoRow({ label, value, highlight = false, isScope = false }: { label: string; value: string; highlight?: boolean; isScope?: boolean }) {
-  return (
-    <div className={`space-y-1 rounded-lg p-2 ${highlight ? "border border-warning/20 bg-warning/5" : ""}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`break-words text-base font-medium ${isScope ? "text-primary" : ""}`}>
-        {value}
-        {highlight && <span className="ml-2 text-[10px] text-warning">(Atenção)</span>}
-      </p>
     </div>
   );
 }
