@@ -354,14 +354,14 @@ export default function SmartCapture() {
   }, [voiceResult, resetVoice]);
 
   useEffect(() => {
-    if (!ocrResult) return;
+  if (!ocrResult) return;
 
-    let active = true;
+  let active = true;
 
-    void (async () => {
-      const ocrText = ocrResult.text?.trim();
-      resetOcr();
+  void (async () => {
+    const ocrText = ocrResult.text?.trim();
 
+    try {
       if (!ocrText) {
         const mapped = mapStructuredOcrToParsed(ocrResult);
         applyParsedResult(mapped, "photo_ocr", "OCR/Foto");
@@ -369,43 +369,46 @@ export default function SmartCapture() {
         return;
       }
 
-      try {
-        const interpreted = await InterpretAdapter.interpret({
-          text: ocrText,
-          sourceKind: "free_text",
-        });
+      const interpreted = await InterpretAdapter.interpret({
+        text: ocrText,
+        sourceKind: "free_text",
+      });
 
-        if (!active) return;
+      if (!active) return;
 
-        const result = mapStructuredInterpretToParsed(interpreted);
-        applyParsedResult(result, "photo_ocr", "OCR/Foto");
+      const result = mapStructuredInterpretToParsed(interpreted);
+      applyParsedResult(result, "photo_ocr", "OCR/Foto");
 
-        toast.success("Dados extraídos com IA (OCR + Interpretação)", {
-          description:
-            result.confianca === "baixa"
-              ? "A IA encontrou evidências, mas com baixa confiança. Revise com atenção."
-              : "Revise no Modo Espelho abaixo.",
-        });
-      } catch (error) {
-        if (!active) return;
+      toast.success("Dados extraídos com IA (OCR + Interpretação)", {
+        description:
+          result.confianca === "baixa"
+            ? "A IA encontrou evidências, mas com baixa confiança. Revise com atenção."
+            : "Revise no Modo Espelho abaixo.",
+      });
+    } catch (error) {
+      if (!active) return;
 
-        const fallback = appendFallbackWarning(
-          parseTransactionText(ocrText),
-          error instanceof Error ? error.message : undefined
-        );
+      const fallback = appendFallbackWarning(
+        parseTransactionText(ocrText || ""),
+        error instanceof Error ? error.message : undefined
+      );
 
-        applyParsedResult(fallback, "photo_ocr", "OCR/Foto");
+      applyParsedResult(fallback, "photo_ocr", "OCR/Foto");
 
-        toast.warning("OCR concluído com fallback local", {
-          description: "A interpretação estruturada falhou. Revise no Modo Espelho.",
-        });
+      toast.warning("OCR concluído com fallback local", {
+        description: "A interpretação estruturada falhou. Revise no Modo Espelho.",
+      });
+    } finally {
+      if (active) {
+        resetOcr();
       }
-    })();
+    }
+  })();
 
-    return () => {
-      active = false;
-    };
-  }, [ocrResult, resetOcr]);
+  return () => {
+    active = false;
+  };
+}, [ocrResult, resetOcr]);
 
   const handleParse = async (
     input: string,
