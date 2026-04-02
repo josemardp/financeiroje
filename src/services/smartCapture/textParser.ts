@@ -18,6 +18,7 @@ export interface ParsedTransaction {
   observacoes: string[];
   camposFaltantes: string[];
   installmentText: string | null;
+  installmentCount: number | null;
   status: "complete" | "partial" | "ambiguous";
 }
 
