@@ -116,6 +116,8 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
   const hasFinalDescription = Boolean(finalDescription);
 
   const installmentText = metadata?.installmentText || fallback.installmentText || null;
+  const installmentCountMatch = installmentText?.match(/^(\d{1,2})/);
+  const installmentCount = installmentCountMatch ? parseInt(installmentCountMatch[1], 10) : fallback.installmentCount || null;
 
   const observacoes = [
     ...((metadata?.evidence || []).slice(0, 6).map((item) => `Evidência IA: ${item}`)),
