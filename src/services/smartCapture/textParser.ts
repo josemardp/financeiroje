@@ -321,7 +321,7 @@ function normalizeDescription(
 
 function extractScope(text: string, observacoes: string[]) {
   const businessPattern =
-    /\b(business|empresa|profissional|neg[oó]cio|mei|fornecedor|cliente|nota fiscal|servi[cç]o profissional|comercial)\b/i;
+    /\b(business|empresa|profissional|neg[oó]cio|mei|fornecedor|cliente|nota fiscal|servi[cç]o profissional|comercial|mei)\b/i;
   const familyPattern = /\b(family|fam[ií]lia|familiar|casa|filh[oa]|esposa|marido|lar)\b/i;
   const privatePattern = /\b(personal|pessoal|privado|individual|particular)\b/i;
 
@@ -406,6 +406,12 @@ function extractAmountFromText(text: string, observacoes: string[]) {
       score: 3,
       source: "currency",
     },
+    {
+      // Fallback para valores "soltos" no início ou fim (ex: "25,75 farmácia" ou "uber 15")
+      regex: /(?:^|\s)(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{1,2}|\d{1,5})(?:\s|$)/gi,
+      score: 2.5,
+      source: "telegraphic",
+    },
   ];
 
   for (const pattern of contextualPatterns) {
@@ -464,7 +470,7 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const incomePatterns =
     /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento recebido|receita|ganho|ganh[ei]|pix recebido|transfer[êe]ncia recebida|dep[oó]sito)\b/i;
   const expensePatterns =
-    /\b(gastei|paguei|comprei|d[eé]bito|despesa|sa[ií]da|retirada|pix enviado|transfer[êe]ncia enviada|compra aprovada|comprovante de venda|link de pagamento|parcelas|pagamento com cart[aã]o|pagamento aprovado|transa[cç][aã]o aprovada)\b/i;
+    /\b(gastei|paguei|comprei|d[eé]bito|despesa|sa[ií]da|retirada|pix enviado|transfer[êe]ncia enviada|compra aprovada|comprovante de venda|link de pagamento|parcelas|pagamento com cart[aã]o|pagamento aprovado|transa[cç][aã]o aprovada|mei)\b/i;
 
   const hasIncomeSignal = incomePatterns.test(text);
   const hasExpenseSignal = expensePatterns.test(text);
@@ -507,7 +513,14 @@ export function parseTransactionText(input: string): ParsedTransaction {
     }
   }
 
-  const { escopo, strongScopeEvidence } = extractScope(text, observacoes);
+  let { escopo, strongScopeEvidence } = extractScope(text, observacoes);
+  
+  // Adicional: se houver forte sinal de MEI no texto, forçar escopo business
+  if (/\bmei\b/i.test(text)) {
+    escopo = "business";
+    strongScopeEvidence = true;
+  }
+
   const descricao = normalizeDescription(text, tipo, observacoes);
 
   if (!categoriaSugerida) camposFaltantes.push("categoria");

@@ -389,7 +389,7 @@ export default function SmartCapture() {
       descricao: editForm.descricao,
       data: editForm.data,
       scope: editForm.scope as any,
-      data_status: "suggested" as any,
+      data_status: "confirmed" as any,
       source_type: editForm.source_type as any,
       confidence: (parsed?.confianca as any) || "media",
       created_by: user.id,
@@ -399,7 +399,7 @@ export default function SmartCapture() {
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });
     } else {
-      toast.success("Transação registrada como sugerida", {
+      toast.success("Transação confirmada com sucesso", {
         description: `Salva no escopo: ${
           editForm.scope === "private"
             ? "Pessoal"
