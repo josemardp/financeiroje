@@ -16,6 +16,7 @@ export interface OcrStructuredMetadata {
   counterparty?: string;
   evidence?: string[];
   confidence?: "alta" | "media" | "baixa";
+  installmentText?: string | null;
 }
 
 export interface OcrExtractionResult {
