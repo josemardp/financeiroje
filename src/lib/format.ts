@@ -19,10 +19,20 @@ export function formatDate(date: string | Date): string {
 }
 
 export function formatDateShort(date: string | Date): string {
+  const d = typeof date === "string" ? parseDateString(date) : date;
   return new Intl.DateTimeFormat(LOCALE, {
     day: "2-digit",
     month: "short",
-  }).format(typeof date === "string" ? new Date(date) : date);
+  }).format(d);
+}
+
+/** Parse "YYYY-MM-DD" as local date to avoid UTC timezone shift */
+function parseDateString(s: string): Date {
+  const parts = s.split("-");
+  if (parts.length === 3) {
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+  return new Date(s);
 }
 
 export function formatPercent(value: number): string {
