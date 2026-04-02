@@ -10,11 +10,12 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatDate(date: string | Date): string {
+  const d = typeof date === "string" ? parseDateString(date) : date;
   return new Intl.DateTimeFormat(LOCALE, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(typeof date === "string" ? new Date(date) : date);
+  }).format(d);
 }
 
 export function formatDateShort(date: string | Date): string {
