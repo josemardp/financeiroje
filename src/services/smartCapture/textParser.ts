@@ -469,6 +469,14 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const { valor, explicitAmountFound, ambiguousAmount } = extractAmountFromText(text, observacoes);
   if (!valor) camposFaltantes.push("valor");
 
+  // Extract installment text (e.g. "3x", "12x de 30,47")
+  const installmentMatch = text.match(/\b(\d{1,2}\s*x(?:\s+(?:de\s+)?(?:R\$\s*)?[\d.,]+)?(?:\s+(?:sem\s+juros|com\s+juros|no\s+cart[aã]o))?)/i);
+  const installmentText = installmentMatch ? installmentMatch[1].trim() : null;
+
+  // If ONLY installment value present (e.g. "12x de 30,47") with no explicit total, amount must be null
+  const onlyInstallmentPattern = /^\s*\d{1,2}\s*x\s*(?:de\s+)?(?:R\$\s*)?[\d.,]+/i;
+  const hasExplicitTotal = /\b(?:total|valor)\b/i.test(text) || (valor !== null && !onlyInstallmentPattern.test(text.replace(/\s+/g, ' ').trim()));
+
   const incomePatterns =
     /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento recebido|receita|ganho|ganh[ei]|pix recebido|transfer[êe]ncia recebida|dep[oó]sito)\b/i;
   const expensePatterns =
