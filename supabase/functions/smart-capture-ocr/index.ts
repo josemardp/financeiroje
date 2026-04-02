@@ -1,456 +1,130 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 15;
-const RATE_WINDOW_MS = 60_000;
-const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
-
-const SUPPORTED_IMAGE_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-]);
-
-const BLOCKED_IMAGE_MIME_TYPES = new Set([
-  "image/heic",
-  "image/heif",
-  "image/bmp",
-  "image/tiff",
-  "image/svg+xml",
-]);
-
-const MIME_BY_EXTENSION: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".heic": "image/heic",
-  ".heif": "image/heif",
-  ".bmp": "image/bmp",
-  ".tif": "image/tiff",
-  ".tiff": "image/tiff",
-  ".svg": "image/svg+xml",
-};
-
-type StructuredTransactionType = "income" | "expense" | "unknown";
-type StructuredScope = "private" | "family" | "business" | "unknown";
-type StructuredConfidence = "alta" | "media" | "baixa";
-
-interface StructuredOcrPayload {
-  extracted_text: string;
-  transaction_type: StructuredTransactionType;
-  amount: number | null;
-  date: string | null;
-  description: string | null;
-  merchant_name: string | null;
-  counterparty: string | null;
-  scope: StructuredScope;
-  category_hint: string | null;
-  confidence: StructuredConfidence;
-  evidence: string[];
-  installment_text: string | null;
-}
-
-function jsonError(
-  status: number,
-  error: string,
-  code: string,
-  extras?: Record<string, unknown>
-) {
-  return new Response(
-    JSON.stringify({
-      error,
-      code,
-      ...(extras || {}),
-    }),
-    {
-      status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    }
-  );
-}
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  entry.count++;
-  return entry.count <= RATE_LIMIT;
-}
-
-function normalizeMimeType(mimeType?: string | null) {
-  if (!mimeType) return null;
-  const normalized = mimeType.trim().toLowerCase();
-  return normalized || null;
-}
-
-function extractExtension(fileName?: string | null) {
-  if (!fileName) return null;
-  const match = fileName.toLowerCase().match(/\.[^.]+$/);
-  return match?.[0] ?? null;
-}
-
-function inferMimeTypeFromName(fileName: string) {
-  const extension = extractExtension(fileName);
-  return extension ? MIME_BY_EXTENSION[extension] ?? null : null;
-}
-
-function resolveIncomingMimeType(imageFile: File) {
-  const declaredMimeType = normalizeMimeType(imageFile.type);
-  const inferredMimeType = inferMimeTypeFromName(imageFile.name || "image");
-
-  const blockedMimeType =
-    (declaredMimeType && BLOCKED_IMAGE_MIME_TYPES.has(declaredMimeType) && declaredMimeType) ||
-    (inferredMimeType && BLOCKED_IMAGE_MIME_TYPES.has(inferredMimeType) && inferredMimeType) ||
-    null;
-
-  if (blockedMimeType) {
-    return {
-      ok: false as const,
-      error: "Formato de imagem não suportado no OCR. Use JPG, JPEG, PNG, WEBP ou GIF.",
-      mimeType: blockedMimeType,
-    };
-  }
-
-  if (
-    declaredMimeType &&
-    declaredMimeType.startsWith("image/") &&
-    !SUPPORTED_IMAGE_MIME_TYPES.has(declaredMimeType)
-  ) {
-    return {
-      ok: false as const,
-      error: "Formato de imagem não suportado no OCR. Use JPG, JPEG, PNG, WEBP ou GIF.",
-      mimeType: declaredMimeType,
-    };
-  }
-
-  const effectiveMimeType =
-    (declaredMimeType && SUPPORTED_IMAGE_MIME_TYPES.has(declaredMimeType) && declaredMimeType) ||
-    (inferredMimeType && SUPPORTED_IMAGE_MIME_TYPES.has(inferredMimeType) && inferredMimeType) ||
-    null;
-
-  if (!effectiveMimeType) {
-    return {
-      ok: false as const,
-      error: "Formato de imagem não suportado no OCR. Use JPG, JPEG, PNG, WEBP ou GIF.",
-      mimeType: declaredMimeType || inferredMimeType || null,
-    };
-  }
-
-  return {
-    ok: true as const,
-    mimeType: effectiveMimeType === "image/jpg" ? "image/jpeg" : effectiveMimeType,
-  };
-}
-
-function toBase64(arrayBuffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(arrayBuffer);
-  const len = bytes.length;
-  let binary = "";
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-function extractMessageContent(payload: any) {
-  const rawContent = payload?.choices?.[0]?.message?.content;
-
-  if (typeof rawContent === "string") {
-    return rawContent.trim();
-  }
-
-  if (Array.isArray(rawContent)) {
-    return rawContent
-      .map((item) => (typeof item?.text === "string" ? item.text : ""))
-      .join("\n")
-      .trim();
-  }
-
-  return "";
-}
-
-function parseLocalizedAmount(value: unknown) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) && value > 0 && value <= 1_000_000 ? value : null;
-  }
-
-  if (typeof value !== "string") return null;
-
-  const cleaned = value.replace(/R\$/gi, "").replace(/\s+/g, "").trim();
-  if (!cleaned) return null;
-
-  let normalized = cleaned;
-  if (cleaned.includes(",") && cleaned.includes(".")) {
-    normalized = cleaned.replace(/\./g, "").replace(",", ".");
-  } else if (cleaned.includes(",")) {
-    normalized = cleaned.replace(",", ".");
-  }
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) && parsed > 0 && parsed <= 1_000_000 ? parsed : null;
-}
-
-function normalizeTransactionType(value: unknown): StructuredTransactionType {
-  return value === "income" || value === "expense" ? value : "unknown";
-}
-
-function normalizeScope(value: unknown): StructuredScope {
-  return value === "private" || value === "family" || value === "business"
-    ? value
-    : "unknown";
-}
-
-function normalizeConfidence(value: unknown): StructuredConfidence {
-  return value === "alta" || value === "media" ? value : "baixa";
-}
-
-function normalizeDate(value: unknown) {
-  if (typeof value !== "string") return null;
-  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim()) ? value.trim() : null;
-}
-
-function sanitizeNullableString(value: unknown) {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
-
-function normalizeEvidence(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item) => typeof item === "string")
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 6);
-}
-
-function parseStructuredPayload(content: string): StructuredOcrPayload | null {
-  if (!content) return null;
-
-  try {
-    const parsed = JSON.parse(content);
-    const extractedText = sanitizeNullableString(parsed?.extracted_text ?? parsed?.text) ?? "";
-    if (!extractedText) return null;
-
-    return {
-      extracted_text: extractedText,
-      transaction_type: normalizeTransactionType(parsed?.transaction_type),
-      amount: parseLocalizedAmount(parsed?.amount ?? parsed?.total_amount),
-      date: normalizeDate(parsed?.date),
-      description: sanitizeNullableString(parsed?.description),
-      merchant_name: sanitizeNullableString(parsed?.merchant_name),
-      counterparty: sanitizeNullableString(parsed?.counterparty),
-      scope: normalizeScope(parsed?.scope),
-      category_hint: sanitizeNullableString(parsed?.category_hint),
-      confidence: normalizeConfidence(parsed?.confidence),
-      evidence: normalizeEvidence(parsed?.evidence),
-      installment_text: sanitizeNullableString(parsed?.installment_text),
-    } satisfies StructuredOcrPayload;
-  } catch {
-    return null;
-  }
-}
-
-function confidenceToNumber(confidence: StructuredConfidence) {
-  switch (confidence) {
-    case "alta":
-      return 0.9;
-    case "media":
-      return 0.7;
-    default:
-      return 0.45;
-  }
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return jsonError(401, "Não autorizado.", "OCR_AUTH_REQUIRED");
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+    
+    if (!openaiApiKey) {
+      throw new Error('OPENAI_API_KEY não configurada')
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const { file } = await req.json()
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return jsonError(
-        401,
-        "Sessão inválida ou expirada para uso do OCR.",
-        "OCR_INVALID_SESSION"
-      );
+    if (!file) {
+      throw new Error('Nenhum arquivo fornecido')
     }
 
-    if (!checkRateLimit(user.id)) {
-      return jsonError(
-        429,
-        "Limite de requisições excedido. Aguarde um momento.",
-        "OCR_RATE_LIMITED"
-      );
-    }
+    // Detectar tipo de arquivo pelo base64 ou MIME type
+    const isImage = file.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file)
+    const isPDF = file.startsWith('data:application/pdf') || file.endsWith('.pdf')
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      return jsonError(
-        503,
-        "OCR indisponível: OPENAI_API_KEY não configurada no servidor.",
-        "OCR_BACKEND_KEY_MISSING"
-      );
-    }
+    let extractedText = ''
+    let confidence = 0
 
-    const formData = await req.formData();
-    const imageFile = formData.get("image") as File | null;
-
-    if (!imageFile) {
-      return jsonError(400, "Arquivo de imagem não enviado.", "OCR_FILE_MISSING");
-    }
-
-    if (imageFile.size > MAX_IMAGE_SIZE_BYTES) {
-      return jsonError(
-        400,
-        "Imagem muito grande para OCR (limite: 10MB).",
-        "OCR_FILE_TOO_LARGE"
-      );
-    }
-
-    const resolvedMime = resolveIncomingMimeType(imageFile);
-    if (!resolvedMime.ok) {
-      return jsonError(415, resolvedMime.error, "OCR_UNSUPPORTED_MIME", {
-        mime_type: resolvedMime.mimeType,
-      });
-    }
-
-    const arrayBuffer = await imageFile.arrayBuffer();
-    const base64 = toBase64(arrayBuffer);
-    const dataUri = `data:${resolvedMime.mimeType};base64,${base64}`;
-
-    let ocrRes: Response;
-    try {
-      ocrRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
+    if (isImage) {
+      // Processar imagem com OpenAI Vision
+      console.log('Processando imagem com OpenAI Vision...')
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
-          response_format: { type: "json_object" },
+          model: 'gpt-4o',
           messages: [
             {
-              role: "system",
-              content:
-                "Você é um extrator inteligente de transações financeiras a partir de imagens. Responda somente com JSON válido. Interprete do ponto de vista do usuário que está registrando a transação. amount deve ser sempre o valor principal total da transação. Nunca use o valor unitário da parcela como amount quando houver um total maior explícito. Exemplo: se a imagem tiver 'R$ 365,67' e também '12x de R$ 30,47', amount deve ser 365.67. date deve ser convertida para ISO YYYY-MM-DD e você deve entender formatos como '28 Mar, 2026', '28 março 2026' e '28/03/2026'. Se houver comprovante de venda, link de pagamento, compra em cartão, PIX enviado, transferência enviada, boleto pago, débito ou pagamento efetuado pelo usuário, classifique como expense. Só classifique como income quando houver evidência inequívoca de entrada de dinheiro para o usuário, como PIX recebido, transferência recebida, depósito recebido ou salário creditado. A palavra crédito em compra no cartão normalmente ainda é despesa, não receita. Em description prefira o estabelecimento ou o contexto principal da transação. Em evidence inclua trechos curtos que provem amount, date, parcelas, origem e destino quando existirem. installment_text deve capturar o texto original do parcelamento (ex: '3x', '12x de R$ 30,47', '2x sem juros'). Se não houver parcelamento, installment_text deve ser null. Não invente valor, data ou descrição. Se não houver segurança, use null ou unknown. Retorne obrigatoriamente um JSON com as chaves: extracted_text, transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, installment_text.",
+              role: 'system',
+              content: `Você é um assistente especializado em extrair texto de recibos, notas fiscais e documentos financeiros.
+Extraia TODO o texto visível na imagem de forma estruturada e organizada.
+Inclua: valores, datas, descrições, estabelecimento, itens, totais.
+Mantenha a formatação e hierarquia do texto original.`
             },
             {
-              role: "user",
+              role: 'user',
               content: [
                 {
-                  type: "text",
-                  text: "Analise esta imagem financeira e devolva somente o JSON solicitado. Priorize o valor total principal da transação. Se houver parcelas, registre o total em amount e cite a parcela apenas em evidence. Se conseguir identificar origem e destino, use isso para decidir corretamente entre despesa e receita.",
+                  type: 'text',
+                  text: 'Extraia todo o texto desta imagem de forma estruturada:'
                 },
-                { type: "image_url", image_url: { url: dataUri } },
-              ],
-            },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: file
+                  }
+                }
+              ]
+            }
           ],
-          max_tokens: 1200,
-        }),
-      });
-    } catch (error) {
-      console.error("OpenAI Vision fetch error:", error);
-      return jsonError(
-        502,
-        "Falha de comunicação com o provider OCR.",
-        "OCR_PROVIDER_ERROR"
-      );
+          max_tokens: 1000
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`Erro na API OpenAI: ${JSON.stringify(errorData)}`)
+      }
+
+      const data = await response.json()
+      extractedText = data.choices[0]?.message?.content || ''
+      confidence = 0.9 // Alta confiança para GPT-4 Vision
+
+    } else if (isPDF) {
+      // Para PDFs, usar uma biblioteca de parsing
+      // Por enquanto, retornar mensagem de não suportado
+      throw new Error('Processamento de PDF não implementado. Use imagens (JPG, PNG) para melhor resultado.')
+      
+    } else {
+      throw new Error('Formato de arquivo não suportado. Use imagens (JPG, PNG, WEBP) ou PDFs.')
     }
 
-    if (!ocrRes.ok) {
-      const errText = await ocrRes.text().catch(() => "");
-      console.error("OpenAI Vision error:", ocrRes.status, errText);
-
-      return jsonError(
-        502,
-        "O provider OCR falhou ao processar a imagem.",
-        "OCR_PROVIDER_ERROR",
-        {
-          provider_status: ocrRes.status,
-          provider_excerpt: errText.slice(0, 300),
-        }
-      );
+    if (!extractedText || extractedText.trim().length === 0) {
+      throw new Error('Nenhum texto foi extraído da imagem. Tente com uma imagem mais clara.')
     }
 
-    const ocrData = await ocrRes.json().catch(() => null);
-    if (!ocrData || typeof ocrData !== "object") {
-      return jsonError(
-        502,
-        "O provider OCR retornou um payload inválido.",
-        "OCR_INVALID_RESPONSE"
-      );
-    }
-
-    const content = extractMessageContent(ocrData);
-    const structured = parseStructuredPayload(content);
-
-    if (!structured?.extracted_text) {
-      return jsonError(
-        422,
-        "OCR não retornou dados estruturados utilizáveis para esta imagem.",
-        "OCR_INVALID_RESPONSE"
-      );
-    }
+    console.log('Texto extraído com sucesso:', extractedText.substring(0, 100) + '...')
 
     return new Response(
       JSON.stringify({
-        text: structured.extracted_text,
-        confidence: confidenceToNumber(structured.confidence),
+        text: extractedText,
+        confidence: confidence,
         metadata: {
-          merchantName: structured.merchant_name ?? undefined,
-          totalAmount: structured.amount ?? undefined,
-          date: structured.date ?? undefined,
-          transactionType: structured.transaction_type,
-          amount: structured.amount,
-          description: structured.description ?? undefined,
-          scope: structured.scope,
-          categoryHint: structured.category_hint ?? undefined,
-          counterparty: structured.counterparty ?? undefined,
-          evidence: structured.evidence,
-          confidence: structured.confidence,
-          installmentText: structured.installment_text ?? undefined,
-        },
+          method: isImage ? 'openai-vision' : 'pdf-parse',
+          textLength: extractedText.length
+        }
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (e) {
-    console.error("smart-capture-ocr error:", e);
-    return jsonError(
-      500,
-      e instanceof Error ? e.message : "Erro desconhecido no processamento OCR.",
-      "OCR_PROCESSING_FAILED"
-    );
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      },
+    )
+
+  } catch (error) {
+    console.error('Erro no OCR:', error)
+    
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        text: '',
+        confidence: 0,
+        metadata: {}
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200, // Retornar 200 para o frontend processar o erro
+      },
+    )
   }
-});
+})
