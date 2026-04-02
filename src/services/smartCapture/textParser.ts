@@ -61,6 +61,31 @@ function parseLocalizedAmount(raw: string) {
   return value;
 }
 
+const MONTH_ALIASES: Record<string, number> = {
+  jan: 1, janeiro: 1, january: 1,
+  fev: 2, fevereiro: 2, feb: 2, february: 2,
+  mar: 3, março: 3, marco: 3, march: 3,
+  abr: 4, abril: 4, apr: 4, april: 4,
+  mai: 5, maio: 5, may: 5,
+  jun: 6, junho: 6, june: 6,
+  jul: 7, julho: 7, july: 7,
+  ago: 8, agosto: 8, aug: 8, august: 8,
+  set: 9, setembro: 9, sep: 9, september: 9,
+  out: 10, outubro: 10, oct: 10, october: 10,
+  nov: 11, novembro: 11, november: 11,
+  dez: 12, dezembro: 12, dec: 12, december: 12,
+};
+
+function normalizeMonthToken(raw: string) {
+  const normalized = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\.$/, "");
+
+  return MONTH_ALIASES[normalized] ?? null;
+}
+
 function extractDateFromText(text: string, observacoes: string[]) {
   const today = new Date().toISOString().split("T")[0];
 
@@ -91,6 +116,23 @@ function extractDateFromText(text: string, observacoes: string[]) {
     const year = fullDateMatch[3].length === 2 ? 2000 + rawYear : rawYear;
 
     if (isValidCalendarDate(year, month, day)) {
+      return {
+        data: formatIsoDate(year, month, day),
+        explicitDateFound: true,
+        inferredDate: false,
+      };
+    }
+  }
+
+  const textualDateRegex = /\b(\d{1,2})\s*(?:de\s*)?([A-Za-zÀ-ÿ]{3,10})[,.]?\s*(?:de\s*)?(\d{4})\b/gi;
+  let textualDateMatch: RegExpExecArray | null;
+
+  while ((textualDateMatch = textualDateRegex.exec(text)) !== null) {
+    const day = Number(textualDateMatch[1]);
+    const month = normalizeMonthToken(textualDateMatch[2]);
+    const year = Number(textualDateMatch[3]);
+
+    if (month && isValidCalendarDate(year, month, day)) {
       return {
         data: formatIsoDate(year, month, day),
         explicitDateFound: true,
@@ -291,20 +333,56 @@ function extractScope(text: string, observacoes: string[]) {
 function extractAmountFromText(text: string, observacoes: string[]) {
   const candidates: Array<{ value: number; score: number; index: number; source: string }> = [];
 
+  const installmentRanges: Array<{ start: number; end: number }> = [];
+  const installmentRegex =
+    /\b\d{1,2}\s*x\s*de\s*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2})/gi;
+
+  let installmentMatch: RegExpExecArray | null;
+  while ((installmentMatch = installmentRegex.exec(text)) !== null) {
+    installmentRanges.push({
+      start: installmentMatch.index,
+      end: installmentMatch.index + installmentMatch[0].length,
+    });
+  }
+
+  const isInstallmentCandidate = (index: number) =>
+    installmentRanges.some((range) => index >= range.start && index < range.end);
+
   const addCandidate = (raw: string, index: number, score: number, source: string) => {
     const value = parseLocalizedAmount(raw);
     if (value === null) return;
-    candidates.push({ value, score, index, source });
+
+    const adjustedScore = isInstallmentCandidate(index) ? score - 2.5 : score;
+
+    candidates.push({
+      value,
+      score: adjustedScore,
+      index,
+      source: isInstallmentCandidate(index) ? `${source}:installment` : source,
+    });
   };
 
   const contextualPatterns = [
     {
-      regex: /\b(?:valor total|total a pagar|valor pago|valor recebido|valor|total|pagamento|recebimento|recebido|pago|pix recebido|pix enviado|transfer[êe]ncia|compra|gasto|despesa)\b[^\n\r]{0,24}?(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2}|\d{1,5})/gi,
+      regex:
+        /\b(?:valor total|total da venda|total pago|total recebido|valor pago|valor recebido|recebimento total|pagamento total)\b[^\n\r]{0,40}?(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2}|\d{1,5})/gi,
+      score: 6,
+      source: "total",
+    },
+    {
+      regex: /(?:^|[\n\r])\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2})\b/gim,
+      score: 4.5,
+      source: "headline",
+    },
+    {
+      regex:
+        /\b(?:valor total|total a pagar|valor pago|valor recebido|valor|total|pagamento|recebimento|recebido|pago|pix recebido|pix enviado|transfer[êe]ncia|compra|gasto|despesa)\b[^\n\r]{0,24}?(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2}|\d{1,5})/gi,
       score: 5,
       source: "contextual",
     },
     {
-      regex: /\b(?:gastei|paguei|comprei|entrou|recebi|ganhei|sal[aá]rio|mercado|uber|ifood|pix|transferi)\b[^\n\r]{0,16}?(?:R\$\s*)?(\d{1,5}(?:[.,]\d{1,2})?)/gi,
+      regex:
+        /\b(?:gastei|paguei|comprei|entrou|recebi|ganhei|sal[aá]rio|mercado|uber|ifood|pix|transferi)\b[^\n\r]{0,16}?(?:R\$\s*)?(\d{1,5}(?:[.,]\d{1,2})?)/gi,
       score: 4,
       source: "verb",
     },
@@ -329,14 +407,16 @@ function extractAmountFromText(text: string, observacoes: string[]) {
 
   const ranked = [...candidates].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    return b.index - a.index;
+    if (Math.abs(b.value - a.value) > 0.009) return b.value - a.value;
+    return a.index - b.index;
   });
 
   const best = ranked[0];
-  const conflictingTopCandidates = ranked.filter((candidate) =>
-    candidate !== best &&
-    candidate.score >= best.score - 1 &&
-    Math.abs(candidate.value - best.value) > 0.009
+  const conflictingTopCandidates = ranked.filter(
+    (candidate) =>
+      candidate !== best &&
+      candidate.score >= best.score - 1 &&
+      Math.abs(candidate.value - best.value) > 0.009
   );
 
   if (best.score < 4 && conflictingTopCandidates.length > 0) {
@@ -344,7 +424,7 @@ function extractAmountFromText(text: string, observacoes: string[]) {
     return { valor: null, explicitAmountFound: false, ambiguousAmount: true };
   }
 
-  if (conflictingTopCandidates.length > 1 && best.source !== "contextual") {
+  if (conflictingTopCandidates.length > 1 && best.source !== "total") {
     observacoes.push("Valor monetário potencialmente ambíguo; reduzindo confiança da sugestão.");
   }
 
@@ -361,11 +441,9 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const observacoes: string[] = [];
   const camposFaltantes: string[] = [];
 
-  // Extract valor conservatively to avoid hallucinating from OCR noise / IDs / dates
   const { valor, explicitAmountFound, ambiguousAmount } = extractAmountFromText(text, observacoes);
   if (!valor) camposFaltantes.push("valor");
 
-  // Detect tipo conservatively
   const incomePatterns = /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento recebido|receita|ganho|ganh[ei]|pix recebido|transfer[êe]ncia recebida|dep[oó]sito)\b/i;
   const expensePatterns = /\b(gastei|paguei|comprei|d[eé]bito|despesa|sa[ií]da|retirada|pix enviado|transfer[êe]ncia enviada|compra aprovada)\b/i;
   const hasIncomeSignal = incomePatterns.test(text);
@@ -380,13 +458,11 @@ export function parseTransactionText(input: string): ParsedTransaction {
     observacoes.push("Tipo da transação não foi identificado com clareza; mantido padrão conservador.");
   }
 
-  // Detect date with priority for explicit dates in the content
   const { data, explicitDateFound, inferredDate } = extractDateFromText(text, observacoes);
   if (!explicitDateFound) {
     camposFaltantes.push("data");
   }
 
-  // Detect category hints
   const categoryHints: Record<string, string> = {
     "mercado|supermercado|feira": "Alimentação",
     "aluguel|condom[ií]nio": "Moradia",
@@ -408,10 +484,8 @@ export function parseTransactionText(input: string): ParsedTransaction {
     }
   }
 
-  // Detect scope
   const { escopo, strongScopeEvidence } = extractScope(text, observacoes);
 
-  // Build description
   const descricao = normalizeDescription(text, tipo, observacoes);
 
   if (!categoriaSugerida) camposFaltantes.push("categoria");
