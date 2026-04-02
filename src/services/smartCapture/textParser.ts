@@ -479,6 +479,15 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const onlyInstallmentPattern = /^\s*\d{1,2}\s*x\s*(?:de\s+)?(?:R\$\s*)?[\d.,]+/i;
   const hasExplicitTotal = /\b(?:total|valor)\b/i.test(text) || (valor !== null && !onlyInstallmentPattern.test(text.replace(/\s+/g, ' ').trim()));
 
+  // Apply the rule: if hasExplicitTotal is false, the found value is a per-installment amount, not a total
+  const effectiveValor = hasExplicitTotal ? valor : null;
+  if (effectiveValor === null && valor !== null) {
+    camposFaltantes.push("valor");
+    observacoes.push(
+      "Apenas valor de parcela detectado; total não determinado. Preencha o valor total manualmente no Modo Espelho."
+    );
+  }
+
   const incomePatterns =
     /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento recebido|receita|ganho|ganh[ei]|pix recebido|transfer[êe]ncia recebida|dep[oó]sito)\b/i;
   const expensePatterns =
@@ -543,7 +552,7 @@ export function parseTransactionText(input: string): ParsedTransaction {
 
   let score = 0;
 
-  if (valor && explicitAmountFound) score += 2;
+  if (effectiveValor && explicitAmountFound) score += 2;
   if (categoriaSugerida) score += 1;
   if (explicitDateFound) score += 1;
   if (!inferredDate && !descriptionTooGeneric) score += 1;
@@ -555,14 +564,14 @@ export function parseTransactionText(input: string): ParsedTransaction {
   if (looksRawOrDense) score -= 0.5;
   if (descriptionTooGeneric) score -= 0.5;
   if (!strongScopeEvidence && escopo !== "private") score -= 0.5;
-  if (!valor) score -= 1.5;
+  if (!effectiveValor) score -= 1.5;
   if (ambiguousAmount) score -= 1.5;
   if (!hasIncomeSignal && !hasExpenseSignal) score -= 0.5;
 
   const confianca: ConfidenceValue = score >= 4 ? "alta" : score >= 2 ? "media" : "baixa";
 
   // Determine status
-  const hasCriticalFields = valor !== null && (hasIncomeSignal || hasExpenseSignal);
+  const hasCriticalFields = effectiveValor !== null && (hasIncomeSignal || hasExpenseSignal);
   const status: ParsedTransaction["status"] = ambiguousAmount
     ? "ambiguous"
     : hasCriticalFields
@@ -570,7 +579,7 @@ export function parseTransactionText(input: string): ParsedTransaction {
       : "partial";
 
   return {
-    valor,
+    valor: effectiveValor,
     tipo,
     descricao,
     data,
