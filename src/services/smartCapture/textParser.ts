@@ -471,8 +471,9 @@ export function parseTransactionText(input: string): ParsedTransaction {
   if (!valor) camposFaltantes.push("valor");
 
   // Extract installment text (e.g. "3x", "12x de 30,47")
-  const installmentMatch = text.match(/\b(\d{1,2}\s*x(?:\s+(?:de\s+)?(?:R\$\s*)?[\d.,]+)?(?:\s+(?:sem\s+juros|com\s+juros|no\s+cart[aã]o))?)/i);
-  const installmentText = installmentMatch ? installmentMatch[1].trim() : null;
+  const installmentMatch = text.match(/\b(\d{1,2})\s*x(?:\s+(?:de\s+)?(?:R\$\s*)?[\d.,]+)?(?:\s+(?:sem\s+juros|com\s+juros|no\s+cart[aã]o))?/i);
+  const installmentText = installmentMatch ? installmentMatch[0].trim() : null;
+  const installmentCount = installmentMatch ? parseInt(installmentMatch[1], 10) : null;
 
   // If ONLY installment value present (e.g. "12x de 30,47") with no explicit total, amount must be null
   const onlyInstallmentPattern = /^\s*\d{1,2}\s*x\s*(?:de\s+)?(?:R\$\s*)?[\d.,]+/i;
