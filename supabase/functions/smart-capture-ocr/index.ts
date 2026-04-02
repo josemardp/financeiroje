@@ -144,7 +144,7 @@ function parseStructuredPayload(content: string): StructuredOcrPayload | null {
     return {
       extracted_text: extractedText,
       transaction_type: normalizeTransactionType(parsed?.transaction_type),
-      amount: parseLocalizedAmount(parsed?.amount),
+      amount: parseLocalizedAmount(parsed?.amount ?? parsed?.total_amount),
       date: normalizeDate(parsed?.date),
       description: sanitizeNullableString(parsed?.description),
       merchant_name: sanitizeNullableString(parsed?.merchant_name),
