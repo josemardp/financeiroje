@@ -263,6 +263,7 @@ export default function SmartCapture() {
   const applyParsedResult = (result: ParsedTransaction, source: string, label?: string) => {
     setParsed(result);
     setIsEditing(false);
+    setInstallmentStart(null);
     setSourceLabel(
       label ||
         (source === "free_text"
