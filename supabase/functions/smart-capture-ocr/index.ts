@@ -309,6 +309,7 @@ serve(async (req) => {
           counterparty: structured.counterparty ?? undefined,
           evidence: structured.evidence,
           confidence: structured.confidence,
+          installmentText: structured.installment_text ?? undefined,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
