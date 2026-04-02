@@ -244,6 +244,7 @@ export default function SmartCapture() {
     result: ocrResult,
     processImage,
     resetOcr,
+    lastError: ocrLastError,
   } = useOcrCapture();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -792,6 +793,12 @@ export default function SmartCapture() {
                     Suportados aqui: {getSupportedOcrImageFormatsLabel()}, PDF textual e DOCX.
                     HEIC/HEIF, BMP, TIFF e SVG são bloqueados no OCR.
                   </p>
+
+                  {ocrLastError && (
+                    <p className="mt-2 text-sm font-medium text-destructive">
+                      {ocrLastError}
+                    </p>
+                  )}
                 </div>
 
                 <input
