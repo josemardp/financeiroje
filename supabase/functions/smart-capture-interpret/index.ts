@@ -27,6 +27,7 @@ interface StructuredInterpretPayload {
   confidence: StructuredConfidence;
   evidence: string[];
   missing_fields: string[];
+  installment_text: string | null;
 }
 
 function checkRateLimit(userId: string): boolean {
