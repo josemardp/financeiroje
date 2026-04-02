@@ -556,7 +556,12 @@ export default function SmartCapture() {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    const resetInput = () => {
+      input.value = "";
+    };
+
     if (!file) return;
 
     const name = file.name.toLowerCase();
@@ -568,6 +573,7 @@ export default function SmartCapture() {
 
     if (isDoc) {
       toast.error("Formato .doc não suportado. Converta para .docx.");
+      resetInput();
       return;
     }
 
@@ -575,11 +581,16 @@ export default function SmartCapture() {
       toast.error(
         "Planilhas ainda não são suportadas na Captura Inteligente. Use importação estruturada."
       );
+      resetInput();
       return;
     }
 
     if (isImage) {
-      processImage(file);
+      try {
+        await processImage(file);
+      } finally {
+        resetInput();
+      }
       return;
     }
 
@@ -600,12 +611,14 @@ export default function SmartCapture() {
         toast.error(msg);
       } finally {
         setIsExtractingFile(false);
+        resetInput();
       }
 
       return;
     }
 
     toast.error("Formato de arquivo não suportado");
+    resetInput();
   };
 
   return (
