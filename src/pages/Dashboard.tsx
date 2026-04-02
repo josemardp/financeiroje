@@ -26,6 +26,10 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+/**
+ * Dashboard principal com destaque para Captura Inteligente (IA)
+ * Build disparado via commit forçado na main.
+ */
 export default function Dashboard() {
   const { user, profile } = useAuth();
   const { currentScope, scopeLabel } = useScope();
