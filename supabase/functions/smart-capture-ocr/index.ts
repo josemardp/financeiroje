@@ -28,6 +28,7 @@ interface StructuredOcrPayload {
   category_hint: string | null;
   confidence: StructuredConfidence;
   evidence: string[];
+  installment_text: string | null;
 }
 
 function checkRateLimit(userId: string): boolean {
