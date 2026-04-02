@@ -89,7 +89,8 @@ function normalizeMonthToken(raw: string) {
 function extractDateFromText(text: string, observacoes: string[]) {
   const today = new Date().toISOString().split("T")[0];
 
-  const labeledDateRegex = /\b(?:data|data da transa[cç][aã]o|data do pagamento|data do recebimento|emiss[aã]o|lan[çc]amento|ocorr[êe]ncia)\b[^\n\r]{0,18}?(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b/gi;
+  const labeledDateRegex =
+    /\b(?:data|data da transa[cç][aã]o|data do pagamento|data do recebimento|emiss[aã]o|lan[çc]amento|ocorr[êe]ncia)\b[^\n\r]{0,18}?(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b/gi;
   const labeledDateMatch = labeledDateRegex.exec(text);
   if (labeledDateMatch) {
     const day = Number(labeledDateMatch[1]);
@@ -124,7 +125,8 @@ function extractDateFromText(text: string, observacoes: string[]) {
     }
   }
 
-  const textualDateRegex = /\b(\d{1,2})\s*(?:de\s*)?([A-Za-zÀ-ÿ]{3,10})[,.]?\s*(?:de\s*)?(\d{4})\b/gi;
+  const textualDateRegex =
+    /\b(\d{1,2})\s*(?:de\s*)?([A-Za-zÀ-ÿ]{3,10})[,.]?\s*(?:de\s*)?(\d{4})\b/gi;
   let textualDateMatch: RegExpExecArray | null;
 
   while ((textualDateMatch = textualDateRegex.exec(text)) !== null) {
@@ -219,7 +221,7 @@ function buildMerchantDescription(text: string) {
     /\b(padaria\s+[A-ZÀ-ÿ0-9][^\n,;|]{2,60})/i,
     /\b(restaurante\s+[A-ZÀ-ÿ0-9][^\n,;|]{2,60})/i,
     /\b(mercado\s+[A-ZÀ-ÿ0-9][^\n,;|]{2,60})/i,
-    /\b(uber(?:\s+trip)?|99(?:\s*pop)?|ifood)\b/i,
+    /\b(uber(?:\s+trip)?|99(?:\s*pop)?|ifood|infinitepay)\b/i,
   ];
 
   for (const pattern of merchantPatterns) {
@@ -232,8 +234,11 @@ function buildMerchantDescription(text: string) {
 
 function sanitizeDescription(value: string) {
   return value
-    .replace(/[_*#]+/g, " ")
-    .replace(/\b(?:cnpj|cpf|ag[êe]ncia|conta|autentica[cç][aã]o|protocolo|nsu|documento|id)\b\s*[:\-]?\s*[\w./-]+/gi, " ")
+    .replace(/[_*#`]+/g, " ")
+    .replace(
+      /\b(?:cnpj|cpf|ag[êe]ncia|conta|autentica[cç][aã]o|protocolo|nsu|documento|id)\b\s*[:\-]?\s*[\w./-]+/gi,
+      " "
+    )
     .replace(/\b(?:observa[cç][aã]o|obs|teste|auxiliar|rodap[eé])\b\s*[:\-]?\s*/gi, " ")
     .replace(/\s{2,}/g, " ")
     .replace(/^[\s,;:|.-]+|[\s,;:|.-]+$/g, "")
@@ -246,7 +251,8 @@ function buildCompactDescriptionFromLines(text: string) {
     .map((line) => sanitizeDescription(line))
     .filter(Boolean);
 
-  const ignoredLinePattern = /^(?:comprovante|recibo|extrato|nota fiscal|arquivo|p[aá]gina|sheet\d*|planilha|total geral|subtotal|header|rodap[eé]|banco|ag[êe]ncia|conta|autentica[cç][aã]o|transa[cç][aã]o|valor|data)\b/i;
+  const ignoredLinePattern =
+    /^(?:comprovante|recibo|extrato|nota fiscal|arquivo|p[aá]gina|sheet\d*|planilha|total geral|subtotal|header|rodap[eé]|banco|ag[êe]ncia|conta|autentica[cç][aã]o|transa[cç][aã]o|valor|data)\b/i;
 
   const semanticLine = lines.find((line) => {
     if (ignoredLinePattern.test(line)) return false;
@@ -274,9 +280,13 @@ function buildCompactDescriptionFromText(text: string, tipo: ParsedTransaction["
 
   const fallback = text
     .replace(/\b\d{1,2}[\/\-.]\d{1,2}(?:[\/\-.]\d{2,4})?\b/g, " ")
+    .replace(/\b\d{1,2}\s*(?:de\s*)?[A-Za-zÀ-ÿ]{3,10}[,.]?\s*(?:de\s*)?\d{4}\b/gi, " ")
     .replace(/R\$\s*\d+[.,]?\d*/gi, " ")
     .replace(/\d+[.,]?\d*\s*reais?/gi, " ")
-    .replace(/\b(?:gastei|paguei|comprei|entrou|recebi|transferi|pix|debito|d[eé]bito|credito|cr[eé]dito)\b/gi, " ")
+    .replace(
+      /\b(?:gastei|paguei|comprei|entrou|recebi|transferi|pix|debito|d[eé]bito|credito|cr[eé]dito|parcelas?|comprovante de venda|link de pagamento)\b/gi,
+      " "
+    )
     .replace(/\b(?:de|com|no|na|em|do|da|para|pra|por)\b/gi, " ")
     .replace(/[;,|]+/g, " ")
     .replace(/\s+/g, " ")
@@ -288,7 +298,11 @@ function buildCompactDescriptionFromText(text: string, tipo: ParsedTransaction["
   return tipo === "income" ? "Receita identificada" : "Despesa identificada";
 }
 
-function normalizeDescription(text: string, tipo: ParsedTransaction["tipo"], observacoes: string[]) {
+function normalizeDescription(
+  text: string,
+  tipo: ParsedTransaction["tipo"],
+  observacoes: string[]
+) {
   const compact = sanitizeDescription(buildCompactDescriptionFromText(text, tipo));
 
   let descricao = compact;
@@ -306,7 +320,8 @@ function normalizeDescription(text: string, tipo: ParsedTransaction["tipo"], obs
 }
 
 function extractScope(text: string, observacoes: string[]) {
-  const businessPattern = /\b(business|empresa|profissional|neg[oó]cio|mei|cnpj|fornecedor|cliente|nota fiscal|servi[cç]o profissional|comercial)\b/i;
+  const businessPattern =
+    /\b(business|empresa|profissional|neg[oó]cio|mei|fornecedor|cliente|nota fiscal|servi[cç]o profissional|comercial)\b/i;
   const familyPattern = /\b(family|fam[ií]lia|familiar|casa|filh[oa]|esposa|marido|lar)\b/i;
   const privatePattern = /\b(personal|pessoal|privado|individual|particular)\b/i;
 
@@ -420,7 +435,9 @@ function extractAmountFromText(text: string, observacoes: string[]) {
   );
 
   if (best.score < 4 && conflictingTopCandidates.length > 0) {
-    observacoes.push("Valor monetário ambíguo: múltiplos candidatos relevantes encontrados no texto.");
+    observacoes.push(
+      "Valor monetário ambíguo: múltiplos candidatos relevantes encontrados no texto."
+    );
     return { valor: null, explicitAmountFound: false, ambiguousAmount: true };
   }
 
@@ -444,8 +461,11 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const { valor, explicitAmountFound, ambiguousAmount } = extractAmountFromText(text, observacoes);
   if (!valor) camposFaltantes.push("valor");
 
-  const incomePatterns = /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento recebido|receita|ganho|ganh[ei]|pix recebido|transfer[êe]ncia recebida|dep[oó]sito)\b/i;
-  const expensePatterns = /\b(gastei|paguei|comprei|d[eé]bito|despesa|sa[ií]da|retirada|pix enviado|transfer[êe]ncia enviada|compra aprovada)\b/i;
+  const incomePatterns =
+    /\b(entrou|receb[ei]|sal[aá]rio|renda|pagamento recebido|receita|ganho|ganh[ei]|pix recebido|transfer[êe]ncia recebida|dep[oó]sito)\b/i;
+  const expensePatterns =
+    /\b(gastei|paguei|comprei|d[eé]bito|despesa|sa[ií]da|retirada|pix enviado|transfer[êe]ncia enviada|compra aprovada|comprovante de venda|link de pagamento|parcelas|pagamento com cart[aã]o|pagamento aprovado|transa[cç][aã]o aprovada)\b/i;
+
   const hasIncomeSignal = incomePatterns.test(text);
   const hasExpenseSignal = expensePatterns.test(text);
   const tipo = hasIncomeSignal && !hasExpenseSignal ? "income" : "expense";
@@ -455,7 +475,9 @@ export function parseTransactionText(input: string): ParsedTransaction {
   }
   if (!hasIncomeSignal && !hasExpenseSignal) {
     camposFaltantes.push("tipo");
-    observacoes.push("Tipo da transação não foi identificado com clareza; mantido padrão conservador.");
+    observacoes.push(
+      "Tipo da transação não foi identificado com clareza; mantido padrão conservador."
+    );
   }
 
   const { data, explicitDateFound, inferredDate } = extractDateFromText(text, observacoes);
@@ -472,7 +494,8 @@ export function parseTransactionText(input: string): ParsedTransaction {
     "netflix|spotify|streaming|assinatura": "Assinaturas",
     "pizza|restaurante|lanche|café|jantar|almoço": "Alimentação",
     "luz|energia|água|internet|telefone|celular": "Contas",
-    "consignado|parcela|empréstimo|financiamento": "Dívidas",
+    "consignado|parcela|parcelas|empréstimo|financiamento|link de pagamento|comprovante de venda":
+      "Dívidas",
     "salário|renda|freelance": "Renda",
   };
 
@@ -485,12 +508,12 @@ export function parseTransactionText(input: string): ParsedTransaction {
   }
 
   const { escopo, strongScopeEvidence } = extractScope(text, observacoes);
-
   const descricao = normalizeDescription(text, tipo, observacoes);
 
   if (!categoriaSugerida) camposFaltantes.push("categoria");
 
-  const looksRawOrDense = text.length > 240 || /[\n\r]/.test(text) || (text.match(/[,;|]/g) || []).length > 6;
+  const looksRawOrDense =
+    text.length > 240 || /[\n\r]/.test(text) || (text.match(/[,;|]/g) || []).length > 6;
   const descriptionTooGeneric = /^(Receita identificada|Despesa identificada)$/i.test(descricao);
 
   let score = 0;
@@ -511,10 +534,7 @@ export function parseTransactionText(input: string): ParsedTransaction {
   if (ambiguousAmount) score -= 1.5;
   if (!hasIncomeSignal && !hasExpenseSignal) score -= 0.5;
 
-  const confianca: ConfidenceValue =
-    score >= 4 ? "alta" :
-    score >= 2 ? "media" :
-    "baixa";
+  const confianca: ConfidenceValue = score >= 4 ? "alta" : score >= 2 ? "media" : "baixa";
 
   return {
     valor,
