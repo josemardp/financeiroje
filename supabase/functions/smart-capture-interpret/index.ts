@@ -27,6 +27,7 @@ interface StructuredInterpretPayload {
   confidence: StructuredConfidence;
   evidence: string[];
   missing_fields: string[];
+  installment_text: string | null;
 }
 
 function checkRateLimit(userId: string): boolean {
@@ -166,6 +167,7 @@ function parseStructuredPayload(content: string): StructuredInterpretPayload | n
       confidence: normalizeConfidence(parsed?.confidence),
       evidence: normalizeEvidence(parsed?.evidence),
       missing_fields: normalizeMissingFields(parsed?.missing_fields),
+      installment_text: sanitizeNullableString(parsed?.installment_text),
     };
   } catch {
     return null;
@@ -253,7 +255,7 @@ serve(async (req) => {
           {
             role: "system",
             content:
-              "Você é um extrator estruturado de transações financeiras para o FinanceAI. Responda somente com JSON válido. Nunca invente valor, data, tipo, categoria, descrição, contraparte ou escopo. amount deve ser o valor principal total da transação, nunca o valor unitário da parcela quando houver um total maior explícito. Exemplo: se houver 'R$ 365,67' e também '12x de R$ 30,47', amount deve ser 365.67. date deve estar em ISO YYYY-MM-DD e você deve entender formatos como '28 Mar, 2026', '28 março 2026' e '28/03/2026'. transaction_type deve ser 'expense' para compra, débito, boleto pago, comprovante de venda, link de pagamento, cartão e PIX enviado; use 'income' apenas com evidência inequívoca de entrada para o usuário. Retorne obrigatoriamente um JSON com as chaves: transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, missing_fields.",
+              "Você é um extrator estruturado de transações financeiras para o FinanceAI. Responda somente com JSON válido. Nunca invente valor, data, tipo, categoria, descrição, contraparte ou escopo. amount deve ser o valor principal total da transação, nunca o valor unitário da parcela quando houver um total maior explícito. Exemplo: se houver 'R$ 365,67' e também '12x de R$ 30,47', amount deve ser 365.67. Se houver APENAS parcela sem total explícito (ex: '12x de 30,47 no cartão'), amount DEVE ser null e missing_fields deve incluir 'valor'. installment_text deve capturar o texto original do parcelamento (ex: '3x', '12x de 30,47', '2x sem juros'). date deve estar em ISO YYYY-MM-DD e você deve entender formatos como '28 Mar, 2026', '28 março 2026' e '28/03/2026'. transaction_type deve ser 'expense' para compra, débito, boleto pago, comprovante de venda, link de pagamento, cartão e PIX enviado; use 'income' apenas com evidência inequívoca de entrada para o usuário. Retorne obrigatoriamente um JSON com as chaves: transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, missing_fields, installment_text.",
           },
           {
             role: "user",
@@ -287,6 +289,10 @@ serve(async (req) => {
 
     const missingFields = buildMissingFields(structured);
 
+    // Determine status
+    const hasCriticalFields = structured.amount !== null && structured.transaction_type !== "unknown";
+    const status = hasCriticalFields ? "complete" : missingFields.length > 2 ? "ambiguous" : "partial";
+
     return new Response(
       JSON.stringify({
         text,
@@ -303,8 +309,10 @@ serve(async (req) => {
           categoryHint: structured.category_hint ?? undefined,
           evidence: structured.evidence,
           confidence: structured.confidence,
+          installmentText: structured.installment_text ?? undefined,
         },
         missingFields,
+        status,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
