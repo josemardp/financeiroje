@@ -217,18 +217,130 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
   const { currentScope } = useScope();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({ valor: "", tipo: "expense", categoria_id: "", descricao: "", data: new Date().toISOString().split("T")[0], scope: currentScope === "all" ? "private" : currentScope });
+  const [parcelas, setParcelas] = useState("1");
+  const [installmentStart, setInstallmentStart] = useState<"this_month" | "next_month">("this_month");
+
+  const installmentCount = Math.max(1, Math.min(48, parseInt(parcelas, 10) || 1));
+  const isInstallment = installmentCount > 1;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setIsSubmitting(true);
-    const { error } = await supabase.from("transactions").insert({ user_id: user.id, valor: Number(form.valor), tipo: form.tipo as any, categoria_id: form.categoria_id || null, descricao: form.descricao, data: form.data, scope: form.scope as any, data_status: "confirmed" });
-    if (error) toast.error("Erro ao salvar", { description: error.message });
-    else { toast.success("Transação salva!"); onSuccess(); }
+
+    if (isInstallment) {
+      const totalValue = Number(form.valor);
+      const parcelaValue = Math.round((totalValue / installmentCount) * 100) / 100;
+      const now = new Date();
+      const startMonth = installmentStart === "next_month" ? 1 : 0;
+      const dateParts = form.data.split("-").map(Number);
+      const baseDay = dateParts.length === 3 ? dateParts[2] : 1;
+
+      const rows = Array.from({ length: installmentCount }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + startMonth + i, 1);
+        const safeDay = Math.min(baseDay, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate());
+        d.setDate(safeDay);
+        const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+        return {
+          user_id: user.id,
+          valor: parcelaValue,
+          tipo: form.tipo as any,
+          categoria_id: form.categoria_id || null,
+          descricao: `${form.descricao} (${i + 1}/${installmentCount})`,
+          data: isoDate,
+          scope: form.scope as any,
+          data_status: "confirmed" as any,
+          validation_notes: `Parcela ${i + 1}/${installmentCount} — Total: ${totalValue} — Início: ${installmentStart}`,
+        };
+      });
+
+      const { error } = await supabase.from("transactions").insert(rows);
+      if (error) toast.error("Erro ao salvar parcelas", { description: error.message });
+      else { toast.success(`${installmentCount} parcelas criadas!`, { description: `R$ ${parcelaValue.toFixed(2)} por parcela` }); onSuccess(); }
+    } else {
+      const { error } = await supabase.from("transactions").insert({ user_id: user.id, valor: Number(form.valor), tipo: form.tipo as any, categoria_id: form.categoria_id || null, descricao: form.descricao, data: form.data, scope: form.scope as any, data_status: "confirmed" });
+      if (error) toast.error("Erro ao salvar", { description: error.message });
+      else { toast.success("Transação salva!"); onSuccess(); }
+    }
     setIsSubmitting(false);
   };
 
-  return <form onSubmit={handleSubmit} className="space-y-4"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Valor (R$)</Label><Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} required /></div><div className="space-y-2"><Label>Tipo</Label><Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="expense">Despesa</SelectItem><SelectItem value="income">Receita</SelectItem></SelectContent></Select></div></div><div className="space-y-2"><Label>Categoria</Label><Select value={form.categoria_id} onValueChange={(v) => setForm((f) => ({ ...f, categoria_id: v }))}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.icone} {c.nome}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Descrição</Label><Textarea placeholder="Ex: Mercado, Salário PM, Netflix..." value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={2} /></div><div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))} /></div><div className="space-y-2"><Label>Escopo</Label><Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v as "private" | "family" | "business" }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="private">Pessoal</SelectItem><SelectItem value="family">Família</SelectItem><SelectItem value="business">Negócio</SelectItem></SelectContent></Select></div></div><Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar transação</Button></form>;
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Valor total (R$)</Label>
+          <Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="expense">Despesa</SelectItem>
+              <SelectItem value="income">Receita</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>Categoria</Label>
+        <Select value={form.categoria_id} onValueChange={(v) => setForm((f) => ({ ...f, categoria_id: v }))}>
+          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+          <SelectContent>{categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.icone} {c.nome}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label>Descrição</Label>
+        <Textarea placeholder="Ex: Mercado, Salário PM, Netflix..." value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={2} />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Data</Label>
+          <Input type="date" value={form.data} onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label>Escopo</Label>
+          <Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v as "private" | "family" | "business" }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="private">Pessoal</SelectItem>
+              <SelectItem value="family">Família</SelectItem>
+              <SelectItem value="business">Negócio</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Parcelas</Label>
+          <Input type="number" min="1" max="48" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
+        </div>
+        {isInstallment && (
+          <div className="space-y-2">
+            <Label>Início da 1ª parcela</Label>
+            <Select value={installmentStart} onValueChange={(v) => setInstallmentStart(v as "this_month" | "next_month")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="this_month">Neste mês</SelectItem>
+                <SelectItem value="next_month">Próximo mês</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+      {isInstallment && form.valor && Number(form.valor) > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {installmentCount}x de R$ {(Math.round((Number(form.valor) / installmentCount) * 100) / 100).toFixed(2)} — início: {installmentStart === "this_month" ? "este mês" : "próximo mês"}
+        </p>
+      )}
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {isInstallment ? `Salvar ${installmentCount} parcelas` : "Salvar transação"}
+      </Button>
+    </form>
+  );
 }
 
 function EditTransactionForm({ transaction, categories, onSuccess }: { transaction: any; categories: any[]; onSuccess: () => void }) {
