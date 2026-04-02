@@ -1,63 +1,82 @@
 /**
  * FinanceAI — Interpret Adapter
- * Unified adapter that interprets text from any source (free text, voice, PDF, DOCX)
- * using the local parseTransactionText engine and returns a structured result
- * compatible with OcrExtractionResult for the Mirror Mode flow.
+ * Interpreta texto estruturado via Edge Function smart-capture-interpret.
  */
-import { parseTransactionText } from "@/services/smartCapture/textParser";
+import { supabase } from "@/integrations/supabase/client";
 import type { OcrExtractionResult, OcrStructuredMetadata } from "./OcrAdapter";
 
 export type InterpretSourceKind =
   | "free_text"
   | "voice_transcript"
   | "pdf_text"
-  | "docx_text"
-  | "xlsx_text";
+  | "docx_text";
 
 export interface InterpretRequest {
   text: string;
   sourceKind: InterpretSourceKind;
 }
 
-export type InterpretResult = OcrExtractionResult;
+export interface InterpretResult extends OcrExtractionResult {
+  metadata?: OcrStructuredMetadata;
+  missingFields?: string[];
+}
 
-const CONFIDENCE_MAP: Record<string, number> = {
-  alta: 0.95,
-  media: 0.7,
-  baixa: 0.4,
-};
+function normalizeMissingFields(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
 
 export class InterpretAdapter {
   static async interpret(request: InterpretRequest): Promise<InterpretResult> {
-    const { text, sourceKind } = request;
+    const inputText = request.text?.trim();
 
-    if (!text || !text.trim()) {
+    if (!inputText) {
       throw new Error("Texto vazio para interpretação.");
     }
 
-    const parsed = parseTransactionText(text.trim());
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    const metadata: OcrStructuredMetadata = {
-      amount: parsed.valor,
-      totalAmount: parsed.valor ?? undefined,
-      date: parsed.data || undefined,
-      transactionType: parsed.tipo || "unknown",
-      description: parsed.descricao || undefined,
-      scope: parsed.escopo || "private",
-      categoryHint: parsed.categoriaSugerida || undefined,
-      confidence: parsed.confianca,
-      evidence: [
-        `source: ${sourceKind}`,
-        ...parsed.observacoes.slice(0, 5),
-      ],
-    };
+    if (!session?.access_token) {
+      throw new Error("Sessão não encontrada. Faça login novamente.");
+    }
 
-    const confidenceNumeric = CONFIDENCE_MAP[parsed.confianca] ?? 0.5;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/smart-capture-interpret`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        text: inputText,
+        source_kind: request.sourceKind,
+      }),
+    });
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(payload?.error || `Erro ${response.status} na interpretação`);
+    }
 
     return {
-      text: parsed.textoOriginal || text.trim(),
-      confidence: confidenceNumeric,
-      metadata,
+      text:
+        typeof payload?.text === "string" && payload.text.trim()
+          ? payload.text.trim()
+          : inputText,
+      confidence:
+        typeof payload?.confidence === "number" && Number.isFinite(payload.confidence)
+          ? payload.confidence
+          : 0.7,
+      metadata: payload?.metadata,
+      missingFields: normalizeMissingFields(payload?.missingFields),
     };
   }
 }
