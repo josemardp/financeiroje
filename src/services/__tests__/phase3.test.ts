@@ -1,3 +1,5 @@
+import { parseTransactionText } from "@/services/smartCapture/textParser";
+
 describe("parseTransactionText", () => {
   it("extracts valor and tipo from expense text", () => {
     const r = parseTransactionText("gastei 52 reais com pizza hoje");
