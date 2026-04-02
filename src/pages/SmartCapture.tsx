@@ -221,7 +221,7 @@ export default function SmartCapture() {
   const [parsed, setParsed] = useState<ParsedTransaction | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
+  const [installmentStart, setInstallmentStart] = useState<"this_month" | "next_month" | null>(null);
   const {
     isRecording,
     isTranscribing,
