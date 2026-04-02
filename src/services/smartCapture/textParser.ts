@@ -581,6 +581,7 @@ export function parseTransactionText(input: string): ParsedTransaction {
     observacoes,
     camposFaltantes,
     installmentText,
+    installmentCount,
     status,
   };
 }
