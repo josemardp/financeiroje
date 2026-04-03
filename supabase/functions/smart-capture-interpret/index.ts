@@ -228,6 +228,8 @@ serve(async (req) => {
     const text = typeof body?.text === "string" ? body.text.trim() : "";
     const sourceKind = typeof body?.source_kind === "string" ? body.source_kind.trim() : "free_text";
 
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD no fuso UTC (próximo o suficiente para BR)
+
     if (!text || text.length < 3) {
       return new Response(
         JSON.stringify({ error: "Texto insuficiente para interpretação." }),
@@ -255,11 +257,11 @@ serve(async (req) => {
           {
             role: "system",
             content:
-              "Você é um extrator estruturado de transações financeiras para o FinanceAI. Responda somente com JSON válido. Nunca invente valor, data, tipo, categoria, descrição, contraparte ou escopo. amount deve ser o valor principal total da transação, nunca o valor unitário da parcela quando houver um total maior explícito. Exemplo: se houver 'R$ 365,67' e também '12x de R$ 30,47', amount deve ser 365.67. Se houver APENAS parcela sem total explícito (ex: '12x de 30,47 no cartão'), amount DEVE ser null e missing_fields deve incluir 'valor'. installment_text deve capturar o texto original do parcelamento (ex: '3x', '12x de 30,47', '2x sem juros'). date deve estar em ISO YYYY-MM-DD e você deve entender formatos como '28 Mar, 2026', '28 março 2026' e '28/03/2026'. transaction_type deve ser 'expense' para compra, débito, boleto pago, comprovante de venda, link de pagamento, cartão e PIX enviado; use 'income' apenas com evidência inequívoca de entrada para o usuário. Retorne obrigatoriamente um JSON com as chaves: transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, missing_fields, installment_text.",
+              "Você é um extrator estruturado de transações financeiras para o FinanceAI. Responda somente com JSON válido.\n\nREGRAS DE VALOR: amount é o valor total da transação, nunca o valor unitário da parcela quando houver total explícito. Ex: 'R$ 365,67' + '12x de R$ 30,47' → amount=365.67. Se houver APENAS parcela sem total (ex: '12x de 30,47'), amount=null e missing_fields inclui 'valor'. installment_text captura o texto de parcelamento (ex: '12x de R$ 30,47', '3x sem juros').\n\nREGRAS DE DATA: date em ISO YYYY-MM-DD. Entenda '28 Mar, 2026', '28/03/2026', '28 março 2026'. Para 'hoje'/'ontem'/'semana passada' use o campo 'hoje' informado pelo usuário.\n\nREGRAS DE TIPO E DIREÇÃO: Identifique quem é o usuário no comprovante. Se o usuário aparece como Origem/Pagador/De/Remetente → ele pagou → transaction_type='expense', counterparty=Destino/Beneficiário/Para/Recebedor. Se o usuário aparece como Destino/Beneficiário/Recebedor → ele recebeu → transaction_type='income', counterparty=Origem/Pagador. Para comprovantes de venda, link de pagamento, cartão débito/crédito, PIX enviado, boleto pago → 'expense'. Use 'income' apenas com evidência inequívoca de recebimento.\n\nREGRAS DE DESCRIÇÃO E CONTRAPARTE: merchant_name = nome do estabelecimento/empresa que recebeu (para despesa) ou pagou (para receita). counterparty = nome da outra parte da transação. description = frase curta e humana descrevendo a transação, ex: 'Pagamento EBENA', 'PIX recebido de João Silva', 'Compra no Mercado X', 'Boleto Claro'. Nunca deixe description null se houver merchant_name ou counterparty.\n\nRetorne JSON com: transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, missing_fields, installment_text.",
           },
           {
             role: "user",
-            content: `source_kind: ${sourceKind}\n\ntexto:\n${text}`,
+            content: `hoje: ${today}\nsource_kind: ${sourceKind}\n\ntexto:\n${text}`,
           },
         ],
         max_tokens: 900,
