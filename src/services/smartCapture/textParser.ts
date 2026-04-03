@@ -512,19 +512,20 @@ export function parseTransactionText(input: string): ParsedTransaction {
     camposFaltantes.push("data");
   }
 
-  const categoryHints: Record<string, string> = {
-    "mercado|supermercado|feira": "Alimentação",
-    "aluguel|condom[ií]nio": "Moradia",
-    "uber|99|gasolina|combust[ií]vel|transporte|ônibus": "Transporte",
-    "farmácia|médico|consulta|exame|saúde|plano de saúde": "Saúde",
-    "escola|faculdade|curso|educação|livro": "Educação",
-    "netflix|spotify|streaming|assinatura": "Assinaturas",
-    "pizza|restaurante|lanche|café|jantar|almoço": "Alimentação",
-    "luz|energia|água|internet|telefone|celular": "Contas",
-    "consignado|parcela|parcelas|empréstimo|financiamento|link de pagamento|comprovante de venda":
-      "Dívidas",
-    "salário|renda|freelance": "Renda",
-  };
+ const categoryHints: Record<string, string> = {
+  "mercado|supermercado|feira": "Alimentação",
+  "aluguel|condom[ií]nio": "Moradia",
+  "uber|99|gasolina|combust[ií]vel|transporte|ônibus": "Transporte",
+  "farmácia|médico|consulta|exame|saúde|plano de saúde": "Saúde",
+  "escola|faculdade|curso|educação|livro": "Educação",
+  "netflix|spotify|streaming|assinatura": "Assinaturas",
+  "pizza|restaurante|lanche|café|jantar|almoço": "Alimentação",
+  "luz|energia|água|internet|telefone|celular": "Contas",
+  "consignado|parcela|parcelas|empréstimo|financiamento|link de pagamento|comprovante de venda": "Dívidas",
+  "doa[cç][aã]o.*(?:mei|empresa|neg[oó]cio|business)|(?:mei|empresa|neg[oó]cio|business).*doa[cç][aã]o": "Doação (MEI)",
+  "doa[cç][aã]o|doacao|oferta|caridade|ajuda|igreja": "Doação",
+  "salário|renda|freelance": "Renda",
+};
 
   let categoriaSugerida: string | null = null;
   for (const [pattern, cat] of Object.entries(categoryHints)) {
