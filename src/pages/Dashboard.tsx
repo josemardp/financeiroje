@@ -53,7 +53,7 @@ export default function Dashboard() {
         query = query.eq("scope", currentScope);
       }
 
-      const { data } = await query.order("data", { ascending: false });
+      const { data } = await query.order("data", { ascending: false }).order("created_at", { ascending: false });
 
       return (data || []).map((t: any): TransactionRaw => ({
         id: t.id,
