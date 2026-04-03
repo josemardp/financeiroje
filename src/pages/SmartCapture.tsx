@@ -108,11 +108,16 @@ function mapStructuredCaptureToParsed(result: StructuredCaptureResult): ParsedTr
     : fallback.tipo;
   const finalData = hasDateFromMetadata ? metadata!.date! : fallback.data;
 
-  const finalDescription = (
-    metadata?.description?.trim() ||
-    metadata?.merchantName?.trim() ||
-    metadata?.counterparty?.trim() ||
-    fallback.descricao
+  const specificParty = metadata?.merchantName?.trim() || metadata?.counterparty?.trim() || "";
+  const genericDesc = metadata?.description?.trim() || "";
+  // Combina descrição genérica + nome específico quando a descrição não contém o nome.
+  // Ex: "Compra com cartão" + "EBENA" → "Compra com cartão - EBENA"
+  // Ex: "Pagamento EBENA" + "EBENA" → "Pagamento EBENA" (não duplica)
+  const finalDescription = (specificParty
+    ? (!genericDesc || genericDesc.toLowerCase().includes(specificParty.toLowerCase())
+        ? (genericDesc || specificParty)
+        : `${genericDesc} - ${specificParty}`)
+    : (genericDesc || fallback.descricao)
   ).trim();
 
   const hasFinalAmount = typeof finalValor === "number" && finalValor > 0;

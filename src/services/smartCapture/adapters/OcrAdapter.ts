@@ -81,11 +81,15 @@ function buildStructuredNarrative(
 
   const amount = formatAmountToPtBr(metadata.amount ?? metadata.totalAmount);
   const date = formatDateToPtBr(metadata.date);
-  const description =
-    metadata.description?.trim() ||
-    metadata.merchantName?.trim() ||
-    metadata.counterparty?.trim() ||
-    "";
+  const specificParty = metadata.merchantName?.trim() || metadata.counterparty?.trim() || "";
+  const genericDesc = metadata.description?.trim() || "";
+  // Se há um nome específico (merchant/counterparty) que não está contido na descrição genérica,
+  // combina ambos para não perder a informação no texto enviado ao interpret.
+  const description = specificParty
+    ? (!genericDesc || genericDesc.toLowerCase().includes(specificParty.toLowerCase())
+        ? (genericDesc || specificParty)
+        : `${genericDesc} - ${specificParty}`)
+    : genericDesc;
   const scope =
     metadata.scope === "family"
       ? "família"
