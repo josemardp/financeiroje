@@ -657,11 +657,6 @@ export default function SmartCapture() {
 
       try {
         await processImage(file);
-      } catch (err) {
-        if (err instanceof OcrAdapterError && err.code === "auth") {
-          await signOut();
-          navigate("/auth", { replace: true });
-        }
       } finally {
         resetInput();
       }
