@@ -378,7 +378,17 @@ export default function SmartCapture() {
 
       if (!active) return;
 
-      const result = mapStructuredInterpretToParsed(interpreted);
+      // Mescla metadados do OCR como fallback: campos detectados pelo GPT-4o Vision
+      // (ex: installmentText, merchantName) que o interpret pode ter perdido no texto resumido.
+      const mergedInterpreted = {
+        ...interpreted,
+        metadata: {
+          ...(ocrResult.metadata ?? {}),  // OCR Vision (fallback, prioridade menor)
+          ...(interpreted.metadata ?? {}), // Interpret (prioridade maior)
+        },
+      };
+
+      const result = mapStructuredInterpretToParsed(mergedInterpreted);
       applyParsedResult(result, "photo_ocr", "OCR/Foto");
 
       toast.success("Dados extraídos com IA (OCR + Interpretação)", {
