@@ -60,9 +60,11 @@ export class InterpretAdapter {
       throw new Error("VITE_SUPABASE_URL não está disponível. Verifique as variáveis de ambiente.");
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      session = refreshed.session;
+    }
 
     if (!session?.access_token) {
       throw new Error("Sessão não encontrada. Faça login novamente.");

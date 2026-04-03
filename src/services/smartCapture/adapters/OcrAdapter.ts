@@ -272,9 +272,12 @@ export class OcrAdapter {
       normalizedImage instanceof File ? normalizedImage.name : "image.jpg";
     formData.append("image", normalizedImage, fileName);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    // Tenta obter sessão; se expirada, renova antes de enviar ao servidor
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      session = refreshed.session;
+    }
 
     if (!session?.access_token) {
       throw new OcrAdapterError(
@@ -321,40 +324,72 @@ export class OcrAdapter {
 
     const payload = await response.json().catch(() => null);
 
+    // Se ainda receber 401, tenta renovar a sessão e fazer uma segunda chamada
+    if (response.status === 401) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const freshSession = refreshed.session;
+      if (!freshSession?.access_token) {
+        throw mapEdgeError(response.status, payload);
+      }
+
+      const controller2 = new AbortController();
+      const timeoutId2 = setTimeout(() => controller2.abort(), OCR_TIMEOUT_MS);
+      let response2: Response;
+      try {
+        response2 = await fetch(`${supabaseUrl}/functions/v1/smart-capture-ocr`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${freshSession.access_token}` },
+          body: formData,
+          signal: controller2.signal,
+        });
+      } catch (err) {
+        throw new OcrAdapterError("backend_unavailable", "Não foi possível alcançar a edge function smart-capture-ocr.");
+      } finally {
+        clearTimeout(timeoutId2);
+      }
+      const payload2 = await response2.json().catch(() => null);
+      if (!response2.ok) throw mapEdgeError(response2.status, payload2);
+      return handleOcrPayload(payload2);
+    }
+
     if (!response.ok) {
       throw mapEdgeError(response.status, payload);
     }
 
-    if (!payload || typeof payload !== "object") {
-      throw new OcrAdapterError(
-        "invalid_contract",
-        "A edge function OCR retornou um payload inválido."
-      );
-    }
-
-    const extractedText =
-      typeof payload?.text === "string" ? payload.text.trim() : "";
-
-    if (!extractedText) {
-      throw new OcrAdapterError(
-        "invalid_contract",
-        "OCR não retornou texto utilizável para esta imagem."
-      );
-    }
-
-    const metadata = payload?.metadata as OcrStructuredMetadata | undefined;
-
-    if (!isValidMetadata(metadata)) {
-      throw new OcrAdapterError(
-        "invalid_contract",
-        "OCR retornou metadata fora do contrato esperado."
-      );
-    }
-
-    return {
-      text: buildStructuredNarrative(metadata, extractedText),
-      confidence: typeof payload?.confidence === "number" ? payload.confidence : 0.6,
-      metadata,
-    };
+    return handleOcrPayload(payload);
   }
+}
+
+function handleOcrPayload(payload: unknown): OcrExtractionResult {
+  if (!payload || typeof payload !== "object") {
+    throw new OcrAdapterError(
+      "invalid_contract",
+      "A edge function OCR retornou um payload inválido."
+    );
+  }
+
+  const p = payload as Record<string, unknown>;
+  const extractedText = typeof p.text === "string" ? p.text.trim() : "";
+
+  if (!extractedText) {
+    throw new OcrAdapterError(
+      "invalid_contract",
+      "OCR não retornou texto utilizável para esta imagem."
+    );
+  }
+
+  const metadata = p.metadata as OcrStructuredMetadata | undefined;
+
+  if (!isValidMetadata(metadata)) {
+    throw new OcrAdapterError(
+      "invalid_contract",
+      "OCR retornou metadata fora do contrato esperado."
+    );
+  }
+
+  return {
+    text: buildStructuredNarrative(metadata, extractedText),
+    confidence: typeof p.confidence === "number" ? p.confidence : 0.6,
+    metadata,
+  };
 }
