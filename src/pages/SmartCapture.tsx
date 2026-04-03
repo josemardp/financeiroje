@@ -3,6 +3,7 @@
  * Modo Espelho: Texto Livre, Voz e OCR → Parser → Confirmação → Persistência
  */
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useScope } from "@/contexts/ScopeContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ import {
   type InterpretResult,
   type InterpretSourceKind,
 } from "@/services/smartCapture/adapters/InterpretAdapter";
+import { OcrAdapterError } from "@/services/smartCapture/adapters/OcrAdapter";
 import type { OcrExtractionResult } from "@/services/smartCapture/adapters/OcrAdapter";
 import {
   OCR_IMAGE_FILE_ACCEPT,
@@ -224,7 +226,8 @@ function appendFallbackWarning(
 }
 
 export default function SmartCapture() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const { currentScope, scopeLabel } = useScope();
   const queryClient = useQueryClient();
 
@@ -251,6 +254,11 @@ export default function SmartCapture() {
     resetOcr,
     lastError: ocrLastError,
   } = useOcrCapture();
+
+  // Limpa o erro de OCR ao sair do modo arquivo para não mostrar mensagem obsoleta
+  useEffect(() => {
+    if (mode !== "file") resetOcr();
+  }, [mode, resetOcr]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const interpretAbortRef = useRef<AbortController | null>(null);
@@ -649,6 +657,11 @@ export default function SmartCapture() {
 
       try {
         await processImage(file);
+      } catch (err) {
+        if (err instanceof OcrAdapterError && err.code === "auth") {
+          await signOut();
+          navigate("/auth", { replace: true });
+        }
       } finally {
         resetInput();
       }
