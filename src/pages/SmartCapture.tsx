@@ -49,6 +49,7 @@ import {
   FileText,
   Sparkles,
   Paperclip,
+  Clipboard,
 } from "lucide-react";
 
 type CaptureMode = "text" | "voice" | "file";
@@ -690,6 +691,50 @@ export default function SmartCapture() {
     resetInput();
   };
 
+  const handleTextareaPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return; // texto: comportamento nativo do textarea
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (file) {
+      setMode("file");
+      void processImage(file);
+    }
+  };
+
+  const handleClipboardPaste = async () => {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const clipboardItem of clipboardItems) {
+        for (const type of clipboardItem.types) {
+          if (type.startsWith("image/")) {
+            const blob = await clipboardItem.getType(type);
+            const file = new File([blob], "paste.png", { type });
+            setMode("file");
+            await processImage(file);
+            return;
+          }
+        }
+        if (clipboardItem.types.includes("text/plain")) {
+          const blob = await clipboardItem.getType("text/plain");
+          const text = await blob.text();
+          if (text.trim()) {
+            setMode("text");
+            setTextInput(text);
+            toast.info("Texto colado. Clique em Interpretar com IA.");
+          }
+          return;
+        }
+      }
+      toast.info("Área de transferência sem conteúdo reconhecido.");
+    } catch {
+      toast.error("Sem permissão para ler a área de transferência.", {
+        description: "Use Ctrl+V dentro do campo de texto ou selecione um arquivo.",
+      });
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
@@ -743,7 +788,7 @@ export default function SmartCapture() {
             {mode === "text" && (
               <div className="space-y-4">
                 <Textarea
-                  placeholder='Ex: "gastei 52 reais com pizza hoje" ou "mercado 320 ontem" ou "entrou 4500 de salário"'
+                  placeholder='Ex: "gastei 52 reais com pizza hoje" ou cole um texto ou print com Ctrl+V'
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
                   rows={4}
@@ -754,6 +799,7 @@ export default function SmartCapture() {
                       void handleParse("");
                     }
                   }}
+                  onPaste={handleTextareaPaste}
                 />
 
                 <Button
@@ -864,15 +910,27 @@ export default function SmartCapture() {
                   disabled={isOcrProcessing || isExtractingFile}
                 />
 
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isOcrProcessing || isExtractingFile}
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto"
-                >
-                  <Paperclip className="mr-2 h-4 w-4" /> Escolher Arquivo
-                </Button>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isOcrProcessing || isExtractingFile}
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                  >
+                    <Paperclip className="mr-2 h-4 w-4" /> Escolher Arquivo
+                  </Button>
+
+                  <Button
+                    onClick={() => void handleClipboardPaste()}
+                    disabled={isOcrProcessing || isExtractingFile}
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                  >
+                    <Clipboard className="mr-2 h-4 w-4" /> Colar da área de transferência
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
