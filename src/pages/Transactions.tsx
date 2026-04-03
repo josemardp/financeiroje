@@ -346,19 +346,170 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
 function EditTransactionForm({ transaction, categories, onSuccess }: { transaction: any; categories: any[]; onSuccess: () => void }) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState({ valor: transaction?.valor || "", tipo: transaction?.tipo || "expense", categoria_id: transaction?.categoria_id || "", descricao: transaction?.descricao || "", data: transaction?.data || new Date().toISOString().split("T")[0], scope: transaction?.scope || "private" });
+  const [showInstallmentConfirm, setShowInstallmentConfirm] = useState(false);
+  const [pendingConfirmAfter, setPendingConfirmAfter] = useState(false);
+  const [form, setForm] = useState({
+    valor: transaction?.valor || "",
+    tipo: transaction?.tipo || "expense",
+    categoria_id: transaction?.categoria_id || "",
+    descricao: transaction?.descricao || "",
+    data: transaction?.data || new Date().toISOString().split("T")[0],
+    scope: transaction?.scope || "private",
+  });
+
+  const installmentMatch = transaction?.descricao?.match(/\((\d+)\/(\d+)\)$/);
+  const isInstallment = !!installmentMatch;
+  const currentParcel = isInstallment ? installmentMatch[1] : null;
+  const totalParcels = isInstallment ? parseInt(installmentMatch[2]) : null;
+  const originalBaseDesc = isInstallment ? transaction.descricao.replace(/\s*\(\d+\/\d+\)$/, "") : null;
+
   const validateMinimumFields = (): boolean => !!form.valor && Number(form.valor) > 0 && !!form.tipo && !!form.data;
+
+  const doSave = async (confirmAfter: boolean, applyToAll: boolean) => {
+    if (!user || !validateMinimumFields()) { toast.error("Preencha os campos obrigatórios: valor, tipo e data"); return; }
+    setIsSubmitting(true);
+    setShowInstallmentConfirm(false);
+
+    const newBaseDesc = isInstallment ? form.descricao.replace(/\s*\(\d+\/\d+\)$/, "") : form.descricao;
+    const updateData: any = {
+      valor: Number(form.valor),
+      tipo: form.tipo as any,
+      categoria_id: form.categoria_id || null,
+      descricao: isInstallment ? `${newBaseDesc} (${currentParcel}/${totalParcels})` : form.descricao,
+      data: form.data,
+      scope: form.scope as any,
+    };
+    if (confirmAfter) updateData.data_status = "confirmed";
+
+    const { error } = await supabase.from("transactions").update(updateData).eq("id", transaction.id);
+    if (error) { toast.error("Erro ao atualizar", { description: error.message }); setIsSubmitting(false); return; }
+
+    if (applyToAll && isInstallment && totalParcels && originalBaseDesc !== null) {
+      const { data: siblings, error: sibError } = await supabase
+        .from("transactions")
+        .select("id, descricao")
+        .eq("user_id", user.id)
+        .neq("id", transaction.id)
+        .ilike("descricao", `${originalBaseDesc} (%/${totalParcels})`);
+
+      if (sibError) {
+        toast.error("Erro ao buscar parcelas", { description: sibError.message });
+      } else if (siblings && siblings.length > 0) {
+        const siblingUpdates = siblings.map((s: any) => {
+          const sibMatch = s.descricao?.match(/\((\d+)\/(\d+)\)$/);
+          const sibSuffix = sibMatch ? `(${sibMatch[1]}/${sibMatch[2]})` : "";
+          const sibUpdateData: any = {
+            valor: Number(form.valor),
+            tipo: form.tipo as any,
+            categoria_id: form.categoria_id || null,
+            descricao: sibSuffix ? `${newBaseDesc} ${sibSuffix}` : s.descricao,
+            scope: form.scope as any,
+          };
+          if (confirmAfter) sibUpdateData.data_status = "confirmed";
+          return supabase.from("transactions").update(sibUpdateData).eq("id", s.id);
+        });
+        await Promise.all(siblingUpdates);
+        toast.success(`${confirmAfter ? "Confirmadas" : "Atualizadas"} esta e mais ${siblings.length} parcela(s)!`);
+      } else {
+        toast.success(confirmAfter ? "Transação atualizada e confirmada!" : "Transação atualizada!");
+      }
+    } else {
+      toast.success(confirmAfter ? "Transação atualizada e confirmada!" : "Transação atualizada!");
+    }
+
+    setIsSubmitting(false);
+    onSuccess();
+  };
+
   const handleSubmit = async (e: React.FormEvent, confirmAfter: boolean = false) => {
     e.preventDefault();
     if (!user || !validateMinimumFields()) { toast.error("Preencha os campos obrigatórios: valor, tipo e data"); return; }
-    setIsSubmitting(true);
-    const updateData: any = { valor: Number(form.valor), tipo: form.tipo as any, categoria_id: form.categoria_id || null, descricao: form.descricao, data: form.data, scope: form.scope as any };
-    if (confirmAfter) updateData.data_status = "confirmed";
-    const { error } = await supabase.from("transactions").update(updateData).eq("id", transaction.id);
-    if (error) toast.error("Erro ao atualizar", { description: error.message });
-    else { toast.success(confirmAfter ? "Transação atualizada e confirmada!" : "Transação atualizada!"); onSuccess(); }
-    setIsSubmitting(false);
+    if (isInstallment) {
+      setPendingConfirmAfter(confirmAfter);
+      setShowInstallmentConfirm(true);
+      return;
+    }
+    await doSave(confirmAfter, false);
   };
 
-  return <form onSubmit={handleSubmit} className="space-y-4"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Valor (R$)</Label><Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} required /></div><div className="space-y-2"><Label>Tipo</Label><Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="expense">Despesa</SelectItem><SelectItem value="income">Receita</SelectItem></SelectContent></Select></div></div><div className="space-y-2"><Label>Categoria</Label><Select value={form.categoria_id} onValueChange={(v) => setForm((f) => ({ ...f, categoria_id: v }))}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.icone} {c.nome}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Descrição</Label><Textarea placeholder="Ex: Mercado, Salário PM, Netflix..." value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={2} /></div><div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))} /></div><div className="space-y-2"><Label>Escopo</Label><Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v as "private" | "family" | "business" }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="private">Pessoal</SelectItem><SelectItem value="family">Família</SelectItem><SelectItem value="business">Negócio</SelectItem></SelectContent></Select></div></div><div className="flex flex-col gap-2 sm:flex-row"><Button type="button" variant="outline" className="flex-1" onClick={(e) => handleSubmit(e as any, true)} disabled={isSubmitting}>Salvar e Confirmar</Button><Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Apenas Salvar</Button></div></form>;
+  return (
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Valor (R$)</Label>
+            <Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} required />
+          </div>
+          <div className="space-y-2">
+            <Label>Tipo</Label>
+            <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="expense">Despesa</SelectItem>
+                <SelectItem value="income">Receita</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Categoria</Label>
+          <Select value={form.categoria_id} onValueChange={(v) => setForm((f) => ({ ...f, categoria_id: v }))}>
+            <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+            <SelectContent>{categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.icone} {c.nome}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Descrição</Label>
+          <Textarea placeholder="Ex: Mercado, Salário PM, Netflix..." value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={2} />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Data</Label>
+            <Input type="date" value={form.data} onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))} />
+          </div>
+          <div className="space-y-2">
+            <Label>Escopo</Label>
+            <Select value={form.scope} onValueChange={(v) => setForm((f) => ({ ...f, scope: v as "private" | "family" | "business" }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="private">Pessoal</SelectItem>
+                <SelectItem value="family">Família</SelectItem>
+                <SelectItem value="business">Negócio</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {isInstallment && (
+          <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+            Parcela {currentParcel}/{totalParcels} — ao salvar, será perguntado se deseja alterar as demais.
+          </p>
+        )}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button type="button" variant="outline" className="flex-1" onClick={(e) => handleSubmit(e as any, true)} disabled={isSubmitting}>Salvar e Confirmar</Button>
+          <Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Apenas Salvar</Button>
+        </div>
+      </form>
+
+      <Dialog open={showInstallmentConfirm} onOpenChange={setShowInstallmentConfirm}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>Alterar outras parcelas?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esta é a parcela {currentParcel}/{totalParcels}. Deseja aplicar as alterações (valor, tipo, categoria, escopo e descrição) às demais {totalParcels ? totalParcels - 1 : ""} parcelas também?
+          </p>
+          <p className="text-xs text-muted-foreground">A data de cada parcela será mantida.</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="outline" className="flex-1" onClick={() => doSave(pendingConfirmAfter, false)} disabled={isSubmitting}>
+              Só esta parcela
+            </Button>
+            <Button className="flex-1" onClick={() => doSave(pendingConfirmAfter, true)} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Todas as parcelas
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
