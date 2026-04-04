@@ -244,73 +244,43 @@ async function streamGeminiGrounded(
   userMessages: Array<{ role: string; content: string }>,
   geminiApiKey: string
 ): Promise<Response> {
-  // Converter mensagens para o formato Gemini (role: user/model)
   const geminiContents = userMessages.map(m => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
 
-  const upstream = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${geminiApiKey}`,
+  // generateContent (não-streaming) — mais compatível com grounding no free tier
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemContent }] },
         contents: geminiContents,
-        tools: [{ googleSearch: {} }],
+        tools: [{ google_search: {} }],
         generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
       }),
     }
   );
 
-  if (!upstream.ok) {
-    const err = await upstream.text();
-    console.error("Gemini API error:", upstream.status, err);
-    throw new Error(`Gemini API error ${upstream.status}: ${err.slice(0, 300)}`);
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("Gemini API error:", res.status, err);
+    throw new Error(`Gemini API error ${res.status}: ${err.slice(0, 300)}`);
   }
 
-  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
-  const writer = writable.getWriter();
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts
+    ?.map((p: any) => p.text ?? "").join("") ?? "";
 
-  // Re-emitir stream do Gemini no formato SSE OpenAI (sem bloquear a resposta)
-  (async () => {
-    const reader = upstream.body!.getReader();
-    let buffer = "";
+  if (!text) throw new Error("Gemini retornou resposta vazia");
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+  // Converte para SSE OpenAI — transparente pro frontend
+  const sseBody = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (!jsonStr) continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              const chunk = JSON.stringify({ choices: [{ delta: { content: text } }] });
-              await writer.write(encoder.encode(`data: ${chunk}\n\n`));
-            }
-          } catch { /* chunk parcial — ignorar */ }
-        }
-      }
-      await writer.write(encoder.encode("data: [DONE]\n\n"));
-    } finally {
-      await writer.close().catch(() => {});
-    }
-  })();
-
-  return new Response(readable, {
-    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "MISS", "X-Model": "gemini-2.0-flash-grounded" },
+  return new Response(sseBody, {
+    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "MISS", "X-Model": "gemini-2.0-flash-exp-grounded" },
   });
 }
 
