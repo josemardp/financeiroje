@@ -101,10 +101,10 @@ serve(async (req) => {
     }
 
     const { messages, context, model: requestedModel } = await req.json();
-    const ALLOWED_MODELS = ["google/gemini-3-flash-preview", "openai/gpt-5-mini"];
-    const selectedModel = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : "google/gemini-3-flash-preview";
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ALLOWED_MODELS = ["google/gemini-flash-1.5", "openai/gpt-4o-mini"];
+    const selectedModel = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : "google/gemini-flash-1.5";
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
     // Build context message with explicit scope
     let contextMessage = "";
@@ -115,13 +115,13 @@ serve(async (req) => {
 
     const aiMessages = [
       { role: "system", content: SYSTEM_PROMPT + contextMessage },
-      ...messages,
+      ...messages.filter((m: { role: string }) => m.role !== "system"),
     ];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
