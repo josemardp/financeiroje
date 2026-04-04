@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Bot, Send, Loader2, AlertTriangle, Lightbulb, CheckCircle, HelpCircle, TrendingUp, Info } from "lucide-react";
+import { Bot, Send, Loader2, AlertTriangle, Lightbulb, CheckCircle, HelpCircle, TrendingUp, Info, Mic, MicOff } from "lucide-react";
+import { VoiceAdapter } from "@/services/smartCapture/adapters/VoiceAdapter";
 import ReactMarkdown from "react-markdown";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-advisor`;
@@ -33,6 +34,10 @@ export default function AiAdvisor() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [currentScope, setCurrentScope] = useState<"private" | "family" | "business">("private");
   const [currentModel, setCurrentModel] = useState<"google/gemini-flash-1.5" | "openai/gpt-4o-mini">("google/gemini-flash-1.5");
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -72,6 +77,39 @@ export default function AiAdvisor() {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const handleVoiceToggle = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setIsRecording(false);
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        if (blob.size < 1000) return;
+        setIsTranscribing(true);
+        try {
+          const result = await VoiceAdapter.transcribe(blob);
+          if (result.text) setInput(prev => (prev ? prev + " " + result.text : result.text));
+        } catch (err: any) {
+          toast.error("Erro na transcrição", { description: err.message });
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch {
+      toast.error("Microfone não permitido", { description: "Autorize o acesso ao microfone nas configurações do navegador." });
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || !user || !session || isStreaming) return;
@@ -426,7 +464,7 @@ export default function AiAdvisor() {
       <div className="border-t border-border pt-4">
         <div className="flex gap-2">
           <Textarea
-            placeholder="Pergunte sobre suas finanças..."
+            placeholder={isRecording ? "Gravando... clique no microfone para parar" : "Pergunte sobre suas finanças..."}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -437,8 +475,22 @@ export default function AiAdvisor() {
             }}
             rows={1}
             className="resize-none min-h-[44px]"
-            disabled={isStreaming}
+            disabled={isStreaming || isRecording}
           />
+          <Button
+            onClick={handleVoiceToggle}
+            disabled={isStreaming || isTranscribing}
+            size="icon"
+            variant={isRecording ? "destructive" : "outline"}
+            className="shrink-0 h-11 w-11"
+            title={isRecording ? "Parar gravação" : "Gravar áudio"}
+          >
+            {isTranscribing
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : isRecording
+              ? <MicOff className="h-4 w-4" />
+              : <Mic className="h-4 w-4" />}
+          </Button>
           <Button onClick={handleSend} disabled={isStreaming || !input.trim()} size="icon" className="shrink-0 h-11 w-11">
             {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
