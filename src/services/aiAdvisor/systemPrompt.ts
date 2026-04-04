@@ -75,16 +75,25 @@ ${decisaoGuiada.oQueMudaria.length > 0 ? `- O que pode mudar a decisão: ${decis
 `;
 
   const historicoSection = historicoMensal.length > 0
-    ? `
-📅 HISTÓRICO DOS ÚLTIMOS MESES:
-${historicoMensal.map(h => `
-[${h.label}]
-- Receita: R$ ${h.totalIncome.toFixed(2)} | Despesa: R$ ${h.totalExpense.toFixed(2)} | Saldo: R$ ${h.balance.toFixed(2)} | Economia: ${h.savingsRate.toFixed(1)}%
-- Top categorias: ${h.topCategorias.map(c => `${c.nome} R$ ${c.total.toFixed(2)} (${c.percentual.toFixed(0)}%)`).join(", ") || "sem dados"}`).join("\n")}
-`
+    ? (() => {
+        // Tendência: comparar primeiro vs último mês disponível
+        const first = historicoMensal[0];
+        const last = historicoMensal[historicoMensal.length - 1];
+        const tendenciaGastos = last.totalExpense - first.totalExpense;
+        const tendenciaEconomia = last.savingsRate - first.savingsRate;
+        const tendenciaStr = historicoMensal.length >= 3
+          ? `\nTENDÊNCIA (${first.label} → ${last.label}): Gastos ${tendenciaGastos >= 0 ? "+" : ""}R$ ${tendenciaGastos.toFixed(2)} | Economia ${tendenciaEconomia >= 0 ? "+" : ""}${tendenciaEconomia.toFixed(1)}pp`
+          : "";
+        return `
+📅 HISTÓRICO (${historicoMensal.length} meses — use para identificar padrões, tendências e evolução):${tendenciaStr}
+${historicoMensal.map(h =>
+  `[${h.label}] Rec R$ ${h.totalIncome.toFixed(0)} | Desp R$ ${h.totalExpense.toFixed(0)} | Saldo R$ ${h.balance.toFixed(0)} | Ec ${h.savingsRate.toFixed(1)}% | Top: ${h.topCategorias.map(c => `${c.nome}(${c.percentual.toFixed(0)}%)`).join(", ")}`
+).join("\n")}
+`;
+      })()
     : `
-📅 HISTÓRICO DOS ÚLTIMOS MESES:
-- Sem histórico anterior disponível ainda.
+📅 HISTÓRICO:
+- Sem histórico anterior disponível. Oriente com base no mês atual.
 `;
 
   const recentTxSection = transacoesRecentes.length > 0
