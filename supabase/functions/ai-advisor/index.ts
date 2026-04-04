@@ -11,15 +11,6 @@ Responda em português brasileiro, com base nos dados financeiros reais fornecid
 NUNCA invente dados. Se não tiver no contexto, diga que não tem.
 Ao terminar cada resposta, adicione uma linha: INSIGHT_COACH: [observação comportamental, máx 150 chars]`;
 
-// Nota adicionada ao prompt quando o usuário pergunta sobre dados de mercado
-const MARKET_PROMPT_ADDENDUM = `
-
-⚠️ PERGUNTA SOBRE DADOS DE MERCADO: O usuário está perguntando sobre cotações, taxas ou indicadores econômicos.
-Responda com base no seu conhecimento mais recente de treinamento.
-SEMPRE informe explicitamente a data de corte do seu conhecimento e oriente o usuário a verificar fontes em tempo real
-(Banco Central do Brasil em bcb.gov.br, Google Finanças, ou seu banco) para obter os valores exatos do momento.
-Forneça contexto histórico e explique os fatores que influenciam o indicador perguntado.`;
-
 // ── Rate limiter in-memory ─────────────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 20;
@@ -76,18 +67,9 @@ function buildCacheKey(
 
 function ttlMinutes(intent: string): number {
   const map: Record<string, number> = {
-    decision:       15,
-    weekly_review:  45,
-    monthly_focus:  60,
-    progress:       90,
-    escape_red:     30,
-    goal:           60,
-    reserve:        60,
-    purchase:       15,
-    cutting:        30,
-    checklist:      60,
-    generic:        45,
-    mercado:         5,
+    decision: 15, weekly_review: 45, monthly_focus: 60, progress: 90,
+    escape_red: 30, goal: 60, reserve: 60, purchase: 15, cutting: 30,
+    checklist: 60, generic: 45, mercado: 5,
   };
   return map[intent] ?? 30;
 }
@@ -98,6 +80,96 @@ function cachedSSEResponse(text: string): Response {
     headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "HIT" },
   });
 }
+
+// ── Fontes de dados de mercado em tempo real ───────────────────────────────
+
+/**
+ * Busca cotações (AwesomeAPI) e indicadores oficiais (BCB) em paralelo.
+ * Nenhuma chave necessária — APIs públicas gratuitas e sem limite.
+ */
+async function fetchMarketData(): Promise<string> {
+  const [ratesRes, selicRes, ipcaRes] = await Promise.allSettled([
+    fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL", {
+      signal: AbortSignal.timeout(4000),
+    }),
+    fetch("https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/1?formato=json", {
+      signal: AbortSignal.timeout(4000),
+    }),
+    fetch("https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/ultimos/1?formato=json", {
+      signal: AbortSignal.timeout(4000),
+    }),
+  ]);
+
+  const lines: string[] = [];
+
+  if (ratesRes.status === "fulfilled" && ratesRes.value.ok) {
+    try {
+      const rates = await ratesRes.value.json();
+      const usd = rates["USDBRL"];
+      const eur = rates["EURBRL"];
+      const btc = rates["BTCBRL"];
+      if (usd) lines.push(`💵 Dólar (USD/BRL): R$ ${parseFloat(usd.bid).toFixed(2)} compra / R$ ${parseFloat(usd.ask).toFixed(2)} venda — atualizado ${usd.create_date}`);
+      if (eur) lines.push(`💶 Euro (EUR/BRL): R$ ${parseFloat(eur.bid).toFixed(2)} compra / R$ ${parseFloat(eur.ask).toFixed(2)} venda`);
+      if (btc) lines.push(`₿ Bitcoin (BTC/BRL): R$ ${parseFloat(btc.bid).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`);
+    } catch { /* parse falhou */ }
+  }
+
+  if (selicRes.status === "fulfilled" && selicRes.value.ok) {
+    try {
+      const [s] = await selicRes.value.json();
+      if (s) lines.push(`🏦 Taxa Selic: ${s.valor}% a.a. (data de referência: ${s.data})`);
+    } catch { }
+  }
+
+  if (ipcaRes.status === "fulfilled" && ipcaRes.value.ok) {
+    try {
+      const [i] = await ipcaRes.value.json();
+      if (i) lines.push(`📈 IPCA: ${i.valor}% no mês (data de referência: ${i.data})`);
+    } catch { }
+  }
+
+  return lines.length > 0
+    ? `\n\n📊 DADOS DE MERCADO EM TEMPO REAL (use estes valores na sua resposta — são dados oficiais coletados agora):\n${lines.join("\n")}`
+    : "";
+}
+
+/**
+ * Busca resultados web via Brave Search API (2.000 requisições/mês grátis).
+ * Chave configurada em BRAVE_SEARCH_API_KEY nas secrets do Supabase.
+ */
+async function fetchBraveSearch(query: string, apiKey: string): Promise<string> {
+  try {
+    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=4&search_lang=pt&country=BR&freshness=pd`;
+    const res = await fetch(url, {
+      headers: {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": apiKey,
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!res.ok) {
+      console.warn("Brave Search error:", res.status);
+      return "";
+    }
+
+    const data = await res.json();
+    const results: any[] = data.web?.results?.slice(0, 4) ?? [];
+    if (results.length === 0) return "";
+
+    const snippets = results
+      .map((r: any) => `• **${r.title}**: ${r.description ?? ""}`)
+      .join("\n");
+
+    return `\n\n🔍 PESQUISA WEB EM TEMPO REAL (resultados de hoje):\n${snippets}`;
+  } catch (e) {
+    console.warn("Brave Search failed:", e);
+    return "";
+  }
+}
+
+// ── Stream + cache ─────────────────────────────────────────────────────────
 
 async function streamAndCache(
   upstreamResponse: Response,
@@ -111,7 +183,6 @@ async function streamAndCache(
 ): Promise<Response> {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
-  const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   (async () => {
@@ -148,15 +219,11 @@ async function streamAndCache(
       textToCache = accumulated.replace(/\nINSIGHT_COACH:.*?(?:\n|$)/, "").trim();
     }
 
-    // Não persiste no cache para dados de mercado
     if (!skipCache && textToCache.length > 20) {
       const ttl = ttlMinutes(intent);
       await supabase.from("ai_response_cache").upsert({
-        cache_key: cacheKey,
-        user_id: userId,
-        response_text: textToCache,
-        model_used: model,
-        intent,
+        cache_key: cacheKey, user_id: userId, response_text: textToCache,
+        model_used: model, intent,
         expires_at: new Date(Date.now() + ttl * 60 * 1000).toISOString(),
       }, { onConflict: "cache_key" }).then(({ error }) => {
         if (error) console.warn("Cache write failed:", error.message);
@@ -165,10 +232,7 @@ async function streamAndCache(
 
     if (coachInsight) {
       await supabase.from("ai_coach_memory").insert({
-        user_id: userId,
-        scope,
-        content: coachInsight,
-        relevance: 6,
+        user_id: userId, scope, content: coachInsight, relevance: 6,
       }).then(({ error }) => {
         if (error) console.warn("Coach memory write failed:", error.message);
         else console.log(`Coach memory saved: ${coachInsight}`);
@@ -189,10 +253,7 @@ function buildAiMessages(
   const isAnthropic = model.startsWith("anthropic/");
   if (isAnthropic) {
     return [
-      {
-        role: "system",
-        content: [{ type: "text", text: systemContent, cache_control: { type: "ephemeral" } }],
-      },
+      { role: "system", content: [{ type: "text", text: systemContent, cache_control: { type: "ephemeral" } }] },
       ...userMessages,
     ];
   }
@@ -245,9 +306,6 @@ serve(async (req) => {
       "google/gemini-3-flash-preview",
       "openai/gpt-4o-mini",
       "anthropic/claude-haiku-4-5",
-      // "google/gemini-2.0-flash-grounded" era a intenção original mas grounding
-      // via REST API só está disponível no Vertex AI (Google Cloud com billing).
-      // Queries de mercado agora usam o fluxo normal do OpenRouter, sem cache.
     ];
     const selectedModel = ALLOWED_MODELS.includes(requestedModel)
       ? requestedModel
@@ -274,7 +332,6 @@ serve(async (req) => {
     const ctxFp = contextFingerprint(context);
     const cacheKey = buildCacheKey(userId, scope, selectedModel, lastUserMsg, ctxFp);
 
-    // Queries de mercado pulam cache — dados mudam constantemente
     if (!isMarketQuery) {
       const { data: cached } = await supabase
         .from("ai_response_cache")
@@ -307,10 +364,29 @@ serve(async (req) => {
       : "";
 
     const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
-    // Para mercado, injeta instrução de transparência sobre limitação de data
-    const systemContent = basePrompt
-      + (isMarketQuery ? MARKET_PROMPT_ADDENDUM : "")
-      + coachMemoriesSection;
+    let systemContent = basePrompt + coachMemoriesSection;
+
+    // ── Enriquecimento de contexto para perguntas de mercado ───────────────
+    if (isMarketQuery) {
+      const BRAVE_API_KEY = Deno.env.get("BRAVE_SEARCH_API_KEY");
+
+      // Busca dados em paralelo: cotações + BCB + Brave Search
+      const [marketData, braveResults] = await Promise.all([
+        fetchMarketData(),
+        BRAVE_API_KEY ? fetchBraveSearch(lastUserMsg, BRAVE_API_KEY) : Promise.resolve(""),
+      ]);
+
+      const realTimeContext = marketData + braveResults;
+
+      if (realTimeContext.trim()) {
+        systemContent += realTimeContext;
+        systemContent += "\n\nIMPORTANTE: Os dados acima são em tempo real. Use-os diretamente na sua resposta sem inventar outros valores.";
+      } else {
+        systemContent += "\n\n⚠️ Não foi possível obter dados em tempo real agora. Informe ao usuário e oriente a verificar bcb.gov.br ou Google Finanças.";
+      }
+
+      console.log(`Market query enriched — marketData=${marketData.length}chars brave=${braveResults.length}chars`);
+    }
 
     const aiMessages = buildAiMessages(selectedModel, systemContent, userMessages);
 
@@ -323,11 +399,7 @@ serve(async (req) => {
           "anthropic-beta": "prompt-caching-2024-07-31",
         }),
       },
-      body: JSON.stringify({
-        model: selectedModel,
-        messages: aiMessages,
-        stream: true,
-      }),
+      body: JSON.stringify({ model: selectedModel, messages: aiMessages, stream: true }),
     });
 
     if (!response.ok) {
