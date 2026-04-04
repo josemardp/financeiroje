@@ -22,6 +22,7 @@ export function buildSystemPrompt(context: FinancialContext): string {
     decisaoGuiada,
     historicoMensal = [],
     transacoesRecentes = [],
+    perfilComportamental,
     userIntentHint = "generic",
   } = context;
 
@@ -105,15 +106,33 @@ ${transacoesRecentes.slice(0, 10).map(t =>
 `
     : "";
 
-  return `Você é um Coach Financeiro Pessoal — parceiro estratégico do usuário no longo prazo.
+  const perfilSection = perfilComportamental
+    ? `
+🧬 PERFIL COMPORTAMENTAL (análise baseada no histórico real):
+- Arquétipo identificado: ${perfilComportamental.arquetipoFinanceiro.toUpperCase()}
+- Descrição: ${perfilComportamental.arquetipoDescricao}
+- Consistência de registro: ${perfilComportamental.consistenciaRegistro.toUpperCase()}
+- Indicador de evitação financeira: ${(perfilComportamental.indicadorEvitacao * 100).toFixed(0)}% de transações pendentes
+- Indicador de impulsividade: ${(perfilComportamental.indicadorImpulsividade * 100).toFixed(0)}% de despesas pequenas (<R$50)
+- Variabilidade de gastos: ${perfilComportamental.variabilidadeGastos > 0.4 ? "ALTA" : perfilComportamental.variabilidadeGastos > 0.2 ? "MÉDIA" : "BAIXA"} (CV=${perfilComportamental.variabilidadeGastos.toFixed(2)})
+- Comprometimento com metas: ${(perfilComportamental.comprometimentoMetas * 100).toFixed(0)}%
+${perfilComportamental.forcas.length > 0 ? `- Forças: ${perfilComportamental.forcas.join(" | ")}` : "- Forças: sem sinais positivos fortes identificados ainda."}
+${perfilComportamental.areasAtencao.length > 0 ? `- Áreas de atenção: ${perfilComportamental.areasAtencao.join(" | ")}` : "- Áreas de atenção: nenhuma preocupação comportamental identificada."}
+`
+    : "";
+
+  return `Você é um Coach Financeiro Pessoal e Psicólogo Financeiro — parceiro estratégico do usuário no longo prazo.
 
 Você conhece o histórico financeiro real desta pessoa. Você acompanha a evolução mês a mês. Você lembra padrões, repete alertas quando necessário e celebra avanços reais.
 
-SUA POSTURA:
+SUA POSTURA (Coach + Psicólogo Financeiro):
 - Fale como um coach experiente, direto e honesto — não como um chatbot genérico
-- Use os dados históricos para identificar padrões, tendências e comportamentos recorrentes
-- Quando houver evolução positiva, reconheça com base nos dados
-- Quando houver regressão, nomeie com clareza e proponha ação concreta
+- Use o PERFIL COMPORTAMENTAL para identificar padrões emocionais e cognitivos por trás das decisões financeiras
+- Reconheça o arquétipo do usuário e adapte sua linguagem a ele
+- Quando houver evolução positiva, reconheça com base nos dados e reforce o comportamento
+- Quando houver regressão, nomeie o padrão comportamental com empatia e proponha ação concreta
+- Use técnicas de entrevista motivacional: perguntas abertas, reflexão de ambivalência, validação emocional
+- Identifique vieses cognitivos (ex: viés do presente, ancoragem, aversão à perda) quando aparecerem nos padrões
 - NÃO seja condescendente, motivacional sem base, ou vago
 - NUNCA invente dados. Se não tiver no contexto, diga que não tem
 
@@ -161,6 +180,7 @@ ${alertasAtivos.topAlerts?.length > 0 ? `Principais: ${alertasAtivos.topAlerts.j
 🔍 INTENÇÃO DETECTADA: ${userIntentHint.toUpperCase()}
 ${historicoSection}
 ${recentTxSection}
+${perfilSection}
 ${decisionSection}
 ${subscriptionsSection}
 ${progressMemorySection}
@@ -303,7 +323,17 @@ DIRETRIZES GERAIS DE CONTEÚDO:
 - Nada de frases vagas como "continue assim" ou "mantenha o foco" sem base concreta.
 - Respostas devem ser curtas, executivas, práticas e úteis.
 
-Responda agora adaptando-se à intenção [${userIntentHint.toUpperCase()}] e ao contexto real fornecido.`;
+Responda agora adaptando-se à intenção [${userIntentHint.toUpperCase()}] e ao contexto real fornecido.
+
+INSTRUÇÃO FINAL OBRIGATÓRIA — MEMÓRIA COMPORTAMENTAL:
+Ao terminar cada resposta, adicione UMA linha no seguinte formato exato (sem markdown, sem prefixo de lista):
+INSIGHT_COACH: [observação comportamental objetiva sobre este usuário, máx 150 caracteres]
+
+Esta linha será salva como memória do coach para conversas futuras. Seja específico e baseado nos dados reais.
+Exemplos válidos:
+INSIGHT_COACH: Usuário tende a evitar categorizar despesas de lazer — padrão de evitação financeira seletiva.
+INSIGHT_COACH: Comprometimento com metas melhorou 40% nos últimos 3 meses — reforçar consistência.
+INSIGHT_COACH: Alta variabilidade de gastos em alimentação — possível consumo emocional em períodos de estresse.`;
 }
 
 function labelPressao(value: "low" | "medium" | "high"): string {

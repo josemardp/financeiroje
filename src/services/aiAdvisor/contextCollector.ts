@@ -73,6 +73,19 @@ export interface DecisaoGuiada {
 
 // --- Fim Fase 12 ---
 
+export interface PerfilComportamental {
+  consistenciaRegistro: "alta" | "media" | "baixa";
+  indicadorEvitacao: number;       // 0-1: ratio de transações pendentes sobre total
+  indicadorImpulsividade: number;  // 0-1: ratio de despesas pequenas (<R$50) sobre total de despesas
+  variabilidadeGastos: number;     // coeficiente de variação dos gastos mensais
+  comprometimentoMetas: number;    // 0-1: metas com progresso / metas ativas
+  recorrentesErros: string[];      // categorias que estouram orçamento com frequência
+  forcas: string[];                // sinais comportamentais positivos identificados
+  areasAtencao: string[];          // preocupações comportamentais identificadas
+  arquetipoFinanceiro: "guardiao" | "explorador" | "lutador" | "construtor" | "indefinido";
+  arquetipoDescricao: string;
+}
+
 export interface FinancialContext {
   periodo: { mes: number; ano: number };
   escopo: string;
@@ -160,6 +173,8 @@ export interface FinancialContext {
   progressoMemoria: ProgressoMemoria;
   assinaturasResumo: AssinaturasResumo | null;
   decisaoGuiada: DecisaoGuiada;
+  // Coach psicológico
+  perfilComportamental: PerfilComportamental;
 }
 
 export async function getFinancialContext(
@@ -687,7 +702,110 @@ export async function getFinancialContext(
     status: t.data_status || "confirmed",
   }));
 
-  // --- Fim Coach ---
+  // --- Coach Psicológico: Perfil Comportamental ---
+
+  function buildPerfilComportamental(): PerfilComportamental {
+    // Consistência de registro: quantos meses dos últimos 12 têm dados
+    const monthsWithData = historicoMensal.length;
+    const consistenciaRegistro: PerfilComportamental["consistenciaRegistro"] =
+      monthsWithData >= 10 ? "alta" : monthsWithData >= 5 ? "media" : "baixa";
+
+    // Indicador de evitação: ratio pendentes / (total + pendentes)
+    const totalTxCount = rawTransactions.length;
+    const indicadorEvitacao = totalTxCount > 0
+      ? Math.round((pendencias.count / (totalTxCount + pendencias.count)) * 100) / 100
+      : 0;
+
+    // Indicador de impulsividade: despesas pequenas (<R$50) / total de despesas
+    const expenseTx = rawTransactions.filter(t => t.tipo === "expense");
+    const smallExpenses = expenseTx.filter(t => t.valor < 50);
+    const indicadorImpulsividade = expenseTx.length > 0
+      ? Math.round((smallExpenses.length / expenseTx.length) * 100) / 100
+      : 0;
+
+    // Variabilidade de gastos: coeficiente de variação dos gastos mensais
+    const monthlyExpenses = historicoMensal.map(m => m.totalExpense).filter(v => v > 0);
+    let variabilidadeGastos = 0;
+    if (monthlyExpenses.length >= 3) {
+      const mean = monthlyExpenses.reduce((s, v) => s + v, 0) / monthlyExpenses.length;
+      const variance = monthlyExpenses.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / monthlyExpenses.length;
+      variabilidadeGastos = mean > 0 ? Math.round((Math.sqrt(variance) / mean) * 100) / 100 : 0;
+    }
+
+    // Comprometimento com metas: metas com algum progresso / metas ativas
+    const activeMetas = metas.length;
+    const metasComProgresso = metas.filter(m => m.totalContributed > 0).length;
+    const comprometimentoMetas = activeMetas > 0
+      ? Math.round((metasComProgresso / activeMetas) * 100) / 100
+      : 0;
+
+    // Erros recorrentes: categorias que sistematicamente estouram orçamento
+    const recorrentesErros = padroesPorCategoria
+      .filter(p => p.statusOrcamento === "acima" && p.isPressuring)
+      .map(p => p.categoria)
+      .slice(0, 3);
+
+    // Forças comportamentais identificadas
+    const forcas: string[] = [];
+    if (consistenciaRegistro === "alta") forcas.push("Registro financeiro consistente");
+    if (reservaEmergencia?.statusMeta === "ok" || reservaEmergencia?.statusMeta === "acima") forcas.push("Reserva de emergência mantida");
+    if (comprometimentoMetas > 0.7) forcas.push("Forte comprometimento com metas");
+    if (indicadorEvitacao < 0.1) forcas.push("Baixa tendência a evitar pendências");
+    if (scoreFinanceiro?.scoreGeral && scoreFinanceiro.scoreGeral >= 70) forcas.push("Score financeiro saudável");
+    if (historicoMensal.length >= 3 && historicoMensal.slice(-3).every(m => m.savingsRate > 0)) {
+      forcas.push("Consegue poupar nos últimos 3 meses");
+    }
+    if (variabilidadeGastos < 0.2 && monthlyExpenses.length >= 3) forcas.push("Gastos mensais estáveis e previsíveis");
+
+    // Áreas de atenção comportamental
+    const areasAtencao: string[] = [];
+    if (indicadorEvitacao > 0.3) areasAtencao.push("Alta taxa de transações pendentes — possível evitação financeira");
+    if (indicadorImpulsividade > 0.5) areasAtencao.push("Muitas despesas pequenas — possível consumo impulsivo");
+    if (variabilidadeGastos > 0.4) areasAtencao.push("Alta variabilidade nos gastos mensais — padrão instável");
+    if (recorrentesErros.length > 0) areasAtencao.push(`Categorias com estouro recorrente: ${recorrentesErros.join(", ")}`);
+    if (comprometimentoMetas < 0.3 && activeMetas > 0) areasAtencao.push("Metas ativas sem progresso real registrado");
+    if (reservaEmergencia?.statusMeta === "abaixo") areasAtencao.push("Reserva de emergência abaixo da meta definida");
+    if (consistenciaRegistro === "baixa") areasAtencao.push("Poucos meses com dados — histórico insuficiente para padrões confiáveis");
+
+    // Arquétipo financeiro
+    let arquetipoFinanceiro: PerfilComportamental["arquetipoFinanceiro"] = "indefinido";
+    let arquetipoDescricao = "Dados insuficientes para identificar perfil comportamental com segurança.";
+
+    if (historicoMensal.length >= 3) {
+      const avgSavings = historicoMensal.reduce((s, m) => s + m.savingsRate, 0) / historicoMensal.length;
+
+      if (consistenciaRegistro === "alta" && indicadorEvitacao < 0.15 && avgSavings > 15) {
+        arquetipoFinanceiro = "guardiao";
+        arquetipoDescricao = "Perfil Guardião: disciplinado, consistente e avesso ao risco. Tende a manter controle rígido das finanças, mas pode perder oportunidades por excesso de cautela ou dificuldade em delegar decisões financeiras.";
+      } else if (indicadorImpulsividade > 0.5 || variabilidadeGastos > 0.5) {
+        arquetipoFinanceiro = "explorador";
+        arquetipoDescricao = "Perfil Explorador: espontâneo, variável e orientado ao presente. Vive intensamente o momento financeiro, mas tende a comprometer metas de longo prazo. Costuma ter dificuldade em manter orçamentos fixos.";
+      } else if (avgSavings < 5 && (alertasAtivos.critical > 0 || reservaEmergencia?.statusMeta === "abaixo")) {
+        arquetipoFinanceiro = "lutador";
+        arquetipoDescricao = "Perfil Lutador: opera sob pressão financeira constante, com margens apertadas. O foco em sobrevivência do mês dificulta o planejamento de longo prazo. Tendência a adiar decisões difíceis.";
+      } else if (comprometimentoMetas > 0.5 && avgSavings > 5) {
+        arquetipoFinanceiro = "construtor";
+        arquetipoDescricao = "Perfil Construtor: orientado a metas e crescimento progressivo. Equilibra presente e futuro com foco em acumulação. Tende a ser paciente, mas pode sentir frustração em períodos de estagnação.";
+      }
+    }
+
+    return {
+      consistenciaRegistro,
+      indicadorEvitacao,
+      indicadorImpulsividade,
+      variabilidadeGastos,
+      comprometimentoMetas,
+      recorrentesErros,
+      forcas,
+      areasAtencao,
+      arquetipoFinanceiro,
+      arquetipoDescricao,
+    };
+  }
+
+  const perfilComportamental = buildPerfilComportamental();
+
+  // --- Fim Coach Psicológico ---
 
   return {
     periodo: { mes, ano },
@@ -726,6 +844,7 @@ export async function getFinancialContext(
     // Coach
     historicoMensal,
     transacoesRecentes,
+    perfilComportamental,
     metadados: {
       dataColeta: now.toISOString(),
       versaoEngine: "4.2-final",
