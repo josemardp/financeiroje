@@ -33,7 +33,8 @@ export default function AiAdvisor() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [currentScope, setCurrentScope] = useState<"private" | "family" | "business">("private");
-  const [currentModel, setCurrentModel] = useState<"google/gemini-flash-1.5" | "openai/gpt-4o-mini">("google/gemini-flash-1.5");
+  const [currentModel, setCurrentModel] = useState<"auto" | "google/gemini-flash-1.5" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5">("auto");
+  const [lastUsedModel, setLastUsedModel] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -77,6 +78,12 @@ export default function AiAdvisor() {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const routeModel = (intent: string): "google/gemini-flash-1.5" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5" => {
+    if (["decision", "progress", "monthly_focus"].includes(intent)) return "anthropic/claude-haiku-4-5";
+    if (["weekly_review", "escape_red", "cutting", "goal", "reserve"].includes(intent)) return "openai/gpt-4o-mini";
+    return "google/gemini-flash-1.5";
+  };
 
   const handleVoiceToggle = async () => {
     if (isRecording) {
@@ -204,6 +211,9 @@ export default function AiAdvisor() {
       const context = await getFinancialContext(user.id, currentScope);
       context.userIntentHint = userIntentHint;
 
+      const effectiveModel = currentModel === "auto" ? routeModel(userIntentHint) : currentModel;
+      setLastUsedModel(effectiveModel);
+
       let convId = conversationId;
       if (!convId) {
         const { data: conv } = await supabase
@@ -244,7 +254,7 @@ export default function AiAdvisor() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ messages: chatMessages.map(m => ({ role: m.role, content: m.content })), context, model: currentModel }),
+        body: JSON.stringify({ messages: chatMessages.map(m => ({ role: m.role, content: m.content })), context, model: effectiveModel }),
       });
 
       if (!resp.ok) {
@@ -350,27 +360,25 @@ export default function AiAdvisor() {
             ))}
           </div>
           <div className="flex rounded-lg border border-border overflow-hidden">
-            <button
-              onClick={() => setCurrentModel("google/gemini-flash-1.5")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                currentModel === "google/gemini-flash-1.5"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              Gemini
-            </button>
-            <button
-              onClick={() => setCurrentModel("openai/gpt-4o-mini")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                currentModel === "openai/gpt-4o-mini"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              GPT-4o Mini
-            </button>
+            {(["auto", "google/gemini-flash-1.5", "openai/gpt-4o-mini", "anthropic/claude-haiku-4-5"] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => setCurrentModel(m)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  currentModel === m
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {m === "auto" ? "Auto" : m === "google/gemini-flash-1.5" ? "Gemini" : m === "openai/gpt-4o-mini" ? "GPT-4o" : "Claude"}
+              </button>
+            ))}
           </div>
+          {currentModel === "auto" && lastUsedModel && (
+            <Badge variant="outline" className="text-[10px]">
+              Usando: {lastUsedModel === "anthropic/claude-haiku-4-5" ? "Claude" : lastUsedModel === "openai/gpt-4o-mini" ? "GPT-4o" : "Gemini"}
+            </Badge>
+          )}
           <Button variant="outline" size="sm" onClick={startNewConversation}>Nova conversa</Button>
         </div>
       </PageHeader>
