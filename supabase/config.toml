@@ -1,1 +1,4 @@
-project_id = "dkeigdaljnjknrlolvnb"
+project_id = "hhedxktueawursnzqixg"
+
+[functions.ai-advisor]
+verify_jwt = false
