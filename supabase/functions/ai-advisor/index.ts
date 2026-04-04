@@ -251,7 +251,7 @@ async function streamGeminiGrounded(
   }));
 
   const upstream = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:streamGenerateContent?alt=sse&key=${geminiApiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
