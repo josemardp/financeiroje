@@ -101,7 +101,7 @@ serve(async (req) => {
     }
 
     const { messages, context, model: requestedModel } = await req.json();
-    const ALLOWED_MODELS = ["google/gemini-flash-1.5", "openai/gpt-4o-mini"];
+    const ALLOWED_MODELS = ["google/gemini-flash-1.5", "openai/gpt-4o-mini", "anthropic/claude-haiku-4-5"];
     const selectedModel = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : "google/gemini-flash-1.5";
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
