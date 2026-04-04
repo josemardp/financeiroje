@@ -79,7 +79,8 @@ export default function AiAdvisor() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const routeModel = (intent: string): "google/gemini-3-flash-preview" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5" => {
+  const routeModel = (intent: string): "google/gemini-3-flash-preview" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5" | "google/gemini-2.0-flash-grounded" => {
+    if (intent === "mercado") return "google/gemini-2.0-flash-grounded";
     if (["decision", "progress", "monthly_focus"].includes(intent)) return "anthropic/claude-haiku-4-5";
     if (["weekly_review", "escape_red", "cutting", "goal", "reserve"].includes(intent)) return "openai/gpt-4o-mini";
     return "google/gemini-3-flash-preview";
@@ -134,7 +135,37 @@ export default function AiAdvisor() {
 
     try {
       const lowerInput = userText.toLowerCase();
-      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "decision" | "generic" = "generic";
+      let userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "decision" | "mercado" | "generic" = "generic";
+
+      // Perguntas de mercado → Gemini com Google Search (dados em tempo real)
+      const isMarketQuestion =
+        lowerInput.includes("cotação") ||
+        lowerInput.includes("cotacao") ||
+        lowerInput.includes("dólar") ||
+        lowerInput.includes("dolar") ||
+        lowerInput.includes("euro") ||
+        lowerInput.includes("câmbio") ||
+        lowerInput.includes("cambio") ||
+        lowerInput.includes("selic") ||
+        lowerInput.includes("ipca") ||
+        lowerInput.includes("inflação") ||
+        lowerInput.includes("inflacao") ||
+        lowerInput.includes("taxa de juros") ||
+        lowerInput.includes("juros hoje") ||
+        lowerInput.includes("taxa básica") ||
+        lowerInput.includes("taxa basica") ||
+        lowerInput.includes("bcb") ||
+        lowerInput.includes("banco central") ||
+        lowerInput.includes("ibovespa") ||
+        lowerInput.includes("bolsa hoje") ||
+        lowerInput.includes("notícia econômica") ||
+        lowerInput.includes("noticia economica") ||
+        lowerInput.includes("mercado hoje") ||
+        lowerInput.includes("economia hoje") ||
+        lowerInput.includes("preço do ouro") ||
+        lowerInput.includes("preco do ouro") ||
+        lowerInput.includes("bitcoin hoje") ||
+        lowerInput.includes("criptomoeda");
 
       const isDecisionQuestion =
         lowerInput.includes("posso comprar") ||
@@ -159,7 +190,10 @@ export default function AiAdvisor() {
         lowerInput.includes("o que é mais inteligente financeiramente agora") ||
         lowerInput.includes("devo pagar isso");
       
-      if (isDecisionQuestion) {
+      if (isMarketQuestion) {
+        userIntentHint = "mercado";
+      }
+      else if (isDecisionQuestion) {
         userIntentHint = "decision";
       }
       else if (lowerInput.includes("semana") || lowerInput.includes("semanal") || lowerInput.includes("como foi minha semana") || lowerInput.includes("o que revisar esta semana") || lowerInput.includes("saindo do controle")) {
