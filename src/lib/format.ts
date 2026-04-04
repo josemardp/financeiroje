@@ -9,6 +9,17 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+export function formatDateTime(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat(LOCALE, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
 export function formatDate(date: string | Date): string {
   const d = typeof date === "string" ? parseDateString(date) : date;
   return new Intl.DateTimeFormat(LOCALE, {
