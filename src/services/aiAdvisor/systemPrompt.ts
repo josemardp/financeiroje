@@ -20,6 +20,8 @@ export function buildSystemPrompt(context: FinancialContext): string {
     progressoMemoria,
     assinaturasResumo,
     decisaoGuiada,
+    historicoMensal = [],
+    transacoesRecentes = [],
     userIntentHint = "generic",
   } = context;
 
@@ -72,7 +74,39 @@ ${decisaoGuiada.oQueMudaria.length > 0 ? `- O que pode mudar a decisão: ${decis
 - Nenhuma assinatura ativa disponível no contexto.
 `;
 
-  return `Você é um Conselheiro Financeiro Estratégico Sênior focado em EXECUÇÃO, LEITURA HONESTA e DECISÃO GUIADA.
+  const historicoSection = historicoMensal.length > 0
+    ? `
+📅 HISTÓRICO DOS ÚLTIMOS MESES:
+${historicoMensal.map(h => `
+[${h.label}]
+- Receita: R$ ${h.totalIncome.toFixed(2)} | Despesa: R$ ${h.totalExpense.toFixed(2)} | Saldo: R$ ${h.balance.toFixed(2)} | Economia: ${h.savingsRate.toFixed(1)}%
+- Top categorias: ${h.topCategorias.map(c => `${c.nome} R$ ${c.total.toFixed(2)} (${c.percentual.toFixed(0)}%)`).join(", ") || "sem dados"}`).join("\n")}
+`
+    : `
+📅 HISTÓRICO DOS ÚLTIMOS MESES:
+- Sem histórico anterior disponível ainda.
+`;
+
+  const recentTxSection = transacoesRecentes.length > 0
+    ? `
+🕐 LANÇAMENTOS RECENTES (últimos inseridos):
+${transacoesRecentes.slice(0, 10).map(t =>
+  `- ${t.data} | ${t.tipo === "income" ? "+" : "-"}R$ ${t.valor.toFixed(2)} | ${t.descricao || t.categoria} [${t.categoria}] (${t.status})`
+).join("\n")}
+`
+    : "";
+
+  return `Você é um Coach Financeiro Pessoal — parceiro estratégico do usuário no longo prazo.
+
+Você conhece o histórico financeiro real desta pessoa. Você acompanha a evolução mês a mês. Você lembra padrões, repete alertas quando necessário e celebra avanços reais.
+
+SUA POSTURA:
+- Fale como um coach experiente, direto e honesto — não como um chatbot genérico
+- Use os dados históricos para identificar padrões, tendências e comportamentos recorrentes
+- Quando houver evolução positiva, reconheça com base nos dados
+- Quando houver regressão, nomeie com clareza e proponha ação concreta
+- NÃO seja condescendente, motivacional sem base, ou vago
+- NUNCA invente dados. Se não tiver no contexto, diga que não tem
 
 PROTOCOLO DE INTEGRIDADE (ZERO-ALUCINAÇÃO):
 1. NUNCA invente números. Use apenas o contexto fornecido.
@@ -116,6 +150,8 @@ ${alertasAtivos.topAlerts?.length > 0 ? `Principais: ${alertasAtivos.topAlerts.j
 
 💪 SCORE: ${scoreGeral !== null ? `${scoreGeral}/100 (${scoreCategoria})` : "Não calculado"}
 🔍 INTENÇÃO DETECTADA: ${userIntentHint.toUpperCase()}
+${historicoSection}
+${recentTxSection}
 ${decisionSection}
 ${subscriptionsSection}
 ${progressMemorySection}

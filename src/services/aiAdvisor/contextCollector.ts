@@ -127,6 +127,24 @@ export interface FinancialContext {
     avisoAlucinacao: string;
   };
   userIntentHint: "escape_red" | "goal" | "reserve" | "purchase" | "cutting" | "checklist" | "weekly_review" | "monthly_focus" | "progress" | "decision" | "generic";
+  historicoMensal: Array<{
+    mes: number;
+    ano: number;
+    label: string;
+    totalIncome: number;
+    totalExpense: number;
+    balance: number;
+    savingsRate: number;
+    topCategorias: Array<{ nome: string; total: number; percentual: number }>;
+  }>;
+  transacoesRecentes: Array<{
+    data: string;
+    descricao: string;
+    valor: number;
+    tipo: string;
+    categoria: string;
+    status: string;
+  }>;
   assinaturas?: {
     totalMensal: number;
     totalAnual: number;
@@ -163,6 +181,7 @@ export async function getFinancialContext(
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
     accountTxResult, prevTxResult, prevAlertResult,
+    m2TxResult, m3TxResult, recentTxResult,
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
@@ -214,6 +233,41 @@ export async function getFinancialContext(
     })(),
     // Fase 12: alertas do mês anterior (snapshot via lidos)
     supabase.from("alerts").select("id, nivel").eq("lido", true).limit(50),
+    // Coach: mês -2
+    (() => {
+      const m = mes <= 2 ? mes + 10 : mes - 2;
+      const y = mes <= 2 ? ano - 1 : ano;
+      const s = new Date(y, m - 1, 1).toISOString().split("T")[0];
+      const e = new Date(y, m, 0).toISOString().split("T")[0];
+      let q = supabase.from("transactions")
+        .select("valor, tipo, data_status, categoria_id, categories(nome), scope")
+        .gte("data", s).lte("data", e)
+        .or("data_status.eq.confirmed,data_status.is.null");
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
+      return q;
+    })(),
+    // Coach: mês -3
+    (() => {
+      const m = mes <= 3 ? mes + 9 : mes - 3;
+      const y = mes <= 3 ? ano - 1 : ano;
+      const s = new Date(y, m - 1, 1).toISOString().split("T")[0];
+      const e = new Date(y, m, 0).toISOString().split("T")[0];
+      let q = supabase.from("transactions")
+        .select("valor, tipo, data_status, categoria_id, categories(nome), scope")
+        .gte("data", s).lte("data", e)
+        .or("data_status.eq.confirmed,data_status.is.null");
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
+      return q;
+    })(),
+    // Coach: transações recentes (qualquer mês, ordered by created_at)
+    (() => {
+      let q = supabase.from("transactions")
+        .select("valor, tipo, data, descricao, data_status, categoria_id, categories(nome), scope")
+        .order("created_at", { ascending: false })
+        .limit(15);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
+      return q;
+    })(),
   ]);
 
   // Map raw data
@@ -605,7 +659,54 @@ export async function getFinancialContext(
   const decisaoGuiada = buildDecisaoGuiada();
   const assinaturasResumo = buildAssinaturasResumo();
 
-  // --- Fim Fase 12 ---
+  // --- Coach: histórico mensal (3 meses anteriores) ---
+  function buildMonthlySummaryLite(
+    rows: any[],
+    m: number,
+    y: number
+  ): FinancialContext["historicoMensal"][number] {
+    const txns = rows.map((t: any) => ({
+      valor: Number(t.valor),
+      tipo: t.tipo,
+      categoria_nome: t.categories?.nome || "Sem categoria",
+    }));
+    const income = txns.filter(t => t.tipo === "income").reduce((s, t) => s + t.valor, 0);
+    const expense = txns.filter(t => t.tipo === "expense").reduce((s, t) => s + t.valor, 0);
+    const balance = income - expense;
+    const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+    const catMap: Record<string, number> = {};
+    txns.filter(t => t.tipo === "expense").forEach(t => {
+      catMap[t.categoria_nome] = (catMap[t.categoria_nome] || 0) + t.valor;
+    });
+    const topCategorias = Object.entries(catMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([nome, total]) => ({ nome, total, percentual: expense > 0 ? (total / expense) * 100 : 0 }));
+    return { mes: m, ano: y, label: `${String(m).padStart(2, "0")}/${y}`, totalIncome: income, totalExpense: expense, balance, savingsRate, topCategorias };
+  }
+
+  const prevMes2 = mes === 1 ? 12 : mes - 1;
+  const prevAno2 = mes === 1 ? ano - 1 : ano;
+  const m2 = mes <= 2 ? mes + 10 : mes - 2;
+  const y2 = mes <= 2 ? ano - 1 : ano;
+  const m3 = mes <= 3 ? mes + 9 : mes - 3;
+  const y3 = mes <= 3 ? ano - 1 : ano;
+
+  const historicoMensal: FinancialContext["historicoMensal"] = [];
+  if (prevTxResult.data?.length) historicoMensal.push(buildMonthlySummaryLite(prevTxResult.data, prevMes2, prevAno2));
+  if (m2TxResult.data?.length) historicoMensal.push(buildMonthlySummaryLite(m2TxResult.data, m2, y2));
+  if (m3TxResult.data?.length) historicoMensal.push(buildMonthlySummaryLite(m3TxResult.data, m3, y3));
+
+  const transacoesRecentes: FinancialContext["transacoesRecentes"] = (recentTxResult.data || []).map((t: any) => ({
+    data: t.data,
+    descricao: t.descricao || "",
+    valor: Number(t.valor),
+    tipo: t.tipo,
+    categoria: t.categories?.nome || "Sem categoria",
+    status: t.data_status || "confirmed",
+  }));
+
+  // --- Fim Coach ---
 
   return {
     periodo: { mes, ano },
@@ -641,6 +742,9 @@ export async function getFinancialContext(
     progressoMemoria,
     assinaturasResumo,
     decisaoGuiada,
+    // Coach
+    historicoMensal,
+    transacoesRecentes,
     metadados: {
       dataColeta: now.toISOString(),
       versaoEngine: "4.2-final",
