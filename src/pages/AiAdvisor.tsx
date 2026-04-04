@@ -79,11 +79,10 @@ export default function AiAdvisor() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const routeModel = (intent: string): "google/gemini-3-flash-preview" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5" | "google/gemini-2.0-flash-grounded" => {
-    if (intent === "mercado") return "google/gemini-2.0-flash-grounded";
+  const routeModel = (intent: string): "google/gemini-3-flash-preview" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5" => {
     if (["decision", "progress", "monthly_focus"].includes(intent)) return "anthropic/claude-haiku-4-5";
     if (["weekly_review", "escape_red", "cutting", "goal", "reserve"].includes(intent)) return "openai/gpt-4o-mini";
-    return "google/gemini-3-flash-preview";
+    return "google/gemini-3-flash-preview"; // mercado, generic e demais
   };
 
   const handleVoiceToggle = async () => {

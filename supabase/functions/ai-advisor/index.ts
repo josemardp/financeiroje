@@ -6,13 +6,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Prompt fallback para quando o frontend não envia sistema (raro)
 const SYSTEM_PROMPT_FALLBACK = `Você é um Coach Financeiro Pessoal e Psicólogo Financeiro — parceiro estratégico do usuário no longo prazo.
 Responda em português brasileiro, com base nos dados financeiros reais fornecidos no contexto.
 NUNCA invente dados. Se não tiver no contexto, diga que não tem.
 Ao terminar cada resposta, adicione uma linha: INSIGHT_COACH: [observação comportamental, máx 150 chars]`;
 
-// ── Rate limiter in-memory (resets on cold start) ──────────────────────────
+// Nota adicionada ao prompt quando o usuário pergunta sobre dados de mercado
+const MARKET_PROMPT_ADDENDUM = `
+
+⚠️ PERGUNTA SOBRE DADOS DE MERCADO: O usuário está perguntando sobre cotações, taxas ou indicadores econômicos.
+Responda com base no seu conhecimento mais recente de treinamento.
+SEMPRE informe explicitamente a data de corte do seu conhecimento e oriente o usuário a verificar fontes em tempo real
+(Banco Central do Brasil em bcb.gov.br, Google Finanças, ou seu banco) para obter os valores exatos do momento.
+Forneça contexto histórico e explique os fatores que influenciam o indicador perguntado.`;
+
+// ── Rate limiter in-memory ─────────────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60_000;
@@ -30,7 +38,6 @@ function checkRateLimit(userId: string): boolean {
 
 // ── Caching helpers ────────────────────────────────────────────────────────
 
-/** djb2 hash — rápido, sem dependência externa */
 function djb2(str: string): string {
   let h = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -39,11 +46,6 @@ function djb2(str: string): string {
   return (h >>> 0).toString(36);
 }
 
-/**
- * Fingerprint do contexto financeiro — muda quando as finanças do usuário
- * mudam, invalidando o cache automaticamente.
- * Usa apenas métricas-chave para estabilidade (não o JSON completo).
- */
 function contextFingerprint(ctx: Record<string, any> | null): string {
   if (!ctx) return "empty";
   const parts = [
@@ -61,10 +63,6 @@ function contextFingerprint(ctx: Record<string, any> | null): string {
   return djb2(parts);
 }
 
-/**
- * Chave de cache: hash(userId + scope + model + query_normalizada + ctx_fingerprint)
- * Queries semanticamente iguais no mesmo contexto financeiro → mesmo cache.
- */
 function buildCacheKey(
   userId: string,
   scope: string,
@@ -76,10 +74,9 @@ function buildCacheKey(
   return djb2(`${userId}:${scope}:${model}:${normalized}:${ctxFp}`);
 }
 
-/** TTL em minutos por tipo de intenção — perguntas factuais duram mais. */
 function ttlMinutes(intent: string): number {
   const map: Record<string, number> = {
-    decision:       15,   // decisões dependem do contexto atual
+    decision:       15,
     weekly_review:  45,
     monthly_focus:  60,
     progress:       90,
@@ -90,15 +87,11 @@ function ttlMinutes(intent: string): number {
     cutting:        30,
     checklist:      60,
     generic:        45,
-    mercado:         5,   // dados em tempo real — cache curto
+    mercado:         5,
   };
   return map[intent] ?? 30;
 }
 
-/**
- * Retorna resposta em cache como SSE stream — mesmo formato do OpenRouter,
- * transparente para o frontend.
- */
 function cachedSSEResponse(text: string): Response {
   const chunk = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`;
   return new Response(chunk, {
@@ -106,11 +99,6 @@ function cachedSSEResponse(text: string): Response {
   });
 }
 
-/**
- * Intercepta o stream do OpenRouter, re-transmite para o cliente em tempo real
- * e acumula o texto completo para persistir no cache ao final.
- * Extrai INSIGHT_COACH do texto acumulado e salva em ai_coach_memory.
- */
 async function streamAndCache(
   upstreamResponse: Response,
   supabase: ReturnType<typeof createClient>,
@@ -118,14 +106,14 @@ async function streamAndCache(
   userId: string,
   model: string,
   intent: string,
-  scope: string
+  scope: string,
+  skipCache = false
 ): Promise<Response> {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
-  // Processar stream em background — não bloqueia a resposta ao cliente
   (async () => {
     const reader = upstreamResponse.body!.getReader();
     let buffer = "";
@@ -135,29 +123,23 @@ async function streamAndCache(
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
-        // Retransmitir chunk imediatamente
         await writer.write(value);
-
-        // Parsear SSE para acumular texto
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
-
         for (const line of lines) {
           if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
           try {
             const parsed = JSON.parse(line.slice(6));
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) accumulated += delta;
-          } catch { /* chunk incompleto — ignorar */ }
+          } catch { }
         }
       }
     } finally {
       await writer.close().catch(() => {});
     }
 
-    // Extrair INSIGHT_COACH e limpar do texto antes de cachear
     let textToCache = accumulated;
     let coachInsight: string | null = null;
     const insightMatch = accumulated.match(/\nINSIGHT_COACH:\s*(.+?)(?:\n|$)/);
@@ -166,8 +148,8 @@ async function streamAndCache(
       textToCache = accumulated.replace(/\nINSIGHT_COACH:.*?(?:\n|$)/, "").trim();
     }
 
-    // Persistir no cache após stream completo
-    if (textToCache.length > 20) {
+    // Não persiste no cache para dados de mercado
+    if (!skipCache && textToCache.length > 20) {
       const ttl = ttlMinutes(intent);
       await supabase.from("ai_response_cache").upsert({
         cache_key: cacheKey,
@@ -181,7 +163,6 @@ async function streamAndCache(
       });
     }
 
-    // Salvar insight comportamental na memória do coach
     if (coachInsight) {
       await supabase.from("ai_coach_memory").insert({
         user_id: userId,
@@ -200,87 +181,22 @@ async function streamAndCache(
   });
 }
 
-/**
- * Monta os messages com prompt caching para Anthropic/Claude via OpenRouter.
- * O system prompt + contexto financeiro (os maiores) são marcados como
- * ephemeral — o provider reutiliza o prefixo por até 5 min, reduzindo custo ~90%.
- * Para GPT-4o e Gemini, o OpenRouter aplica caching automático em prompts >1024t.
- */
 function buildAiMessages(
   model: string,
   systemContent: string,
   userMessages: Array<{ role: string; content: string }>
 ): object[] {
   const isAnthropic = model.startsWith("anthropic/");
-
   if (isAnthropic) {
-    // Formato com cache_control para Claude via OpenRouter
     return [
       {
         role: "system",
-        content: [
-          { type: "text", text: systemContent, cache_control: { type: "ephemeral" } },
-        ],
+        content: [{ type: "text", text: systemContent, cache_control: { type: "ephemeral" } }],
       },
       ...userMessages,
     ];
   }
-
-  // GPT-4o e Gemini: prompt caching automático no OpenRouter (>1024 tokens)
-  return [
-    { role: "system", content: systemContent },
-    ...userMessages,
-  ];
-}
-
-/**
- * Chama Gemini diretamente (sem OpenRouter) com Google Search grounding,
- * permitindo respostas com dados em tempo real (cotações, Selic, IPCA, etc.).
- * Converte o SSE do Gemini para o formato OpenAI — transparente para o frontend.
- * Não persiste no cache (dados de mercado mudam a cada minuto).
- */
-async function streamGeminiGrounded(
-  systemContent: string,
-  userMessages: Array<{ role: string; content: string }>,
-  geminiApiKey: string
-): Promise<Response> {
-  const geminiContents = userMessages.map(m => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
-
-  // generateContent — sem tool por ora (diagnóstico: confirmar que a chave funciona)
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemContent }] },
-        contents: geminiContents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("Gemini API error:", res.status, err);
-    throw new Error(`Gemini API error ${res.status}: ${err.slice(0, 300)}`);
-  }
-
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts
-    ?.map((p: any) => p.text ?? "").join("") ?? "";
-
-  if (!text) throw new Error("Gemini retornou resposta vazia");
-
-  // Converte para SSE OpenAI — transparente pro frontend
-  const sseBody = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`;
-
-  return new Response(sseBody, {
-    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "MISS", "X-Model": "gemini-2.0-flash-exp-grounded" },
-  });
+  return [{ role: "system", content: systemContent }, ...userMessages];
 }
 
 // ── Handler principal ──────────────────────────────────────────────────────
@@ -291,7 +207,6 @@ serve(async (req) => {
   }
 
   try {
-    // ── Auth ──
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -301,7 +216,7 @@ serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!  // service role para cache (ignora RLS)
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     const anonClient = createClient(
@@ -318,7 +233,6 @@ serve(async (req) => {
     }
     const userId = authUser.id;
 
-    // ── Rate limit ──
     if (!checkRateLimit(userId)) {
       return new Response(JSON.stringify({ error: "Limite de requisições excedido. Aguarde um momento." }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -331,23 +245,25 @@ serve(async (req) => {
       "google/gemini-3-flash-preview",
       "openai/gpt-4o-mini",
       "anthropic/claude-haiku-4-5",
-      "google/gemini-2.0-flash-grounded",  // Gemini direto com Google Search
+      // "google/gemini-2.0-flash-grounded" era a intenção original mas grounding
+      // via REST API só está disponível no Vertex AI (Google Cloud com billing).
+      // Queries de mercado agora usam o fluxo normal do OpenRouter, sem cache.
     ];
-    const selectedModel = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : "google/gemini-3-flash-preview";
+    const selectedModel = ALLOWED_MODELS.includes(requestedModel)
+      ? requestedModel
+      : "google/gemini-3-flash-preview";
 
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    // ── Separar mensagens de sistema e usuário ──
     const allMessages = messages as Array<{ role: string; content: string }>;
     const frontendSystemPrompt = allMessages.find(m => m.role === "system")?.content ?? "";
     const userMessages = allMessages.filter(m => m.role !== "system");
     const lastUserMsg = [...userMessages].reverse().find(m => m.role === "user")?.content ?? "";
     const intent = (context?.userIntentHint as string) ?? "generic";
     const scope = (context?.escopo as string) ?? "private";
-    const isMarketQuery = intent === "mercado" || selectedModel === "google/gemini-2.0-flash-grounded";
+    const isMarketQuery = intent === "mercado";
 
-    // ── Limpeza oportunista de cache expirado (não bloqueia) ──
     supabase
       .from("ai_response_cache")
       .delete()
@@ -355,10 +271,10 @@ serve(async (req) => {
       .lt("expires_at", new Date().toISOString())
       .then(() => {});
 
-    // ── Verificar response cache (pulado para queries de mercado — dados em tempo real) ──
     const ctxFp = contextFingerprint(context);
     const cacheKey = buildCacheKey(userId, scope, selectedModel, lastUserMsg, ctxFp);
 
+    // Queries de mercado pulam cache — dados mudam constantemente
     if (!isMarketQuery) {
       const { data: cached } = await supabase
         .from("ai_response_cache")
@@ -373,13 +289,11 @@ serve(async (req) => {
           .update({ hit_count: (cached.hit_count ?? 0) + 1 })
           .eq("cache_key", cacheKey)
           .then(() => {});
-
         console.log(`Cache HIT — key=${cacheKey} model=${selectedModel} intent=${intent}`);
         return cachedSSEResponse(cached.response_text);
       }
     }
 
-    // ── Cache miss — carregar memórias do coach ──
     const { data: coachMemories } = await supabase
       .from("ai_coach_memory")
       .select("content, created_at")
@@ -389,20 +303,14 @@ serve(async (req) => {
       .limit(5);
 
     const coachMemoriesSection = coachMemories && coachMemories.length > 0
-      ? `\n\n🧠 MEMÓRIA COMPORTAMENTAL (observações salvas de conversas anteriores — use para personalizar ainda mais a resposta):\n${coachMemories.map((m: any) => `- ${m.content}`).join("\n")}`
+      ? `\n\n🧠 MEMÓRIA COMPORTAMENTAL:\n${coachMemories.map((m: any) => `- ${m.content}`).join("\n")}`
       : "";
 
-    // ── Montar system prompt: usa o do frontend (rico) + memórias do coach ──
     const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
-    const systemContent = basePrompt + coachMemoriesSection;
-
-    // ── Gemini direto com Google Search (cotações, Selic, IPCA, notícias) ──
-    if (isMarketQuery) {
-      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-      if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
-      console.log(`Gemini grounded — intent=${intent} user=${userId}`);
-      return await streamGeminiGrounded(systemContent, userMessages, GEMINI_API_KEY);
-    }
+    // Para mercado, injeta instrução de transparência sobre limitação de data
+    const systemContent = basePrompt
+      + (isMarketQuery ? MARKET_PROMPT_ADDENDUM : "")
+      + coachMemoriesSection;
 
     const aiMessages = buildAiMessages(selectedModel, systemContent, userMessages);
 
@@ -411,7 +319,6 @@ serve(async (req) => {
       headers: {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
-        // Habilita prompt caching da Anthropic via OpenRouter
         ...(selectedModel.startsWith("anthropic/") && {
           "anthropic-beta": "prompt-caching-2024-07-31",
         }),
@@ -441,8 +348,7 @@ serve(async (req) => {
       });
     }
 
-    // Stream para o cliente + persistir no cache ao final + salvar insight coach
-    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent, scope);
+    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent, scope, isMarketQuery);
 
   } catch (e) {
     console.error("ai-advisor error:", e);
