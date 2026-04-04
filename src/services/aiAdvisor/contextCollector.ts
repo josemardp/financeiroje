@@ -400,6 +400,11 @@ export async function getFinancialContext(
   const sugeridosPendentes = pendingTxns.filter((t) => t.data_status === "suggested").length;
   const incompletosPendentes = pendingTxns.filter((t) => t.data_status === "incomplete").length;
   const inconsistentes = pendingTxns.filter((t) => t.data_status === "inconsistent").length;
+  const pendencias = {
+    count: pendingTxns.length,
+    valorTotal: pendingTxns.reduce((s, t) => s + t.valor, 0),
+    tipos: { suggested: sugeridosPendentes, incomplete: incompletosPendentes, inconsistent: inconsistentes },
+  };
   const totalQualityIssues = semCategoria + sugeridosPendentes + incompletosPendentes + inconsistentes;
   const impactoNaPrecisao: "baixo" | "medio" | "alto" = 
     totalQualityIssues === 0 ? "baixo" : 
@@ -812,15 +817,7 @@ export async function getFinancialContext(
     escopo: scope,
     resumoMensal,
     resumoConfirmado,
-    pendencias: {
-      count: pendingTxns.length,
-      valorTotal: pendingTxns.reduce((s, t) => s + t.valor, 0),
-      tipos: {
-        suggested: sugeridosPendentes,
-        incomplete: incompletosPendentes,
-        inconsistent: inconsistentes,
-      },
-    },
+    pendencias,
     orcamento,
     dividas,
     metas,
