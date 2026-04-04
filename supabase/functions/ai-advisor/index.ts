@@ -249,16 +249,15 @@ async function streamGeminiGrounded(
     parts: [{ text: m.content }],
   }));
 
-  // generateContent (não-streaming) — mais compatível com grounding no free tier
+  // generateContent — sem tool por ora (diagnóstico: confirmar que a chave funciona)
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemContent }] },
         contents: geminiContents,
-        tools: [{ google_search: {} }],
         generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
       }),
     }
