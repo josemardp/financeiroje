@@ -6,48 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Você é o FinanceAI, um conselheiro financeiro familiar confiável.
-
-REGRAS ABSOLUTAS:
-1. Você NUNCA faz cálculos financeiros. Todos os números que você recebe já foram calculados pela engine determinística.
-2. Você NUNCA inventa dados. Se o contexto não tem informação suficiente, diga explicitamente.
-3. Você NUNCA mistura escopos sem autorização.
-4. Você SEMPRE distingue entre fato, sugestão e projeção.
-
-FORMATO DE RESPOSTA:
-Responda SEMPRE em JSON válido com a seguinte estrutura:
-{
-  "blocks": [
-    {
-      "type": "fact|alert|suggestion|projection|question",
-      "title": "Título curto do bloco",
-      "content": "Conteúdo detalhado em markdown",
-      "severity": "critical|warning|info|ok" (opcional, para alerts)
-    }
-  ]
-}
-
-TIPOS DE BLOCO:
-- fact: Informações confirmadas pelos dados
-- alert: Avisos sobre problemas detectados
-- suggestion: Recomendações interpretativas
-- projection: Estimativas futuras (sempre rotular como projeção)
-- question: Perguntas que ajudem a esclarecer a situação
-
-ESCOPO:
-O contexto inclui o escopo atual (private, family ou business). Responda SEMPRE dentro do escopo informado. Se precisar cruzar escopos, pergunte antes.
-
-LINGUAGEM:
-- Fale em português brasileiro, tom acolhedor mas profissional
-- Evite "parece que" — seja direto sobre o que os dados mostram
-- Se um dado é projeção, diga "baseado nas recorrências cadastradas"
-- Se um dado é sugestão, diga "sugiro que"
-- Nunca diga "eu calculei" — diga "os dados mostram que"
-- Se faltar dado para alguma análise, diga explicitamente "não há dados suficientes para avaliar X"
-
-CONTEXTO FINANCEIRO:
-O contexto financeiro do usuário será enviado junto com cada mensagem. Use-o para fundamentar suas respostas.
-Se o contexto estiver vazio ou com poucos dados, informe isso ao usuário.`;
+// Prompt fallback para quando o frontend não envia sistema (raro)
+const SYSTEM_PROMPT_FALLBACK = `Você é um Coach Financeiro Pessoal e Psicólogo Financeiro — parceiro estratégico do usuário no longo prazo.
+Responda em português brasileiro, com base nos dados financeiros reais fornecidos no contexto.
+NUNCA invente dados. Se não tiver no contexto, diga que não tem.
+Ao terminar cada resposta, adicione uma linha: INSIGHT_COACH: [observação comportamental, máx 150 chars]`;
 
 // ── Rate limiter in-memory (resets on cold start) ──────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -145,6 +108,7 @@ function cachedSSEResponse(text: string): Response {
 /**
  * Intercepta o stream do OpenRouter, re-transmite para o cliente em tempo real
  * e acumula o texto completo para persistir no cache ao final.
+ * Extrai INSIGHT_COACH do texto acumulado e salva em ai_coach_memory.
  */
 async function streamAndCache(
   upstreamResponse: Response,
@@ -152,7 +116,8 @@ async function streamAndCache(
   cacheKey: string,
   userId: string,
   model: string,
-  intent: string
+  intent: string,
+  scope: string
 ): Promise<Response> {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
@@ -191,18 +156,40 @@ async function streamAndCache(
       await writer.close().catch(() => {});
     }
 
+    // Extrair INSIGHT_COACH e limpar do texto antes de cachear
+    let textToCache = accumulated;
+    let coachInsight: string | null = null;
+    const insightMatch = accumulated.match(/\nINSIGHT_COACH:\s*(.+?)(?:\n|$)/);
+    if (insightMatch) {
+      coachInsight = insightMatch[1].trim().slice(0, 200);
+      textToCache = accumulated.replace(/\nINSIGHT_COACH:.*?(?:\n|$)/, "").trim();
+    }
+
     // Persistir no cache após stream completo
-    if (accumulated.length > 20) {
+    if (textToCache.length > 20) {
       const ttl = ttlMinutes(intent);
       await supabase.from("ai_response_cache").upsert({
         cache_key: cacheKey,
         user_id: userId,
-        response_text: accumulated,
+        response_text: textToCache,
         model_used: model,
         intent,
         expires_at: new Date(Date.now() + ttl * 60 * 1000).toISOString(),
       }, { onConflict: "cache_key" }).then(({ error }) => {
         if (error) console.warn("Cache write failed:", error.message);
+      });
+    }
+
+    // Salvar insight comportamental na memória do coach
+    if (coachInsight) {
+      await supabase.from("ai_coach_memory").insert({
+        user_id: userId,
+        scope,
+        content: coachInsight,
+        relevance: 6,
+      }).then(({ error }) => {
+        if (error) console.warn("Coach memory write failed:", error.message);
+        else console.log(`Coach memory saved: ${coachInsight}`);
       });
     }
   })();
@@ -295,9 +282,10 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    // ── Extrair última mensagem do usuário para cache key ──
-    const userMessages = (messages as Array<{ role: string; content: string }>)
-      .filter(m => m.role !== "system");
+    // ── Separar mensagens de sistema e usuário ──
+    const allMessages = messages as Array<{ role: string; content: string }>;
+    const frontendSystemPrompt = allMessages.find(m => m.role === "system")?.content ?? "";
+    const userMessages = allMessages.filter(m => m.role !== "system");
     const lastUserMsg = [...userMessages].reverse().find(m => m.role === "user")?.content ?? "";
     const intent = (context?.userIntentHint as string) ?? "generic";
     const scope = (context?.escopo as string) ?? "private";
@@ -333,13 +321,22 @@ serve(async (req) => {
       return cachedSSEResponse(cached.response_text);
     }
 
-    // ── Cache miss — chamar IA ──
-    let contextMessage = "";
-    if (context) {
-      contextMessage = `\n\nESCOPO ATUAL: ${scope}\nRESPONDA APENAS SOBRE DADOS DO ESCOPO "${scope}".\n\nCONTEXTO FINANCEIRO ATUAL (calculado pela engine determinística — NÃO recalcule):\n${JSON.stringify(context, null, 2)}`;
-    }
+    // ── Cache miss — carregar memórias do coach ──
+    const { data: coachMemories } = await supabase
+      .from("ai_coach_memory")
+      .select("content, created_at")
+      .eq("user_id", userId)
+      .eq("scope", scope)
+      .order("created_at", { ascending: false })
+      .limit(5);
 
-    const systemContent = SYSTEM_PROMPT + contextMessage;
+    const coachMemoriesSection = coachMemories && coachMemories.length > 0
+      ? `\n\n🧠 MEMÓRIA COMPORTAMENTAL (observações salvas de conversas anteriores — use para personalizar ainda mais a resposta):\n${coachMemories.map((m: any) => `- ${m.content}`).join("\n")}`
+      : "";
+
+    // ── Montar system prompt: usa o do frontend (rico) + memórias do coach ──
+    const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
+    const systemContent = basePrompt + coachMemoriesSection;
     const aiMessages = buildAiMessages(selectedModel, systemContent, userMessages);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -377,8 +374,8 @@ serve(async (req) => {
       });
     }
 
-    // Stream para o cliente + persistir no cache ao final
-    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent);
+    // Stream para o cliente + persistir no cache ao final + salvar insight coach
+    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent, scope);
 
   } catch (e) {
     console.error("ai-advisor error:", e);
