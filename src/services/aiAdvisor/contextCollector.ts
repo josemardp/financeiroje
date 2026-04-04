@@ -180,8 +180,7 @@ export async function getFinancialContext(
     txResult, budgetResult, recurringResult, loanResult,
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
-    accountTxResult, prevTxResult, prevAlertResult,
-    m2TxResult, m3TxResult, recentTxResult,
+    accountTxResult, prevAlertResult, historyTxResult, recentTxResult,
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
@@ -218,48 +217,19 @@ export async function getFinancialContext(
       .select("account_id, tipo, valor, data_status")
       .not("account_id", "is", null)
       .or("data_status.eq.confirmed,data_status.is.null"),
-    // Fase 12: mês anterior para comparação honesta
-    (() => {
-      const prevMes = mes === 1 ? 12 : mes - 1;
-      const prevAno = mes === 1 ? ano - 1 : ano;
-      const prevStart = new Date(prevAno, prevMes - 1, 1).toISOString().split("T")[0];
-      const prevEnd = new Date(prevAno, prevMes, 0).toISOString().split("T")[0];
-      let q = supabase.from("transactions")
-        .select("id, valor, tipo, data, data_status, categoria_id, categories(nome), scope")
-        .gte("data", prevStart).lte("data", prevEnd)
-        .or("data_status.eq.confirmed,data_status.is.null");
-      if (scope !== "all") q = q.eq("scope", scopeTyped);
-      return q;
-    })(),
     // Fase 12: alertas do mês anterior (snapshot via lidos)
     supabase.from("alerts").select("id, nivel").eq("lido", true).limit(50),
-    // Coach: mês -2
+    // Coach: histórico 2 anos — query única, agrupado por mês no JS
     (() => {
-      const m = mes <= 2 ? mes + 10 : mes - 2;
-      const y = mes <= 2 ? ano - 1 : ano;
-      const s = new Date(y, m - 1, 1).toISOString().split("T")[0];
-      const e = new Date(y, m, 0).toISOString().split("T")[0];
+      const histStart = new Date(ano - 2, mes - 1, 1).toISOString().split("T")[0];
       let q = supabase.from("transactions")
-        .select("valor, tipo, data_status, categoria_id, categories(nome), scope")
-        .gte("data", s).lte("data", e)
+        .select("id, valor, tipo, data, data_status, categoria_id, categories(nome), scope")
+        .gte("data", histStart).lte("data", endOfMonth)
         .or("data_status.eq.confirmed,data_status.is.null");
       if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
-    // Coach: mês -3
-    (() => {
-      const m = mes <= 3 ? mes + 9 : mes - 3;
-      const y = mes <= 3 ? ano - 1 : ano;
-      const s = new Date(y, m - 1, 1).toISOString().split("T")[0];
-      const e = new Date(y, m, 0).toISOString().split("T")[0];
-      let q = supabase.from("transactions")
-        .select("valor, tipo, data_status, categoria_id, categories(nome), scope")
-        .gte("data", s).lte("data", e)
-        .or("data_status.eq.confirmed,data_status.is.null");
-      if (scope !== "all") q = q.eq("scope", scopeTyped);
-      return q;
-    })(),
-    // Coach: transações recentes (qualquer mês, ordered by created_at)
+    // Coach: transações recentes (ordered by created_at)
     (() => {
       let q = supabase.from("transactions")
         .select("valor, tipo, data, descricao, data_status, categoria_id, categories(nome), scope")
@@ -494,12 +464,18 @@ export async function getFinancialContext(
 
   // --- Fase 12: Memória de progresso (comparação honesta mês atual vs anterior) ---
 
-  const prevRawTx: TransactionRaw[] = (prevTxResult.data || []).map((t: any) => ({
-    id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data,
-    descricao: "", categoria_id: t.categoria_id, categoria_nome: t.categories?.nome,
-    scope: t.scope, data_status: t.data_status,
-    source_type: undefined, confidence: undefined, e_mei: undefined,
-  }));
+  // Derivar mês anterior da query de histórico único
+  const prevMesNum = mes === 1 ? 12 : mes - 1;
+  const prevAnoNum = mes === 1 ? ano - 1 : ano;
+  const prevMonthKey = `${prevAnoNum}-${String(prevMesNum).padStart(2, "0")}`;
+  const prevRawTx: TransactionRaw[] = (historyTxResult.data || [])
+    .filter((t: any) => t.data?.startsWith(prevMonthKey))
+    .map((t: any) => ({
+      id: t.id, valor: Number(t.valor), tipo: t.tipo, data: t.data,
+      descricao: "", categoria_id: t.categoria_id, categoria_nome: t.categories?.nome,
+      scope: t.scope, data_status: t.data_status,
+      source_type: undefined, confidence: undefined, e_mei: undefined,
+    }));
 
   const prevSummary = prevRawTx.length > 0 ? await calculateMonthlySummary(prevRawTx) : null;
   const prevAlerts = prevAlertResult.data || [];
@@ -685,17 +661,22 @@ export async function getFinancialContext(
     return { mes: m, ano: y, label: `${String(m).padStart(2, "0")}/${y}`, totalIncome: income, totalExpense: expense, balance, savingsRate, topCategorias };
   }
 
-  const prevMes2 = mes === 1 ? 12 : mes - 1;
-  const prevAno2 = mes === 1 ? ano - 1 : ano;
-  const m2 = mes <= 2 ? mes + 10 : mes - 2;
-  const y2 = mes <= 2 ? ano - 1 : ano;
-  const m3 = mes <= 3 ? mes + 9 : mes - 3;
-  const y3 = mes <= 3 ? ano - 1 : ano;
+  // Agrupar histórico de 2 anos por mês (excluindo mês atual que já está em resumoConfirmado)
+  const currentMonthKey = `${ano}-${String(mes).padStart(2, "0")}`;
+  const monthBuckets: Record<string, any[]> = {};
+  (historyTxResult.data || []).forEach((t: any) => {
+    const key = t.data?.substring(0, 7);
+    if (!key || key === currentMonthKey) return;
+    if (!monthBuckets[key]) monthBuckets[key] = [];
+    monthBuckets[key].push(t);
+  });
 
-  const historicoMensal: FinancialContext["historicoMensal"] = [];
-  if (prevTxResult.data?.length) historicoMensal.push(buildMonthlySummaryLite(prevTxResult.data, prevMes2, prevAno2));
-  if (m2TxResult.data?.length) historicoMensal.push(buildMonthlySummaryLite(m2TxResult.data, m2, y2));
-  if (m3TxResult.data?.length) historicoMensal.push(buildMonthlySummaryLite(m3TxResult.data, m3, y3));
+  const historicoMensal: FinancialContext["historicoMensal"] = Object.entries(monthBuckets)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, rows]) => {
+      const [y, m] = key.split("-").map(Number);
+      return buildMonthlySummaryLite(rows, m, y);
+    });
 
   const transacoesRecentes: FinancialContext["transacoesRecentes"] = (recentTxResult.data || []).map((t: any) => ({
     data: t.data,
