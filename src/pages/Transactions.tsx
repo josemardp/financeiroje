@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ArrowLeftRight, Search, Trash2, Pencil, Loader2 } from "lucide-react";
@@ -189,6 +189,7 @@ export default function Transactions() {
                           {t.confidence && t.data_status !== "confirmed" && <span className={`text-[10px] font-bold ${t.confidence === "alta" ? "text-success" : t.confidence === "media" ? "text-warning" : "text-destructive"}`}>IA: {t.confidence}</span>}
                           {t.data_status !== "confirmed" && <span className="rounded bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Não entra nos cálculos</span>}
                         </div>
+                        {t.created_at && <p className="mt-1 text-[10px] text-muted-foreground/50">registrado em {formatDateTime(t.created_at)}</p>}
                       </div>
                     </div>
                     <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
