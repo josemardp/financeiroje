@@ -251,14 +251,14 @@ async function streamGeminiGrounded(
   }));
 
   const upstream = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:streamGenerateContent?alt=sse&key=${geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${geminiApiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemContent }] },
         contents: geminiContents,
-        tools: [{ google_search: {} }],
+        tools: [{ googleSearch: {} }],
         generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
       }),
     }
@@ -267,7 +267,7 @@ async function streamGeminiGrounded(
   if (!upstream.ok) {
     const err = await upstream.text();
     console.error("Gemini API error:", upstream.status, err);
-    throw new Error(`Gemini API error ${upstream.status}`);
+    throw new Error(`Gemini API error ${upstream.status}: ${err.slice(0, 300)}`);
   }
 
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
