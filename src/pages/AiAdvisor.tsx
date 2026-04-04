@@ -32,7 +32,7 @@ export default function AiAdvisor() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [currentScope, setCurrentScope] = useState<"private" | "family" | "business">("private");
-  const [currentModel, setCurrentModel] = useState<"google/gemini-3-flash-preview" | "openai/gpt-5-mini">("google/gemini-3-flash-preview");
+  const [currentModel, setCurrentModel] = useState<"google/gemini-flash-1.5" | "openai/gpt-4o-mini">("google/gemini-flash-1.5");
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -313,9 +313,9 @@ export default function AiAdvisor() {
           </div>
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button
-              onClick={() => setCurrentModel("google/gemini-3-flash-preview")}
+              onClick={() => setCurrentModel("google/gemini-flash-1.5")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                currentModel === "google/gemini-3-flash-preview"
+                currentModel === "google/gemini-flash-1.5"
                   ? "bg-primary text-primary-foreground"
                   : "bg-background text-muted-foreground hover:bg-muted"
               }`}
@@ -323,14 +323,14 @@ export default function AiAdvisor() {
               Gemini
             </button>
             <button
-              onClick={() => setCurrentModel("openai/gpt-5-mini")}
+              onClick={() => setCurrentModel("openai/gpt-4o-mini")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                currentModel === "openai/gpt-5-mini"
+                currentModel === "openai/gpt-4o-mini"
                   ? "bg-primary text-primary-foreground"
                   : "bg-background text-muted-foreground hover:bg-muted"
               }`}
             >
-              GPT-5 Mini
+              GPT-4o Mini
             </button>
           </div>
           <Button variant="outline" size="sm" onClick={startNewConversation}>Nova conversa</Button>
