@@ -33,7 +33,7 @@ export default function AiAdvisor() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [currentScope, setCurrentScope] = useState<"private" | "family" | "business">("private");
-  const [currentModel, setCurrentModel] = useState<"auto" | "google/gemini-flash-1.5" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5">("auto");
+  const [currentModel, setCurrentModel] = useState<"auto" | "google/gemini-3-flash-preview" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5">("auto");
   const [lastUsedModel, setLastUsedModel] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -79,10 +79,10 @@ export default function AiAdvisor() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const routeModel = (intent: string): "google/gemini-flash-1.5" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5" => {
+  const routeModel = (intent: string): "google/gemini-3-flash-preview" | "openai/gpt-4o-mini" | "anthropic/claude-haiku-4-5" => {
     if (["decision", "progress", "monthly_focus"].includes(intent)) return "anthropic/claude-haiku-4-5";
     if (["weekly_review", "escape_red", "cutting", "goal", "reserve"].includes(intent)) return "openai/gpt-4o-mini";
-    return "google/gemini-flash-1.5";
+    return "google/gemini-3-flash-preview";
   };
 
   const handleVoiceToggle = async () => {
@@ -360,7 +360,7 @@ export default function AiAdvisor() {
             ))}
           </div>
           <div className="flex rounded-lg border border-border overflow-hidden">
-            {(["auto", "google/gemini-flash-1.5", "openai/gpt-4o-mini", "anthropic/claude-haiku-4-5"] as const).map(m => (
+            {(["auto", "google/gemini-3-flash-preview", "openai/gpt-4o-mini", "anthropic/claude-haiku-4-5"] as const).map(m => (
               <button
                 key={m}
                 onClick={() => setCurrentModel(m)}
@@ -370,7 +370,7 @@ export default function AiAdvisor() {
                     : "bg-background text-muted-foreground hover:bg-muted"
                 }`}
               >
-                {m === "auto" ? "Auto" : m === "google/gemini-flash-1.5" ? "Gemini" : m === "openai/gpt-4o-mini" ? "GPT-4o" : "Claude"}
+                {m === "auto" ? "Auto" : m === "google/gemini-3-flash-preview" ? "Gemini" : m === "openai/gpt-4o-mini" ? "GPT-4o" : "Claude"}
               </button>
             ))}
           </div>
