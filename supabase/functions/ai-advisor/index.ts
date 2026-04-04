@@ -134,37 +134,42 @@ async function fetchMarketData(): Promise<string> {
 }
 
 /**
- * Busca resultados web via Brave Search API (2.000 requisições/mês grátis).
- * Chave configurada em BRAVE_SEARCH_API_KEY nas secrets do Supabase.
+ * Busca resultados web via Tavily Search API (1.000 requisições/mês grátis).
+ * Chave configurada em TAVILY_API_KEY nas secrets do Supabase.
  */
-async function fetchBraveSearch(query: string, apiKey: string): Promise<string> {
+async function fetchTavilySearch(query: string, apiKey: string): Promise<string> {
   try {
-    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=4&search_lang=pt&country=BR&freshness=pd`;
-    const res = await fetch(url, {
-      headers: {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": apiKey,
-      },
-      signal: AbortSignal.timeout(5000),
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        search_depth: "basic",
+        include_answer: false,
+        include_raw_content: false,
+        max_results: 5,
+        topic: "news",
+      }),
+      signal: AbortSignal.timeout(6000),
     });
 
     if (!res.ok) {
-      console.warn("Brave Search error:", res.status);
+      console.warn("Tavily Search error:", res.status);
       return "";
     }
 
     const data = await res.json();
-    const results: any[] = data.web?.results?.slice(0, 4) ?? [];
+    const results: any[] = data.results?.slice(0, 5) ?? [];
     if (results.length === 0) return "";
 
     const snippets = results
-      .map((r: any) => `• **${r.title}**: ${r.description ?? ""}`)
+      .map((r: any) => `• **${r.title}**: ${r.content?.slice(0, 200) ?? ""}`)
       .join("\n");
 
-    return `\n\n🔍 PESQUISA WEB EM TEMPO REAL (resultados de hoje):\n${snippets}`;
+    return `\n\n🔍 PESQUISA WEB EM TEMPO REAL (notícias recentes):\n${snippets}`;
   } catch (e) {
-    console.warn("Brave Search failed:", e);
+    console.warn("Tavily Search failed:", e);
     return "";
   }
 }
@@ -368,15 +373,15 @@ serve(async (req) => {
 
     // ── Enriquecimento de contexto para perguntas de mercado ───────────────
     if (isMarketQuery) {
-      const BRAVE_API_KEY = Deno.env.get("BRAVE_SEARCH_API_KEY");
+      const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
 
-      // Busca dados em paralelo: cotações + BCB + Brave Search
-      const [marketData, braveResults] = await Promise.all([
+      // Busca dados em paralelo: cotações + BCB + Tavily Search
+      const [marketData, tavilyResults] = await Promise.all([
         fetchMarketData(),
-        BRAVE_API_KEY ? fetchBraveSearch(lastUserMsg, BRAVE_API_KEY) : Promise.resolve(""),
+        TAVILY_API_KEY ? fetchTavilySearch(lastUserMsg, TAVILY_API_KEY) : Promise.resolve(""),
       ]);
 
-      const realTimeContext = marketData + braveResults;
+      const realTimeContext = marketData + tavilyResults;
 
       if (realTimeContext.trim()) {
         systemContent += realTimeContext;
@@ -385,7 +390,7 @@ serve(async (req) => {
         systemContent += "\n\n⚠️ Não foi possível obter dados em tempo real agora. Informe ao usuário e oriente a verificar bcb.gov.br ou Google Finanças.";
       }
 
-      console.log(`Market query enriched — marketData=${marketData.length}chars brave=${braveResults.length}chars`);
+      console.log(`Market query enriched — marketData=${marketData.length}chars tavily=${tavilyResults.length}chars`);
     }
 
     const aiMessages = buildAiMessages(selectedModel, systemContent, userMessages);
