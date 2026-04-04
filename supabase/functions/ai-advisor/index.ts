@@ -90,6 +90,7 @@ function ttlMinutes(intent: string): number {
     cutting:        30,
     checklist:      60,
     generic:        45,
+    mercado:         5,   // dados em tempo real — cache curto
   };
   return map[intent] ?? 30;
 }
@@ -232,6 +233,87 @@ function buildAiMessages(
   ];
 }
 
+/**
+ * Chama Gemini diretamente (sem OpenRouter) com Google Search grounding,
+ * permitindo respostas com dados em tempo real (cotações, Selic, IPCA, etc.).
+ * Converte o SSE do Gemini para o formato OpenAI — transparente para o frontend.
+ * Não persiste no cache (dados de mercado mudam a cada minuto).
+ */
+async function streamGeminiGrounded(
+  systemContent: string,
+  userMessages: Array<{ role: string; content: string }>,
+  geminiApiKey: string
+): Promise<Response> {
+  // Converter mensagens para o formato Gemini (role: user/model)
+  const geminiContents = userMessages.map(m => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+
+  const upstream = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${geminiApiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemContent }] },
+        contents: geminiContents,
+        tools: [{ google_search: {} }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
+      }),
+    }
+  );
+
+  if (!upstream.ok) {
+    const err = await upstream.text();
+    console.error("Gemini API error:", upstream.status, err);
+    throw new Error(`Gemini API error ${upstream.status}`);
+  }
+
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  // Re-emitir stream do Gemini no formato SSE OpenAI (sem bloquear a resposta)
+  (async () => {
+    const reader = upstream.body!.getReader();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              const chunk = JSON.stringify({ choices: [{ delta: { content: text } }] });
+              await writer.write(encoder.encode(`data: ${chunk}\n\n`));
+            }
+          } catch { /* chunk parcial — ignorar */ }
+        }
+      }
+      await writer.write(encoder.encode("data: [DONE]\n\n"));
+    } finally {
+      await writer.close().catch(() => {});
+    }
+  })();
+
+  return new Response(readable, {
+    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "MISS", "X-Model": "gemini-2.0-flash-grounded" },
+  });
+}
+
 // ── Handler principal ──────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -276,7 +358,12 @@ serve(async (req) => {
 
     const { messages, context, model: requestedModel } = await req.json();
 
-    const ALLOWED_MODELS = ["google/gemini-3-flash-preview", "openai/gpt-4o-mini", "anthropic/claude-haiku-4-5"];
+    const ALLOWED_MODELS = [
+      "google/gemini-3-flash-preview",
+      "openai/gpt-4o-mini",
+      "anthropic/claude-haiku-4-5",
+      "google/gemini-2.0-flash-grounded",  // Gemini direto com Google Search
+    ];
     const selectedModel = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : "google/gemini-3-flash-preview";
 
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
@@ -289,6 +376,7 @@ serve(async (req) => {
     const lastUserMsg = [...userMessages].reverse().find(m => m.role === "user")?.content ?? "";
     const intent = (context?.userIntentHint as string) ?? "generic";
     const scope = (context?.escopo as string) ?? "private";
+    const isMarketQuery = intent === "mercado" || selectedModel === "google/gemini-2.0-flash-grounded";
 
     // ── Limpeza oportunista de cache expirado (não bloqueia) ──
     supabase
@@ -298,27 +386,28 @@ serve(async (req) => {
       .lt("expires_at", new Date().toISOString())
       .then(() => {});
 
-    // ── Verificar response cache ──
+    // ── Verificar response cache (pulado para queries de mercado — dados em tempo real) ──
     const ctxFp = contextFingerprint(context);
     const cacheKey = buildCacheKey(userId, scope, selectedModel, lastUserMsg, ctxFp);
 
-    const { data: cached } = await supabase
-      .from("ai_response_cache")
-      .select("response_text, hit_count")
-      .eq("cache_key", cacheKey)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-
-    if (cached?.response_text) {
-      // Cache hit — incrementar contador e retornar sem chamar a IA
-      supabase
+    if (!isMarketQuery) {
+      const { data: cached } = await supabase
         .from("ai_response_cache")
-        .update({ hit_count: (cached.hit_count ?? 0) + 1 })
+        .select("response_text, hit_count")
         .eq("cache_key", cacheKey)
-        .then(() => {});
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
 
-      console.log(`Cache HIT — key=${cacheKey} model=${selectedModel} intent=${intent}`);
-      return cachedSSEResponse(cached.response_text);
+      if (cached?.response_text) {
+        supabase
+          .from("ai_response_cache")
+          .update({ hit_count: (cached.hit_count ?? 0) + 1 })
+          .eq("cache_key", cacheKey)
+          .then(() => {});
+
+        console.log(`Cache HIT — key=${cacheKey} model=${selectedModel} intent=${intent}`);
+        return cachedSSEResponse(cached.response_text);
+      }
     }
 
     // ── Cache miss — carregar memórias do coach ──
@@ -337,6 +426,15 @@ serve(async (req) => {
     // ── Montar system prompt: usa o do frontend (rico) + memórias do coach ──
     const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
     const systemContent = basePrompt + coachMemoriesSection;
+
+    // ── Gemini direto com Google Search (cotações, Selic, IPCA, notícias) ──
+    if (isMarketQuery) {
+      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+      if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+      console.log(`Gemini grounded — intent=${intent} user=${userId}`);
+      return await streamGeminiGrounded(systemContent, userMessages, GEMINI_API_KEY);
+    }
+
     const aiMessages = buildAiMessages(selectedModel, systemContent, userMessages);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
