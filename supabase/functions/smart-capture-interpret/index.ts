@@ -228,6 +228,7 @@ serve(async (req) => {
     const text = typeof body?.text === "string" ? body.text.trim() : "";
     const sourceKind = typeof body?.source_kind === "string" ? body.source_kind.trim() : "free_text";
     const userName = typeof body?.user_name === "string" && body.user_name.trim() ? body.user_name.trim() : null;
+    const userContext = typeof body?.user_context === "string" && body.user_context.trim() ? body.user_context.trim() : null;
 
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD no fuso UTC (próximo o suficiente para BR)
 
@@ -262,7 +263,7 @@ serve(async (req) => {
           },
           {
             role: "user",
-            content: `hoje: ${today}\nsource_kind: ${sourceKind}${userName ? `\nusuario_do_app: ${userName}` : ""}\n\ntexto:\n${text}`,
+            content: `hoje: ${today}\nsource_kind: ${sourceKind}${userName ? `\nusuario_do_app: ${userName}` : ""}${userContext ? `\n\n${userContext}` : ""}\n\ntexto:\n${text}`,
           },
         ],
         max_tokens: 900,
