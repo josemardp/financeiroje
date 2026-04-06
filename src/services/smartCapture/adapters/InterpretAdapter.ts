@@ -16,6 +16,7 @@ export interface InterpretRequest {
   text: string;
   sourceKind: InterpretSourceKind;
   signal?: AbortSignal;
+  userName?: string;
 }
 
 export interface InterpretResult extends OcrExtractionResult {
@@ -87,6 +88,7 @@ export class InterpretAdapter {
         body: JSON.stringify({
           text: inputText,
           source_kind: request.sourceKind,
+          user_name: request.userName ?? null,
         }),
         signal: combinedSignal,
       });

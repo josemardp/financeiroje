@@ -227,7 +227,7 @@ function appendFallbackWarning(
 }
 
 export default function SmartCapture() {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const { currentScope, scopeLabel } = useScope();
   const queryClient = useQueryClient();
@@ -331,6 +331,7 @@ export default function SmartCapture() {
         const interpreted = await InterpretAdapter.interpret({
           text: voiceResult.text,
           sourceKind: "voice_transcript",
+          userName: profile?.nome ?? undefined,
         });
 
         if (!active) return;
@@ -388,6 +389,7 @@ export default function SmartCapture() {
       const interpreted = await InterpretAdapter.interpret({
         text: ocrText,
         sourceKind: "ocr_text",
+        userName: profile?.nome ?? undefined,
       });
 
       if (!active) return;
@@ -457,6 +459,7 @@ export default function SmartCapture() {
         text: textToParse,
         sourceKind,
         signal: controller.signal,
+        userName: profile?.nome ?? undefined,
       });
 
       if (controller.signal.aborted) return;
