@@ -9,6 +9,7 @@ import { useScope } from "@/contexts/ScopeContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { parseTransactionText, type ParsedTransaction } from "@/services/smartCapture";
+import { getCaptureContext } from "@/services/smartCapture/captureContext";
 import { useVoiceCapture } from "@/services/smartCapture/hooks/useVoiceCapture";
 import { useOcrCapture } from "@/services/smartCapture/hooks/useOcrCapture";
 import {
@@ -328,10 +329,12 @@ export default function SmartCapture() {
       setTextInput(voiceResult.text);
 
       try {
+        const { contextBlock: voiceCtx } = await getCaptureContext(currentScope);
         const interpreted = await InterpretAdapter.interpret({
           text: voiceResult.text,
           sourceKind: "voice_transcript",
           userName: profile?.nome ?? undefined,
+          userContext: voiceCtx || undefined,
         });
 
         if (!active) return;
@@ -386,10 +389,12 @@ export default function SmartCapture() {
         return;
       }
 
+      const { contextBlock: ocrCtx } = await getCaptureContext(currentScope);
       const interpreted = await InterpretAdapter.interpret({
         text: ocrText,
         sourceKind: "ocr_text",
         userName: profile?.nome ?? undefined,
+        userContext: ocrCtx || undefined,
       });
 
       if (!active) return;
@@ -455,11 +460,13 @@ export default function SmartCapture() {
     setIsInterpreting(true);
 
     try {
+      const { contextBlock: parseCtx } = await getCaptureContext(currentScope);
       const interpreted = await InterpretAdapter.interpret({
         text: textToParse,
         sourceKind,
         signal: controller.signal,
         userName: profile?.nome ?? undefined,
+        userContext: parseCtx || undefined,
       });
 
       if (controller.signal.aborted) return;
