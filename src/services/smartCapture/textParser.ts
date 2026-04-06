@@ -491,7 +491,7 @@ export function parseTransactionText(input: string): ParsedTransaction {
   const incomePatterns =
     /\b(entrou|receb(?:i|e|eu|emos)|recebedor|destinat[aá]rio|benefici[aá]rio|sal[aá]rio|renda|pagamento recebido|receita|ganho|ganh[ei]|pix recebido|transfer[êe]ncia recebida|dep[oó]sito)\b/i;
   const expensePatterns =
-    /\b(gastei|paguei|comprei|d[eé]bito|despesa|sa[ií]da|retirada|pix enviado|transfer[êe]ncia enviada|compra aprovada|comprovante de venda|link de pagamento|parcelas|pagamento com cart[aã]o|pagamento aprovado|transa[cç][aã]o aprovada|mei)\b/i;
+    /\b(gastei|paguei|comprei|cart[aã]o de d[eé]bito|d[eé]bito autom[aá]tico|d[eé]bito em conta|despesa|sa[ií]da|retirada|pix enviado|transfer[êe]ncia enviada|compra aprovada|comprovante de venda|link de pagamento|parcelas|pagamento com cart[aã]o|pagamento aprovado|transa[cç][aã]o aprovada|mei)\b/i;
 
   const hasIncomeSignal = incomePatterns.test(text);
   const hasExpenseSignal = expensePatterns.test(text);
