@@ -10,6 +10,7 @@
  * REGRA: Saldo das contas = saldo_inicial + transações confirmadas.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { buildArchetype } from "@/services/userProfile/buildArchetype";
 import {
   calculateMonthlySummary,
   calculateBudgetDeviation,
@@ -772,27 +773,22 @@ export async function getFinancialContext(
     if (reservaEmergencia?.statusMeta === "abaixo") areasAtencao.push("Reserva de emergência abaixo da meta definida");
     if (consistenciaRegistro === "baixa") areasAtencao.push("Poucos meses com dados — histórico insuficiente para padrões confiáveis");
 
-    // Arquétipo financeiro
-    let arquetipoFinanceiro: PerfilComportamental["arquetipoFinanceiro"] = "indefinido";
-    let arquetipoDescricao = "Dados insuficientes para identificar perfil comportamental com segurança.";
-
-    if (historicoMensal.length >= 3) {
-      const avgSavings = historicoMensal.reduce((s, m) => s + m.savingsRate, 0) / historicoMensal.length;
-
-      if (consistenciaRegistro === "alta" && indicadorEvitacao < 0.15 && avgSavings > 15) {
-        arquetipoFinanceiro = "guardiao";
-        arquetipoDescricao = "Perfil Guardião: disciplinado, consistente e avesso ao risco. Tende a manter controle rígido das finanças, mas pode perder oportunidades por excesso de cautela ou dificuldade em delegar decisões financeiras.";
-      } else if (indicadorImpulsividade > 0.5 || variabilidadeGastos > 0.5) {
-        arquetipoFinanceiro = "explorador";
-        arquetipoDescricao = "Perfil Explorador: espontâneo, variável e orientado ao presente. Vive intensamente o momento financeiro, mas tende a comprometer metas de longo prazo. Costuma ter dificuldade em manter orçamentos fixos.";
-      } else if (avgSavings < 5 && (alertasAtivos.critical > 0 || reservaEmergencia?.statusMeta === "abaixo")) {
-        arquetipoFinanceiro = "lutador";
-        arquetipoDescricao = "Perfil Lutador: opera sob pressão financeira constante, com margens apertadas. O foco em sobrevivência do mês dificulta o planejamento de longo prazo. Tendência a adiar decisões difíceis.";
-      } else if (comprometimentoMetas > 0.5 && avgSavings > 5) {
-        arquetipoFinanceiro = "construtor";
-        arquetipoDescricao = "Perfil Construtor: orientado a metas e crescimento progressivo. Equilibra presente e futuro com foco em acumulação. Tende a ser paciente, mas pode sentir frustração em períodos de estagnação.";
-      }
-    }
+    // Arquétipo financeiro — delegado para função pura compartilhada
+    const avgSavings =
+      historicoMensal.length > 0
+        ? historicoMensal.reduce((s, m) => s + m.savingsRate, 0) / historicoMensal.length
+        : 0;
+    const { arquetipoFinanceiro, arquetipoDescricao } = buildArchetype({
+      monthsWithData: historicoMensal.length,
+      avgSavingsRate: avgSavings,
+      consistenciaRegistro,
+      indicadorEvitacao,
+      indicadorImpulsividade,
+      variabilidadeGastos,
+      hasCriticalAlerts: alertasAtivos.critical > 0,
+      reservaBaixaMeta: reservaEmergencia?.statusMeta === "abaixo",
+      comprometimentoMetas,
+    });
 
     return {
       consistenciaRegistro,
