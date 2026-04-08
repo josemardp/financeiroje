@@ -35,6 +35,43 @@ Não é um produto SaaS — é uso pessoal/familiar. Sem multi-tenant.
 
 ---
 
+## Deploys ao Supabase — workflow manual via painel web
+
+Importante: o Supabase NÃO está conectado ao GitHub via Actions.
+Push no repo NÃO aplica migrations nem deploya edge functions automaticamente.
+
+O usuário aplica migrations manualmente via painel web do Supabase (SQL Editor).
+Por isso, sempre que você criar uma migration ou edge function nova,
+OBRIGATORIAMENTE inclua no final da resposta um bloco de instruções
+passo a passo de aplicação:
+
+PARA MIGRATIONS:
+1. Abrir https://app.supabase.com → projeto FinanceiroJe → SQL Editor
+2. Clicar em + New query
+3. Colar o SQL exato (forneça pronto para colar)
+4. Clicar em Run
+5. Rodar query de validação (forneça SELECT que prova aplicação)
+6. Aguardar confirmação do usuário antes de prosseguir
+
+PARA EDGE FUNCTIONS:
+1. Abrir https://app.supabase.com → projeto FinanceiroJe → Edge Functions
+2. Clicar em Deploy a new function
+3. Informar nome exato
+4. Colar o código completo
+5. Clicar em Deploy
+6. Testar com curl ou query de validação
+7. Aguardar confirmação do usuário antes de prosseguir
+
+NUNCA sugira `supabase db push`, `supabase functions deploy`,
+ou `supabase migration up` — o usuário não tem CLI instalado
+e prefere fluxo manual via painel.
+
+NUNCA assuma que uma migration foi aplicada só porque o arquivo
+existe no repo. Sempre confirme com o usuário antes de prosseguir
+para tarefas que dependem do schema novo.
+
+---
+
 ## Arquivos-chave
 
 ```
