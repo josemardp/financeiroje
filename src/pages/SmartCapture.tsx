@@ -329,7 +329,7 @@ export default function SmartCapture() {
       setTextInput(voiceResult.text);
 
       try {
-        const { contextBlock: voiceCtx } = await getCaptureContext(currentScope);
+        const { contextBlock: voiceCtx } = await getCaptureContext(currentScope, user!.id);
         const interpreted = await InterpretAdapter.interpret({
           text: voiceResult.text,
           sourceKind: "voice_transcript",
@@ -389,7 +389,7 @@ export default function SmartCapture() {
         return;
       }
 
-      const { contextBlock: ocrCtx } = await getCaptureContext(currentScope);
+      const { contextBlock: ocrCtx } = await getCaptureContext(currentScope, user!.id);
       const interpreted = await InterpretAdapter.interpret({
         text: ocrText,
         sourceKind: "ocr_text",
@@ -460,7 +460,7 @@ export default function SmartCapture() {
     setIsInterpreting(true);
 
     try {
-      const { contextBlock: parseCtx } = await getCaptureContext(currentScope);
+      const { contextBlock: parseCtx } = await getCaptureContext(currentScope, user!.id);
       const interpreted = await InterpretAdapter.interpret({
         text: textToParse,
         sourceKind,
