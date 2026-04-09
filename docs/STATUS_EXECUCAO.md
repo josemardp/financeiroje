@@ -3,8 +3,8 @@
 ## Estado atual
 
 **Sprint atual:** Sprint 2  
-**Tarefa atual:** T2.2 — Edge function `learn-patterns`  
-**Situação atual:** T2.1 concluída — aguardando início da T2.2  
+**Tarefa atual:** T2.3 — Trigger síncrono de correção  
+**Situação atual:** T2.2 concluída — aguardando início da T2.3  
 **Última atualização:** 2026-04-09
 
 ---
@@ -20,7 +20,7 @@
 
 ### Sprint 2 — Materializar padrões aprendidos
 - [x] T2.1 — Migrations base (`user_patterns`, `capture_learning_events`, `decay_stale_patterns`)
-- [ ] T2.2 — Edge function `learn-patterns`
+- [x] T2.2 — Edge function `learn-patterns`
 - [ ] T2.3 — Trigger síncrono de correção
 - [ ] T2.4 — Integração em `captureContext.ts`
 - [ ] T2.5 — Gravação de `capture_learning_events` no Modo Espelho
@@ -40,8 +40,16 @@
 - commit realizado
 - push realizado
 
+- T2.2 concluída
+- `supabase/functions/learn-patterns/index.ts` criado (3 modos: full, incremental, from_correction)
+- `supabase/functions/learn-patterns/__tests__/normalize.test.ts` criado
+- `supabase/functions/learn-patterns/__tests__/extractors.test.ts` criado
+- 14 testes passando com e sem `--no-check`
+- commit 8de145d realizado
+- push realizado
+
 ---
 
 ## Próxima tarefa esperada
-**T2.2 — Edge function `learn-patterns`**  
-Criar `supabase/functions/learn-patterns/index.ts` seguindo a seção 5.5 do plano.
+**T2.3 — Trigger síncrono de correção**  
+Criar trigger PostgreSQL `trg_learn_on_correction` conforme seção 5.6 do plano.
