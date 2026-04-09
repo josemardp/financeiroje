@@ -118,14 +118,14 @@ async function fetchMarketData(): Promise<string> {
     try {
       const [s] = await selicRes.value.json();
       if (s) lines.push(`🏦 Taxa Selic: ${s.valor}% a.a. (data de referência: ${s.data})`);
-    } catch { }
+    } catch (_e) { /* falha silenciosa — dados de mercado são opcionais */ }
   }
 
   if (ipcaRes.status === "fulfilled" && ipcaRes.value.ok) {
     try {
       const [i] = await ipcaRes.value.json();
       if (i) lines.push(`📈 IPCA: ${i.valor}% no mês (data de referência: ${i.data})`);
-    } catch { }
+    } catch (_e) { /* falha silenciosa — dados de mercado são opcionais */ }
   }
 
   return lines.length > 0
@@ -209,7 +209,7 @@ async function streamAndCache(
             const parsed = JSON.parse(line.slice(6));
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) accumulated += delta;
-          } catch { }
+          } catch (_e) { /* linha SSE malformada — ignorar e continuar */ }
         }
       }
     } finally {
