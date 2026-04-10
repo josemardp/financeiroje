@@ -3,8 +3,8 @@
 ## Estado atual
 
 **Sprint atual:** Sprint 2  
-**Tarefa atual:** T2.6 — Cron diário  
-**Situação atual:** T2.5 concluída — aguardando início da T2.6  
+**Tarefa atual:** Sprint 3 — planejamento inicial  
+**Situação atual:** Sprint 2 concluído  
 **Última atualização:** 2026-04-10
 
 ---
@@ -24,13 +24,29 @@
 - [x] T2.3 — Trigger síncrono de correção
 - [x] T2.4 — Integração em `captureContext.ts`
 - [x] T2.5 — Gravação de `capture_learning_events` no Modo Espelho
-- [ ] T2.6 — Cron diário
+- [x] T2.6 — Cron diário
 
 ---
 
 ## Últimas tarefas concluídas
 
 ### 2026-04-10
+
+- T2.6 concluída
+- pg_cron habilitado (v1.6.4) — pg_net já estava ativo (v0.20.0)
+- Job 1 (jobid=1): `daily-decay-patterns` — `0 4 * * *` — `SELECT decay_stale_patterns()`
+- Job 2 (jobid=2): `daily-learn-patterns` — `5 4 * * *` — `net.http_post` → `learn-patterns mode=full`
+- Edge function `learn-patterns` deployada manualmente via painel
+- Teste pós-deploy: `{"ok":true,"patterns_written":7}`
+- Trigger `trg_learn_on_correction` corrigido: `current_setting()` substituído por URL/key hardcoded
+  (ALTER DATABASE bloqueado pelo Supabase managed postgres — migration `20260410000001_fix_trigger_hardcoded_url.sql`)
+- Sprint 2 finalizado
+
+**Débito técnico D3 — aceito, não bloqueador:**
+- `captureLearningEvents.ts` — sem testes unitários para `buildDiff()` e `recordCaptureLearningEvent()`
+- `captureContext.ts` — sem testes unitários para `formatPatterns()`
+- Efeito em caso de regressão: diff gravado vazio ou contexto sem padrões — não derruba o app
+- Tratar em sessão isolada antes ou durante o Sprint 4 (UI de controle)
 
 - T2.5 concluída
 - `src/services/smartCapture/captureLearningEvents.ts` criado
@@ -84,5 +100,5 @@
 ---
 
 ## Próxima tarefa esperada
-**T2.6 — Cron diário**  
-Configurar cron no Supabase que roda `decay_stale_patterns()` + `learn-patterns mode=full` diariamente para cada usuário ativo.
+**Sprint 3 — Evoluir `ai_coach_memory`**  
+Evolução da memória episódica: tipos (`coach_memory_type`), deduplicação semântica, reforço, expiração diferenciada e decaimento gradual. Ver seção 6 do plano.
