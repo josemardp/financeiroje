@@ -3,8 +3,8 @@
 ## Estado atual
 
 **Sprint atual:** Sprint 2  
-**Tarefa atual:** T2.4 — Integração em `captureContext.ts`  
-**Situação atual:** T2.3 concluída — aguardando início da T2.4  
+**Tarefa atual:** T2.5 — Gravação de `capture_learning_events` no Modo Espelho  
+**Situação atual:** T2.4 concluída — aguardando início da T2.5  
 **Última atualização:** 2026-04-10
 
 ---
@@ -22,7 +22,7 @@
 - [x] T2.1 — Migrations base (`user_patterns`, `capture_learning_events`, `decay_stale_patterns`)
 - [x] T2.2 — Edge function `learn-patterns`
 - [x] T2.3 — Trigger síncrono de correção
-- [ ] T2.4 — Integração em `captureContext.ts`
+- [x] T2.4 — Integração em `captureContext.ts`
 - [ ] T2.5 — Gravação de `capture_learning_events` no Modo Espelho
 - [ ] T2.6 — Cron diário
 
@@ -31,6 +31,16 @@
 ## Últimas tarefas concluídas
 
 ### 2026-04-10
+
+- T2.4 concluída
+- `src/services/smartCapture/captureContext.ts` atualizado
+- Interface `PatternRow` adicionada
+- Função `formatPatterns()` adicionada (3 tipos: `merchant_category`, `category_value_range`, `document_disambiguation`)
+- Query paralela em `user_patterns` (confidence ≥ 0.6, top 30) via `Promise.all`
+- `currentScope === "all"` pula a query (scope_type não aceita "all")
+- `patternBlock` incluído no final do `contextBlock`
+- lint: 0 errors, 11 warnings pré-existentes
+- commit pendente
 
 - T2.3 concluída
 - `supabase/migrations/20260408000004_pattern_learning_trigger.sql` criado
@@ -63,5 +73,5 @@
 ---
 
 ## Próxima tarefa esperada
-**T2.4 — Integração em `captureContext.ts`**  
-Integrar padrões aprendidos (`user_patterns`) no contexto da Captura Inteligente.
+**T2.5 — Gravação de `capture_learning_events` no Modo Espelho**  
+Registrar evento de aprendizado a cada confirmação no Modo Espelho, populando a tabela `capture_learning_events`.
