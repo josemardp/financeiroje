@@ -3,8 +3,8 @@
 ## Estado atual
 
 **Sprint atual:** Sprint 2  
-**Tarefa atual:** T2.5 — Gravação de `capture_learning_events` no Modo Espelho  
-**Situação atual:** T2.4 concluída — aguardando início da T2.5  
+**Tarefa atual:** T2.6 — Cron diário  
+**Situação atual:** T2.5 concluída — aguardando início da T2.6  
 **Última atualização:** 2026-04-10
 
 ---
@@ -23,7 +23,7 @@
 - [x] T2.2 — Edge function `learn-patterns`
 - [x] T2.3 — Trigger síncrono de correção
 - [x] T2.4 — Integração em `captureContext.ts`
-- [ ] T2.5 — Gravação de `capture_learning_events` no Modo Espelho
+- [x] T2.5 — Gravação de `capture_learning_events` no Modo Espelho
 - [ ] T2.6 — Cron diário
 
 ---
@@ -31,6 +31,17 @@
 ## Últimas tarefas concluídas
 
 ### 2026-04-10
+
+- T2.5 concluída
+- `src/services/smartCapture/captureLearningEvents.ts` criado
+- `recordCaptureLearningEvent()` — calcula diff e grava `capture_learning_events` antes do insert
+- `linkEventToTransaction()` — atualiza `transaction_id` após insert bem-sucedido
+- `SmartCapture.tsx` — 3 refs adicionados: `aiSuggestedRef`, `mirrorStartRef`, `ocrRawTextRef`
+- `applyParsedResult` — snapshot do formulário AI-suggested + timestamp do Modo Espelho
+- `handleSave` — evento gravado antes da transação; transação única linka evento via `.select("id").single()`
+- Parcelas: evento gravado sem `transaction_id` (null)
+- Falha antes do Modo Espelho: nenhum evento (sem tratamento especial necessário)
+- commit pendente
 
 - T2.4 concluída
 - `src/services/smartCapture/captureContext.ts` atualizado
@@ -73,5 +84,5 @@
 ---
 
 ## Próxima tarefa esperada
-**T2.5 — Gravação de `capture_learning_events` no Modo Espelho**  
-Registrar evento de aprendizado a cada confirmação no Modo Espelho, populando a tabela `capture_learning_events`.
+**T2.6 — Cron diário**  
+Configurar cron no Supabase que roda `decay_stale_patterns()` + `learn-patterns mode=full` diariamente para cada usuário ativo.

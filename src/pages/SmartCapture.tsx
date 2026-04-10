@@ -10,6 +10,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { parseTransactionText, type ParsedTransaction } from "@/services/smartCapture";
 import { getCaptureContext } from "@/services/smartCapture/captureContext";
+import {
+  recordCaptureLearningEvent,
+  linkEventToTransaction,
+  type ConfirmedForm,
+} from "@/services/smartCapture/captureLearningEvents";
 import { useVoiceCapture } from "@/services/smartCapture/hooks/useVoiceCapture";
 import { useOcrCapture } from "@/services/smartCapture/hooks/useOcrCapture";
 import {
@@ -264,6 +269,9 @@ export default function SmartCapture() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const interpretAbortRef = useRef<AbortController | null>(null);
+  const aiSuggestedRef = useRef<ConfirmedForm | null>(null);
+  const mirrorStartRef = useRef<number | null>(null);
+  const ocrRawTextRef = useRef<string | undefined>(undefined);
   const [isInterpreting, setIsInterpreting] = useState(false);
   const [isExtractingFile, setIsExtractingFile] = useState(false);
   const [sourceLabel, setSourceLabel] = useState("Texto Livre");
@@ -318,6 +326,25 @@ export default function SmartCapture() {
         setEditForm((f) => ({ ...f, categoria_id: match.id }));
       }
     }
+
+    // Snapshot para o evento de aprendizado
+    const matchedCategoryId =
+      result.categoriaSugerida && categories
+        ? (categories.find((c: any) =>
+            c.nome.toLowerCase().includes(result.categoriaSugerida!.toLowerCase())
+          )?.id ?? "")
+        : "";
+    aiSuggestedRef.current = {
+      valor: result.valor?.toString() || "",
+      tipo: result.tipo,
+      descricao: result.descricao,
+      data: result.data,
+      categoria_id: matchedCategoryId,
+      scope: currentScope === "all" ? result.escopo : currentScope,
+      source_type: source,
+    };
+    mirrorStartRef.current = Date.now();
+    if (source !== "photo_ocr") ocrRawTextRef.current = undefined;
   };
 
   useEffect(() => {
@@ -380,6 +407,7 @@ export default function SmartCapture() {
 
   void (async () => {
     const ocrText = ocrResult.text?.trim();
+    ocrRawTextRef.current = ocrText || undefined;
 
     try {
       if (!ocrText) {
@@ -516,6 +544,22 @@ export default function SmartCapture() {
 
     setIsSaving(true);
 
+    // Gravar evento de aprendizado antes de criar a transação
+    const mirrorMs = mirrorStartRef.current
+      ? Date.now() - mirrorStartRef.current
+      : undefined;
+    const { id: learningEventId } = await recordCaptureLearningEvent({
+      userId: user.id,
+      scope: editForm.scope,
+      sourceType: editForm.source_type,
+      rawInput: parsed?.textoOriginal || textInput,
+      ocrText: editForm.source_type === "photo_ocr" ? ocrRawTextRef.current : undefined,
+      aiSuggested: aiSuggestedRef.current ?? { ...editForm },
+      userConfirmed: { ...editForm },
+      confidenceBefore: parsed?.confianca,
+      timeInMirrorMs: mirrorMs,
+    });
+
     const validationNotes = [
       `Texto original: "${parsed?.textoOriginal || textInput}"`,
       ...(parsed?.observacoes?.length
@@ -579,7 +623,7 @@ export default function SmartCapture() {
         queryClient.invalidateQueries({ queryKey: ["dashboard-alerts"] });
       }
     } else {
-      const { error } = await supabase.from("transactions").insert({
+      const { data: txData, error } = await supabase.from("transactions").insert({
         user_id: user.id,
         valor: totalValue,
         tipo: editForm.tipo as any,
@@ -592,11 +636,14 @@ export default function SmartCapture() {
         confidence: (parsed?.confianca as any) || "media",
         created_by: user.id,
         validation_notes: validationNotes,
-      });
+      }).select("id").single();
 
       if (error) {
         toast.error("Erro ao salvar", { description: error.message });
       } else {
+        if (txData?.id && learningEventId) {
+          void linkEventToTransaction(learningEventId, txData.id);
+        }
         toast.success("Transação confirmada com sucesso", {
           description: `Salva no escopo: ${
             editForm.scope === "private"
