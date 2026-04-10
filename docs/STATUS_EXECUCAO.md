@@ -3,9 +3,9 @@
 ## Estado atual
 
 **Sprint atual:** Sprint 2  
-**Tarefa atual:** T2.3 — Trigger síncrono de correção  
-**Situação atual:** T2.2 concluída — aguardando início da T2.3  
-**Última atualização:** 2026-04-09
+**Tarefa atual:** T2.4 — Integração em `captureContext.ts`  
+**Situação atual:** T2.3 concluída — aguardando início da T2.4  
+**Última atualização:** 2026-04-10
 
 ---
 
@@ -21,7 +21,7 @@
 ### Sprint 2 — Materializar padrões aprendidos
 - [x] T2.1 — Migrations base (`user_patterns`, `capture_learning_events`, `decay_stale_patterns`)
 - [x] T2.2 — Edge function `learn-patterns`
-- [ ] T2.3 — Trigger síncrono de correção
+- [x] T2.3 — Trigger síncrono de correção
 - [ ] T2.4 — Integração em `captureContext.ts`
 - [ ] T2.5 — Gravação de `capture_learning_events` no Modo Espelho
 - [ ] T2.6 — Cron diário
@@ -29,6 +29,18 @@
 ---
 
 ## Últimas tarefas concluídas
+
+### 2026-04-10
+
+- T2.3 concluída
+- `supabase/migrations/20260408000004_pattern_learning_trigger.sql` criado
+- Função `notify_pattern_learning_on_correction()` com `SECURITY DEFINER`
+- Trigger `trg_learn_on_correction` — `AFTER UPDATE ON public.transactions`
+- Payload: `mode=from_correction`, `user_id`, `transaction_id`, `old_category_id`, `new_category_id`
+- commit 12bb48f realizado
+- push realizado
+
+---
 
 ### 2026-04-09
 - T2.1 concluída
@@ -51,5 +63,5 @@
 ---
 
 ## Próxima tarefa esperada
-**T2.3 — Trigger síncrono de correção**  
-Criar trigger PostgreSQL `trg_learn_on_correction` conforme seção 5.6 do plano.
+**T2.4 — Integração em `captureContext.ts`**  
+Integrar padrões aprendidos (`user_patterns`) no contexto da Captura Inteligente.
