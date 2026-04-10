@@ -3,8 +3,8 @@
 ## Estado atual
 
 **Sprint atual:** Sprint 3  
-**Tarefa atual:** Sprint 3 — planejamento inicial  
-**Situação atual:** Sprint 2 concluído  
+**Tarefa atual:** T3.3 — Refinar edge function `ai-advisor`  
+**Situação atual:** T3.1 e T3.2 concluídas e validadas  
 **Última atualização:** 2026-04-10
 
 ---
@@ -25,6 +25,13 @@
 - [x] T2.4 — Integração em `captureContext.ts`
 - [x] T2.5 — Gravação de `capture_learning_events` no Modo Espelho
 - [x] T2.6 — Cron diário
+
+### Sprint 3 — Evoluir `ai_coach_memory`
+- [x] T3.1 — Migration `ai_coach_memory_v2` (enum + ALTER TABLE + `upsert_coach_memory`)
+- [x] T3.2 — Migration `decay_coach_memories` (`decay_stale_coach_memories` + cron)
+- [ ] T3.3 — Refinar edge function `ai-advisor` (parser INSIGHT_COACH_JSON + curadoria)
+- [ ] T3.4 — Refinar `systemPrompt.ts` (instrução INSIGHT_COACH_JSON + `buildUncertaintyBlock`)
+- [ ] T3.5 — Validação final Sprint 3
 
 ---
 
@@ -97,8 +104,35 @@
 - commit 8de145d realizado
 - push realizado
 
+### Sprint 3 — Evoluir `ai_coach_memory`
+- [x] T3.1 — Migration `ai_coach_memory_v2` (enum + ALTER TABLE + `upsert_coach_memory`)
+- [x] T3.2 — Migration `decay_coach_memories` (`decay_stale_coach_memories` + cron `daily-decay-coach-memories`)
+- [ ] T3.3 — Refinar edge function `ai-advisor` (parser INSIGHT_COACH_JSON + curadoria de carregamento)
+- [ ] T3.4 — Refinar `systemPrompt.ts` (instrução INSIGHT_COACH_JSON + `buildUncertaintyBlock`)
+- [ ] T3.5 — Validação final Sprint 3
+
+---
+
+## Últimas tarefas concluídas
+
+### 2026-04-10
+
+- T3.1 concluída
+- `supabase/migrations/20260410000002_ai_coach_memory_v2.sql` criado e aplicado
+- `coach_memory_type` enum criado (5 valores: observation, preference, concern, goal_context, value_alignment)
+- `ALTER TABLE ai_coach_memory` — 6 colunas adicionadas: memory_type, pattern_key, reinforcement_count, last_reinforced_at, expires_at, superseded_by
+- Índices: `idx_coach_memory_active` (parcial, superseded_by IS NULL) + `idx_coach_memory_pattern_key`
+- `upsert_coach_memory()` — deduplicação por pattern_key, reforço semântico, TTL opcional
+- Correções aplicadas: `p_scope::text` (cast explícito), `idx_coach_memory_active` sem `now()` no predicado
+- Validado: `reinforcement_count = 2` em segunda chamada com mesma key
+
+- T3.2 concluída
+- `supabase/migrations/20260410000003_decay_coach_memories.sql` criado e aplicado
+- `decay_stale_coach_memories()` — observations decaem após 45 dias, concerns após 30 dias
+- Cron `daily-decay-coach-memories` criado — `1 4 * * *`
+
 ---
 
 ## Próxima tarefa esperada
-**Sprint 3 — Evoluir `ai_coach_memory`**  
-Evolução da memória episódica: tipos (`coach_memory_type`), deduplicação semântica, reforço, expiração diferenciada e decaimento gradual. Ver seção 6 do plano.
+**T3.3 — Refinar edge function `ai-advisor`**
+Substituir parser `INSIGHT_COACH:` por `INSIGHT_COACH_JSON:` e refinar carregamento de memórias para curadoria por tipo. Ver seção 6.5 e 6.6 do plano.
