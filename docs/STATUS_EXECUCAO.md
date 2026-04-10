@@ -2,7 +2,7 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint 2  
+**Sprint atual:** Sprint 3  
 **Tarefa atual:** Sprint 3 — planejamento inicial  
 **Situação atual:** Sprint 2 concluído  
 **Última atualização:** 2026-04-10
@@ -57,7 +57,7 @@
 - `handleSave` — evento gravado antes da transação; transação única linka evento via `.select("id").single()`
 - Parcelas: evento gravado sem `transaction_id` (null)
 - Falha antes do Modo Espelho: nenhum evento (sem tratamento especial necessário)
-- commit pendente
+- commit 41f2860 realizado
 
 - T2.4 concluída
 - `src/services/smartCapture/captureContext.ts` atualizado
@@ -67,7 +67,7 @@
 - `currentScope === "all"` pula a query (scope_type não aceita "all")
 - `patternBlock` incluído no final do `contextBlock`
 - lint: 0 errors, 11 warnings pré-existentes
-- commit pendente
+- commit e5381aa realizado
 
 - T2.3 concluída
 - `supabase/migrations/20260408000004_pattern_learning_trigger.sql` criado
