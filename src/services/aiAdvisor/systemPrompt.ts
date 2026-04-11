@@ -184,7 +184,7 @@ ${perfilSection}
 ${decisionSection}
 ${subscriptionsSection}
 ${progressMemorySection}
-
+${buildUncertaintyBlock(context)}
 MODO DE RESPOSTA (ESTRUTURA OBRIGATÓRIA):
 
 Se a intenção for [DECISION]:
@@ -326,14 +326,64 @@ DIRETRIZES GERAIS DE CONTEÚDO:
 Responda agora adaptando-se à intenção [${userIntentHint.toUpperCase()}] e ao contexto real fornecido.
 
 INSTRUÇÃO FINAL OBRIGATÓRIA — MEMÓRIA COMPORTAMENTAL:
-Ao terminar cada resposta, adicione UMA linha no seguinte formato exato (sem markdown, sem prefixo de lista):
-INSIGHT_COACH: [observação comportamental objetiva sobre este usuário, máx 150 caracteres]
+Ao terminar cada resposta, adicione UMA linha JSON no formato exato (sem markdown, sem prefixo de lista):
 
-Esta linha será salva como memória do coach para conversas futuras. Seja específico e baseado nos dados reais.
-Exemplos válidos:
-INSIGHT_COACH: Usuário tende a evitar categorizar despesas de lazer — padrão de evitação financeira seletiva.
-INSIGHT_COACH: Comprometimento com metas melhorou 40% nos últimos 3 meses — reforçar consistência.
-INSIGHT_COACH: Alta variabilidade de gastos em alimentação — possível consumo emocional em períodos de estresse.`;
+INSIGHT_COACH_JSON: {"type":"<tipo>","key":"<chave_curta>","content":"<observação>","relevance":<1-10>}
+
+Tipos válidos:
+- observation: padrão observado neste turno (TTL 60 dias)
+- preference: como o usuário gosta de receber feedback (permanente)
+- concern: preocupação ativa que deve voltar à tona (TTL 30 dias)
+- goal_context: contexto de meta/decisão importante (TTL até meta concluída)
+- value_alignment: valor pessoal/identidade que orienta decisões (permanente)
+
+A "key" deve ser curta, snake_case, semântica — para deduplicação. Exemplos:
+- "avoidance_lazer", "prefere_diretividade", "reserva_baixa_persistente"
+- "objetivo_reserva_emergencia", "meta_compra_planejada"
+
+Se este insight reforça algo já dito antes, use a MESMA key — o sistema vai
+incrementar o contador de reforço automaticamente.`;
+}
+
+function buildUncertaintyBlock(context: FinancialContext): string {
+  const limits: string[] = [];
+
+  if ((context.pendencias?.count ?? 0) > 0) {
+    const suggested = context.pendencias?.tipos?.suggested ?? 0;
+    const incomplete = context.pendencias?.tipos?.incomplete ?? 0;
+    limits.push(`${context.pendencias!.count} transações pendentes (${suggested} sugeridas, ${incomplete} incompletas) — não fazem parte do saldo confirmado`);
+  }
+
+  if (context.qualidadeDados?.impactoNaPrecisao && context.qualidadeDados.impactoNaPrecisao !== "baixo") {
+    limits.push(`Qualidade de dados: ${context.qualidadeDados.impactoNaPrecisao.toUpperCase()} — análises de tendência podem ser imprecisas`);
+  }
+
+  const historicoLen = context.historicoMensal?.length ?? 0;
+  if (historicoLen < 3) {
+    limits.push(`Apenas ${historicoLen} mês(es) de histórico — comparações sazonais não confiáveis`);
+  }
+
+  const progressoLimitations = context.progressoMemoria?.limitations ?? [];
+  if (progressoLimitations.length > 0) {
+    limits.push(...progressoLimitations);
+  }
+
+  if (!context.reservaEmergencia) {
+    limits.push("Reserva de emergência não configurada — não é possível avaliar cobertura");
+  }
+
+  if (context.perfilComportamental?.consistenciaRegistro === "baixa") {
+    limits.push("Histórico de registro inconsistente — perfil comportamental tem confiança baixa");
+  }
+
+  if (limits.length === 0) {
+    return `\n⚠️ INCERTEZAS E LIMITES DESTA ANÁLISE:\n- Nenhuma limitação relevante identificada. Os dados disponíveis sustentam análise confiável.\n`;
+  }
+
+  return `\n⚠️ INCERTEZAS E LIMITES DESTA ANÁLISE:
+Use esta lista para calibrar a confiança das suas afirmações. Reconheça essas limitações quando relevante — não as esconda.
+${limits.map(l => `- ${l}`).join("\n")}
+`;
 }
 
 function labelPressao(value: "low" | "medium" | "high"): string {

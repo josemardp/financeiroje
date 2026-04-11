@@ -174,6 +174,43 @@ async function fetchTavilySearch(query: string, apiKey: string): Promise<string>
   }
 }
 
+// ── Extrator robusto de INSIGHT_COACH_JSON ─────────────────────────────────
+
+/**
+ * Localiza INSIGHT_COACH_JSON no texto acumulado e extrai o JSON por
+ * balanceamento de chaves — não depende de JSON de uma linha.
+ * Retorna null se o marcador não existir ou o JSON estiver malformado.
+ */
+function extractInsightJson(text: string): { json: string; cleaned: string } | null {
+  const marker = "\nINSIGHT_COACH_JSON:";
+  const markerIdx = text.indexOf(marker);
+  if (markerIdx === -1) return null;
+
+  const braceStart = text.indexOf("{", markerIdx + marker.length);
+  if (braceStart === -1) return null;
+
+  let depth = 0;
+  let braceEnd = -1;
+  for (let i = braceStart; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) { braceEnd = i; break; }
+    }
+  }
+  if (braceEnd === -1) return null;
+
+  const json = text.slice(braceStart, braceEnd + 1);
+
+  // Remove o bloco inteiro (do \n antes do marcador até depois do })
+  // incluindo eventual \n após o fechamento
+  let afterBlock = braceEnd + 1;
+  if (afterBlock < text.length && text[afterBlock] === "\n") afterBlock++;
+  const cleaned = (text.slice(0, markerIdx) + text.slice(afterBlock)).trim();
+
+  return { json, cleaned };
+}
+
 // ── Stream + cache ─────────────────────────────────────────────────────────
 
 async function streamAndCache(
@@ -217,11 +254,36 @@ async function streamAndCache(
     }
 
     let textToCache = accumulated;
-    let coachInsight: string | null = null;
-    const insightMatch = accumulated.match(/\nINSIGHT_COACH:\s*(.+?)(?:\n|$)/);
-    if (insightMatch) {
-      coachInsight = insightMatch[1].trim().slice(0, 200);
-      textToCache = accumulated.replace(/\nINSIGHT_COACH:.*?(?:\n|$)/, "").trim();
+    let coachInsight: { type: string; key: string; content: string; relevance: number } | null = null;
+
+    // Tenta formato novo INSIGHT_COACH_JSON (brace-matching — suporta JSON multilinha)
+    const jsonExtract = extractInsightJson(accumulated);
+    if (jsonExtract) {
+      try {
+        const parsed = JSON.parse(jsonExtract.json);
+        if (parsed.type && parsed.key && parsed.content) {
+          coachInsight = {
+            type: String(parsed.type).slice(0, 30),
+            key: String(parsed.key).slice(0, 80),
+            content: String(parsed.content).slice(0, 300),
+            relevance: Math.max(1, Math.min(10, Number(parsed.relevance) || 5)),
+          };
+        }
+      } catch { /* JSON malformado — ignora, sem fallback para evitar ruído */ }
+      textToCache = jsonExtract.cleaned;
+    } else {
+      // Fallback: formato legado INSIGHT_COACH (compat até 2026-05-10)
+      const legacyMatch = accumulated.match(/\nINSIGHT_COACH:\s*(.+?)(?:\n|$)/);
+      if (legacyMatch) {
+        const content = legacyMatch[1].trim().slice(0, 200);
+        coachInsight = {
+          type: "observation",
+          key: `legacy_${djb2(content).slice(0, 20)}`,
+          content,
+          relevance: 6,
+        };
+        textToCache = accumulated.replace(/\nINSIGHT_COACH:\s*.+?(?:\n|$)/, "").trim();
+      }
     }
 
     if (!skipCache && textToCache.length > 20) {
@@ -236,11 +298,26 @@ async function streamAndCache(
     }
 
     if (coachInsight) {
-      await supabase.from("ai_coach_memory").insert({
-        user_id: userId, scope, content: coachInsight, relevance: 6,
+      const ttlMap: Record<string, number | null> = {
+        observation:     60,
+        concern:         30,
+        preference:      null,
+        goal_context:    180,
+        value_alignment: null,
+      };
+      const ttlDays = ttlMap[coachInsight.type] ?? 60;
+
+      await supabase.rpc("upsert_coach_memory", {
+        p_user_id:     userId,
+        p_scope:       scope,
+        p_memory_type: coachInsight.type,
+        p_pattern_key: coachInsight.key,
+        p_content:     coachInsight.content,
+        p_relevance:   coachInsight.relevance,
+        p_ttl_days:    ttlDays,
       }).then(({ error }) => {
-        if (error) console.warn("Coach memory write failed:", error.message);
-        else console.log(`Coach memory saved: ${coachInsight}`);
+        if (error) console.warn("Coach memory upsert failed:", error.message);
+        else console.log(`Coach memory upserted: type=${coachInsight!.type} key=${coachInsight!.key}`);
       });
     }
   })();
@@ -356,17 +433,46 @@ serve(async (req) => {
       }
     }
 
-    const { data: coachMemories } = await supabase
-      .from("ai_coach_memory")
-      .select("content, created_at")
-      .eq("user_id", userId)
-      .eq("scope", scope)
-      .order("created_at", { ascending: false })
-      .limit(5);
+    const nowIso = new Date().toISOString();
 
-    const coachMemoriesSection = coachMemories && coachMemories.length > 0
-      ? `\n\n🧠 MEMÓRIA COMPORTAMENTAL:\n${coachMemories.map((m: any) => `- ${m.content}`).join("\n")}`
-      : "";
+    // Curadoria por tipo: preferences sempre, concerns ativos, observations top-rankeados
+    const [
+      { data: preferences },
+      { data: concerns },
+      { data: observations },
+      { data: values },
+    ] = await Promise.all([
+      supabase.from("ai_coach_memory")
+        .select("content, memory_type, pattern_key")
+        .eq("user_id", userId).eq("scope", scope)
+        .eq("memory_type", "preference").is("superseded_by", null)
+        .order("relevance", { ascending: false }).limit(3),
+      supabase.from("ai_coach_memory")
+        .select("content, memory_type, pattern_key")
+        .eq("user_id", userId).eq("scope", scope)
+        .eq("memory_type", "concern").is("superseded_by", null)
+        .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+        .order("reinforcement_count", { ascending: false }).limit(3),
+      supabase.from("ai_coach_memory")
+        .select("content, memory_type, pattern_key, reinforcement_count")
+        .eq("user_id", userId).eq("scope", scope)
+        .eq("memory_type", "observation").is("superseded_by", null)
+        .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+        .order("reinforcement_count", { ascending: false }).limit(4),
+      supabase.from("ai_coach_memory")
+        .select("content, memory_type")
+        .eq("user_id", userId).eq("scope", scope)
+        .eq("memory_type", "value_alignment").is("superseded_by", null)
+        .order("relevance", { ascending: false })
+        .order("created_at", { ascending: false }).limit(3),
+    ]);
+
+    const coachMemoriesSection = [
+      preferences?.length ? `\n💎 PREFERÊNCIAS DO USUÁRIO:\n${preferences.map((p: any) => `- ${p.content}`).join("\n")}` : "",
+      values?.length ? `\n🌟 VALORES E IDENTIDADE:\n${values.map((v: any) => `- ${v.content}`).join("\n")}` : "",
+      concerns?.length ? `\n⚠️ PREOCUPAÇÕES ATIVAS:\n${concerns.map((c: any) => `- ${c.content}`).join("\n")}` : "",
+      observations?.length ? `\n🧠 PADRÕES OBSERVADOS:\n${observations.map((o: any) => `- ${o.content} (visto ${o.reinforcement_count}x)`).join("\n")}` : "",
+    ].filter(Boolean).join("\n");
 
     const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
     let systemContent = basePrompt + coachMemoriesSection;
