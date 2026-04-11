@@ -104,6 +104,18 @@ function formatSnapshot(s: UserBehavioralSnapshot): string {
   return `perfil_usuario:\n${lines.join("\n")}`;
 }
 
+interface AiPrefsRow {
+  tom_voz: string;
+  nivel_detalhamento: string;
+  frequencia_alertas: string;
+  contexto_identidade: string | null;
+  valores_pessoais: string[] | null;
+  compromissos_fixos: Array<{ descricao: string; dia?: number; valor?: number }> | null;
+  contexto_religioso: string | null;
+  prioridade_default: string | null;
+  tratar_parcelamentos: string | null;
+}
+
 /** Formata padrões aprendidos em texto compacto para o LLM */
 function formatPatterns(patterns: PatternRow[]): string {
   if (patterns.length === 0) return "";
@@ -139,6 +151,30 @@ function formatPatterns(patterns: PatternRow[]): string {
   return `padroes_aprendidos:\n${lines.join("\n")}`;
 }
 
+/** Formata preferências declarativas do usuário em texto compacto para o LLM */
+function formatPreferences(prefs: AiPrefsRow | null): string {
+  if (!prefs) return "";
+
+  const lines: string[] = [];
+
+  lines.push(`- tom: ${prefs.tom_voz}`);
+  lines.push(`- nivel_detalhamento: ${prefs.nivel_detalhamento}`);
+  lines.push(`- frequencia_alertas: ${prefs.frequencia_alertas}`);
+  if (prefs.prioridade_default) lines.push(`- prioridade_default: ${prefs.prioridade_default}`);
+  if (prefs.tratar_parcelamentos) lines.push(`- tratar_parcelamentos: ${prefs.tratar_parcelamentos}`);
+  if (prefs.contexto_identidade) lines.push(`- contexto_identidade: ${prefs.contexto_identidade}`);
+  if (prefs.valores_pessoais?.length) lines.push(`- valores_pessoais: ${prefs.valores_pessoais.join(", ")}`);
+  if (prefs.compromissos_fixos?.length) {
+    const commitments = prefs.compromissos_fixos
+      .map(c => `${c.descricao}${c.dia ? ` dia${c.dia}` : ""}${c.valor ? ` R$${c.valor}` : ""}`)
+      .join(", ");
+    lines.push(`- compromissos_fixos: ${commitments}`);
+  }
+  if (prefs.contexto_religioso) lines.push(`- contexto_religioso: ${prefs.contexto_religioso}`);
+
+  return `preferencias_usuario:\n${lines.join("\n")}`;
+}
+
 /**
  * Busca categorias e últimas 20 transações confirmadas do usuário.
  * Retorna um bloco de texto compacto para enriquecer o prompt do LLM.
@@ -163,7 +199,7 @@ export async function getCaptureContext(
             .order("hit_count", { ascending: false })
             .limit(30);
 
-    const [catResult, txResult, snapshot, patternResult] = await Promise.all([
+    const [catResult, txResult, snapshot, patternResult, aiPrefsResult] = await Promise.all([
       supabase
         .from("categories")
         .select("id, nome, tipo, e_mei, scope")
@@ -179,6 +215,7 @@ export async function getCaptureContext(
 
       getUserBehavioralSnapshot(userId, currentScope),
       patternsPromise,
+      supabase.from("user_ai_preferences").select("*").eq("user_id", userId).maybeSingle(),
     ]);
 
     const categories: CategoryRow[] = (catResult.data ?? []) as CategoryRow[];
@@ -189,8 +226,9 @@ export async function getCaptureContext(
     const txBlock = formatRecentTransactions(transactions);
     const snapshotBlock = formatSnapshot(snapshot);
     const patternBlock = formatPatterns(patterns);
+    const prefsBlock = formatPreferences((aiPrefsResult.data ?? null) as AiPrefsRow | null);
 
-    const contextBlock = [catBlock, txBlock, snapshotBlock, patternBlock].filter(Boolean).join("\n\n");
+    const contextBlock = [catBlock, txBlock, snapshotBlock, patternBlock, prefsBlock].filter(Boolean).join("\n\n");
 
     return { contextBlock };
   } catch {

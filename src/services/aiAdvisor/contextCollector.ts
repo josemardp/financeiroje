@@ -134,6 +134,18 @@ export interface FinancialContext {
     hasProgress: boolean;
   }>;
   preferenciasUsuario: Record<string, unknown>;
+  userAiPreferences: {
+    tom_voz: string;
+    nivel_detalhamento: string;
+    frequencia_alertas: string;
+    contexto_identidade: string | null;
+    valores_pessoais: string[] | null;
+    compromissos_fixos: Array<{ descricao: string; dia?: number; valor?: number }> | null;
+    usar_versiculos_acf: boolean;
+    contexto_religioso: string | null;
+    prioridade_default: string | null;
+    tratar_parcelamentos: string | null;
+  } | null;
   metadados: {
     dataColeta: string;
     versaoEngine: string;
@@ -197,6 +209,7 @@ export async function getFinancialContext(
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
     accountTxResult, prevAlertResult, historyTxResult, recentTxResult,
+    aiPrefsResult,
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
@@ -254,6 +267,7 @@ export async function getFinancialContext(
       if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
+    supabase.from("user_ai_preferences").select("*").eq("user_id", userId).maybeSingle(),
   ]);
 
   // Map raw data
@@ -828,6 +842,7 @@ export async function getFinancialContext(
     impactoEmMetas,
     reservaEmergencia,
     preferenciasUsuario: userPrefs,
+    userAiPreferences: aiPrefsResult.data ?? null,
     userIntentHint: "generic",
     assinaturas: undefined, // Will be populated by caller if needed
     // Fase 12
