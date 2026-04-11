@@ -3,9 +3,9 @@
 ## Estado atual
 
 **Sprint atual:** Sprint 4  
-**Tarefa atual:** Planejamento do Sprint 4  
-**Situação atual:** Sprint 3 concluído e validado em produção  
-**Última atualização:** 2026-04-10
+**Tarefa atual:** T4.6 concluída — próxima: T4.7 (UI `/settings/ai-memory`)  
+**Situação atual:** T4.1–T4.6 concluídas; migrations T4.1 e T4.2 aplicadas no Supabase  
+**Última atualização:** 2026-04-11
 
 ---
 
@@ -32,6 +32,17 @@
 - [x] T3.3 — Refinar edge function `ai-advisor` (parser INSIGHT_COACH_JSON + curadoria)
 - [x] T3.4 — Refinar `systemPrompt.ts` (instrução INSIGHT_COACH_JSON + `buildUncertaintyBlock`)
 - [x] T3.5 — Validação final Sprint 3
+
+### Sprint 4 — Loop de feedback explícito
+- [x] T4.1 — Migration `user_ai_preferences` (tabela + RLS + trigger)
+- [x] T4.2 — Migration `apply_response_feedback` RPC (reforço 👍 / penalidade 👎 + preference via comentário)
+- [x] T4.3 — `ai-advisor`: rastrear contexto usado → header `X-Context-Used` + `Access-Control-Expose-Headers`
+- [x] T4.4 — `contextCollector.ts`: query + campo `userAiPreferences` na interface `FinancialContext`
+- [x] T4.5 — `captureContext.ts`: query + `formatPreferences()` + `prefsBlock` no `contextBlock`
+- [x] T4.6 — `ai-advisor`: injetar `preferencias_usuario` no system prompt (formato compacto)
+- [ ] T4.7 — Tela `/settings/ai-memory` (4 abas: padrões, memória, preferências, histórico)
+- [ ] T4.8 — Componentes `<ResponseFeedback>` e `<WhyThisAnswerModal>`
+- [ ] T4.9 — Endpoints LGPD (user-data-export, user-data-purge)
 
 ---
 
@@ -141,5 +152,5 @@
 ---
 
 ## Próxima tarefa esperada
-**Planejamento do Sprint 4**
-Reler seção 7 do plano e mapear sub-tarefas, migrations e componentes de UI. Ver PLANO_INTELIGENCIA_PESSOAL.md seção 7.
+**T4.7 — Tela `/settings/ai-memory`**
+4 abas: Padrões aprendidos (`user_patterns`), Memória do Coach (`ai_coach_memory`), Preferências da IA (`user_ai_preferences`), Histórico de capturas (`capture_learning_events`). Ver seção 7.3 do plano.

@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Expose-Headers": "X-Context-Used, X-Cache",
 };
 
 const SYSTEM_PROMPT_FALLBACK = `Você é um Coach Financeiro Pessoal e Psicólogo Financeiro — parceiro estratégico do usuário no longo prazo.
@@ -77,7 +78,7 @@ function ttlMinutes(intent: string): number {
 function cachedSSEResponse(text: string): Response {
   const chunk = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`;
   return new Response(chunk, {
-    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "HIT" },
+    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "HIT", "X-Context-Used": JSON.stringify({ memories: [], patterns: [] }) },
   });
 }
 
@@ -221,7 +222,8 @@ async function streamAndCache(
   model: string,
   intent: string,
   scope: string,
-  skipCache = false
+  skipCache = false,
+  memoryIds: string[] = []
 ): Promise<Response> {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
@@ -323,7 +325,12 @@ async function streamAndCache(
   })();
 
   return new Response(readable, {
-    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "MISS" },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream",
+      "X-Cache": "MISS",
+      "X-Context-Used": JSON.stringify({ memories: memoryIds, patterns: [] }),
+    },
   });
 }
 
@@ -441,30 +448,32 @@ serve(async (req) => {
       { data: concerns },
       { data: observations },
       { data: values },
+      { data: userPrefs },
     ] = await Promise.all([
       supabase.from("ai_coach_memory")
-        .select("content, memory_type, pattern_key")
+        .select("id, content, memory_type, pattern_key")
         .eq("user_id", userId).eq("scope", scope)
         .eq("memory_type", "preference").is("superseded_by", null)
         .order("relevance", { ascending: false }).limit(3),
       supabase.from("ai_coach_memory")
-        .select("content, memory_type, pattern_key")
+        .select("id, content, memory_type, pattern_key")
         .eq("user_id", userId).eq("scope", scope)
         .eq("memory_type", "concern").is("superseded_by", null)
         .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
         .order("reinforcement_count", { ascending: false }).limit(3),
       supabase.from("ai_coach_memory")
-        .select("content, memory_type, pattern_key, reinforcement_count")
+        .select("id, content, memory_type, pattern_key, reinforcement_count")
         .eq("user_id", userId).eq("scope", scope)
         .eq("memory_type", "observation").is("superseded_by", null)
         .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
         .order("reinforcement_count", { ascending: false }).limit(4),
       supabase.from("ai_coach_memory")
-        .select("content, memory_type")
+        .select("id, content, memory_type")
         .eq("user_id", userId).eq("scope", scope)
         .eq("memory_type", "value_alignment").is("superseded_by", null)
         .order("relevance", { ascending: false })
         .order("created_at", { ascending: false }).limit(3),
+      supabase.from("user_ai_preferences").select("*").eq("user_id", userId).maybeSingle(),
     ]);
 
     const coachMemoriesSection = [
@@ -474,8 +483,36 @@ serve(async (req) => {
       observations?.length ? `\n🧠 PADRÕES OBSERVADOS:\n${observations.map((o: any) => `- ${o.content} (visto ${o.reinforcement_count}x)`).join("\n")}` : "",
     ].filter(Boolean).join("\n");
 
+    const memoryIds: string[] = [
+      ...(preferences  ?? []).map((p: any) => p.id as string),
+      ...(concerns     ?? []).map((c: any) => c.id as string),
+      ...(observations ?? []).map((o: any) => o.id as string),
+      ...(values       ?? []).map((v: any) => v.id as string),
+    ].filter(Boolean);
+
+    const userPrefsSection = userPrefs
+      ? (() => {
+          const lines: string[] = [];
+          lines.push(`- tom: ${userPrefs.tom_voz}`);
+          lines.push(`- nivel_detalhamento: ${userPrefs.nivel_detalhamento}`);
+          lines.push(`- frequencia_alertas: ${userPrefs.frequencia_alertas}`);
+          if (userPrefs.prioridade_default) lines.push(`- prioridade_default: ${userPrefs.prioridade_default}`);
+          if (userPrefs.tratar_parcelamentos) lines.push(`- tratar_parcelamentos: ${userPrefs.tratar_parcelamentos}`);
+          if (userPrefs.contexto_identidade) lines.push(`- contexto_identidade: ${userPrefs.contexto_identidade}`);
+          if (userPrefs.valores_pessoais?.length) lines.push(`- valores_pessoais: ${(userPrefs.valores_pessoais as string[]).join(", ")}`);
+          if (userPrefs.compromissos_fixos?.length) {
+            const cs = (userPrefs.compromissos_fixos as Array<{ descricao: string; dia?: number; valor?: number }>)
+              .map(c => `${c.descricao}${c.dia ? ` dia${c.dia}` : ""}${c.valor ? ` R$${c.valor}` : ""}`)
+              .join(", ");
+            lines.push(`- compromissos_fixos: ${cs}`);
+          }
+          if (userPrefs.contexto_religioso) lines.push(`- contexto_religioso: ${userPrefs.contexto_religioso}`);
+          return `\n\npreferencias_usuario:\n${lines.join("\n")}`;
+        })()
+      : "";
+
     const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
-    let systemContent = basePrompt + coachMemoriesSection;
+    let systemContent = basePrompt + userPrefsSection + coachMemoriesSection;
 
     // ── Enriquecimento de contexto para perguntas de mercado ───────────────
     if (isMarketQuery) {
@@ -531,7 +568,7 @@ serve(async (req) => {
       });
     }
 
-    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent, scope, isMarketQuery);
+    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent, scope, isMarketQuery, memoryIds);
 
   } catch (e) {
     console.error("ai-advisor error:", e);
