@@ -2,9 +2,9 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint 3  
-**Tarefa atual:** T3.3 — Refinar edge function `ai-advisor`  
-**Situação atual:** T3.1 e T3.2 concluídas e validadas  
+**Sprint atual:** Sprint 4  
+**Tarefa atual:** Planejamento do Sprint 4  
+**Situação atual:** Sprint 3 concluído e validado em produção  
 **Última atualização:** 2026-04-10
 
 ---
@@ -29,9 +29,9 @@
 ### Sprint 3 — Evoluir `ai_coach_memory`
 - [x] T3.1 — Migration `ai_coach_memory_v2` (enum + ALTER TABLE + `upsert_coach_memory`)
 - [x] T3.2 — Migration `decay_coach_memories` (`decay_stale_coach_memories` + cron)
-- [ ] T3.3 — Refinar edge function `ai-advisor` (parser INSIGHT_COACH_JSON + curadoria)
-- [ ] T3.4 — Refinar `systemPrompt.ts` (instrução INSIGHT_COACH_JSON + `buildUncertaintyBlock`)
-- [ ] T3.5 — Validação final Sprint 3
+- [x] T3.3 — Refinar edge function `ai-advisor` (parser INSIGHT_COACH_JSON + curadoria)
+- [x] T3.4 — Refinar `systemPrompt.ts` (instrução INSIGHT_COACH_JSON + `buildUncertaintyBlock`)
+- [x] T3.5 — Validação final Sprint 3
 
 ---
 
@@ -104,15 +104,6 @@
 - commit 8de145d realizado
 - push realizado
 
-### Sprint 3 — Evoluir `ai_coach_memory`
-- [x] T3.1 — Migration `ai_coach_memory_v2` (enum + ALTER TABLE + `upsert_coach_memory`)
-- [x] T3.2 — Migration `decay_coach_memories` (`decay_stale_coach_memories` + cron `daily-decay-coach-memories`)
-- [ ] T3.3 — Refinar edge function `ai-advisor` (parser INSIGHT_COACH_JSON + curadoria de carregamento)
-- [ ] T3.4 — Refinar `systemPrompt.ts` (instrução INSIGHT_COACH_JSON + `buildUncertaintyBlock`)
-- [ ] T3.5 — Validação final Sprint 3
-
----
-
 ## Últimas tarefas concluídas
 
 ### 2026-04-10
@@ -131,8 +122,24 @@
 - `decay_stale_coach_memories()` — observations decaem após 45 dias, concerns após 30 dias
 - Cron `daily-decay-coach-memories` criado — `1 4 * * *`
 
+- T3.3 concluída
+- `supabase/functions/ai-advisor/index.ts` atualizado (3 zonas)
+- Carregamento: 4 queries em `Promise.all` curadas por tipo com `nowIso` único, filtros `superseded_by`/`expires_at`, rank por `reinforcement_count`
+- Parser: `extractInsightJson()` por brace-matching + fallback legado `INSIGHT_COACH:` (compat até 2026-05-10)
+- Persistência: `supabase.rpc("upsert_coach_memory")` substituindo `.insert()` direto
+- Validado em produção: log `Coach memory upserted: type=concern key=renda_inconsistente_critica`
+
+- T3.4 concluída
+- `src/services/aiAdvisor/systemPrompt.ts` atualizado
+- Instrução final → `INSIGHT_COACH_JSON` com 5 tipos, `key` semântica e regra de reforço
+- `buildUncertaintyBlock()` adicionada e injetada entre dados reais e instruções de formato
+
+- T3.5 concluída — Sprint 3 finalizado
+- Todos os critérios da seção 6.8 do plano atendidos
+- Deploy validado em produção com teste funcional
+
 ---
 
 ## Próxima tarefa esperada
-**T3.3 — Refinar edge function `ai-advisor`**
-Substituir parser `INSIGHT_COACH:` por `INSIGHT_COACH_JSON:` e refinar carregamento de memórias para curadoria por tipo. Ver seção 6.5 e 6.6 do plano.
+**Planejamento do Sprint 4**
+Reler seção 7 do plano e mapear sub-tarefas, migrations e componentes de UI. Ver PLANO_INTELIGENCIA_PESSOAL.md seção 7.
