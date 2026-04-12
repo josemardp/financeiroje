@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { Bot, Send, Loader2, AlertTriangle, Lightbulb, CheckCircle, HelpCircle, TrendingUp, Info, Mic, MicOff } from "lucide-react";
 import { VoiceAdapter } from "@/services/smartCapture/adapters/VoiceAdapter";
 import ReactMarkdown from "react-markdown";
+import { ResponseFeedback } from "@/components/shared/ResponseFeedback";
+import { WhyThisAnswerModal } from "@/components/shared/WhyThisAnswerModal";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-advisor`;
 
@@ -24,6 +26,7 @@ interface Message {
   content: string;
   blocks?: AiResponseBlock[];
   timestamp: string;
+  contextUsedIds?: { memories: string[]; patterns: string[] };
 }
 
 export default function AiAdvisor() {
@@ -297,6 +300,12 @@ export default function AiAdvisor() {
 
       if (!resp.body) throw new Error("Sem resposta do servidor");
 
+      const contextUsedHeader = resp.headers.get("X-Context-Used");
+      const contextUsedIds: { memories: string[]; patterns: string[] } = (() => {
+        try { return contextUsedHeader ? JSON.parse(contextUsedHeader) : { memories: [], patterns: [] }; }
+        catch { return { memories: [], patterns: [] }; }
+      })();
+
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let assistantText = "";
@@ -329,7 +338,7 @@ export default function AiAdvisor() {
                 const last = prev[prev.length - 1];
                 if (last?.role === "assistant" && last.id === assistantId) {
                   return prev.map((m, i) => i === prev.length - 1
-                    ? { ...m, content: assistantText, blocks }
+                    ? { ...m, content: assistantText, blocks, contextUsedIds }
                     : m
                   );
                 }
@@ -339,6 +348,7 @@ export default function AiAdvisor() {
                   content: assistantText,
                   blocks,
                   timestamp: new Date().toISOString(),
+                  contextUsedIds,
                 }];
               });
             }
@@ -478,13 +488,27 @@ export default function AiAdvisor() {
                   <p className="text-[10px] text-muted-foreground italic mt-2">
                     Valores calculados pela engine determinística. A IA interpreta, não calcula.
                   </p>
+                  {msg.contextUsedIds && (
+                    <div className="flex items-center gap-1 pt-1">
+                      <WhyThisAnswerModal contextUsedIds={msg.contextUsedIds} />
+                      <ResponseFeedback messageId={msg.id} contextUsedIds={msg.contextUsedIds} />
+                    </div>
+                  )}
                 </>
               ) : (
-                <Card>
-                  <CardContent className="p-4 prose prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </CardContent>
-                </Card>
+                <>
+                  <Card>
+                    <CardContent className="p-4 prose prose-sm max-w-none dark:prose-invert">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </CardContent>
+                  </Card>
+                  {msg.contextUsedIds && (
+                    <div className="flex items-center gap-1">
+                      <WhyThisAnswerModal contextUsedIds={msg.contextUsedIds} />
+                      <ResponseFeedback messageId={msg.id} contextUsedIds={msg.contextUsedIds} />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

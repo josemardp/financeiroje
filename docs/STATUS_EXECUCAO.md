@@ -2,10 +2,10 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint 4  
-**Tarefa atual:** T4.6 concluída — próxima: T4.7 (UI `/settings/ai-memory`)  
-**Situação atual:** T4.1–T4.6 concluídas; migrations T4.1 e T4.2 aplicadas no Supabase  
-**Última atualização:** 2026-04-11
+**Sprint atual:** Sprint 4 — CONCLUÍDO  
+**Próximo sprint:** Sprint 5 — `decision_outcomes` (medir aderência a conselhos)  
+**Situação atual:** Sprint 4 totalmente concluído; todas as migrations e edge functions validadas em produção  
+**Última atualização:** 2026-04-12
 
 ---
 
@@ -40,9 +40,9 @@
 - [x] T4.4 — `contextCollector.ts`: query + campo `userAiPreferences` na interface `FinancialContext`
 - [x] T4.5 — `captureContext.ts`: query + `formatPreferences()` + `prefsBlock` no `contextBlock`
 - [x] T4.6 — `ai-advisor`: injetar `preferencias_usuario` no system prompt (formato compacto)
-- [ ] T4.7 — Tela `/settings/ai-memory` (4 abas: padrões, memória, preferências, histórico)
-- [ ] T4.8 — Componentes `<ResponseFeedback>` e `<WhyThisAnswerModal>`
-- [ ] T4.9 — Endpoints LGPD (user-data-export, user-data-purge)
+- [x] T4.7 — Tela `/settings/ai-memory` (4 abas: padrões, memória, preferências, histórico)
+- [x] T4.8 — Componentes `<ResponseFeedback>` e `<WhyThisAnswerModal>`
+- [x] T4.9 — Endpoints LGPD (user-data-export, user-data-purge)
 
 ---
 
@@ -151,6 +151,23 @@
 
 ---
 
+---
+
+### 2026-04-12
+
+- T4.8 concluída
+- `src/components/shared/ResponseFeedback.tsx` — prop `messageId` adicionada; usa ID real na RPC (não mais UUID aleatório)
+- `src/components/shared/WhyThisAnswerModal.tsx` — sem alteração estrutural
+- `src/pages/AiAdvisor.tsx` — imports dos dois componentes; `contextUsedIds` na interface `Message`; leitura do header `X-Context-Used` com try/catch; campo propagado na criação e no update durante streaming; render abaixo de cada mensagem do assistente (blocos estruturados + Markdown puro)
+
+- T4.9 concluída
+- `supabase/functions/user-data-export/index.ts` criado — leitura via anonClient (respeita RLS), export JSON com Content-Disposition para download, charset=utf-8
+- `supabase/functions/user-data-purge/index.ts` criado — confirmação obrigatória `{ confirm: true }`, serviceClient para bypass do RLS de DELETE em `capture_learning_events`, retorna contagens por tabela
+- Validado: export HTTP 200 conta principal; purge HTTP 400 sem confirm; purge HTTP 200 com confirm conta secundária; export pós-purge zerado; isolamento por user_id confirmado
+- **Sprint 4 concluído**
+
+---
+
 ## Próxima tarefa esperada
-**T4.7 — Tela `/settings/ai-memory`**
-4 abas: Padrões aprendidos (`user_patterns`), Memória do Coach (`ai_coach_memory`), Preferências da IA (`user_ai_preferences`), Histórico de capturas (`capture_learning_events`). Ver seção 7.3 do plano.
+**Sprint 5 — T5.x — `decision_outcomes`**
+Medir aderência a conselhos da IA: tabela `decision_outcomes`, vínculo com mensagens do advisor, rastreamento de execução pelo usuário. Ver seção 8 do plano.

@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Settings, Shield, Bell, User, Loader2 } from "lucide-react";
+import { Settings, Shield, Bell, User, Loader2, Brain } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface FinancialPreferences {
   reserva_emergencia_valor?: number;
@@ -26,6 +27,7 @@ interface FinancialPreferences {
 
 export default function SettingsPage() {
   const { user, profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [nome, setNome] = useState("");
   const [prefs, setPrefs] = useState<FinancialPreferences>({
@@ -145,6 +147,18 @@ export default function SettingsPage() {
               <Switch checked={prefs[key as keyof FinancialPreferences] as boolean ?? true} onCheckedChange={(v) => setPrefs((p) => ({ ...p, [key]: v }))} />
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><Brain className="h-4 w-4" /> Memória da IA</CardTitle>
+          <CardDescription>Padrões aprendidos, memórias do Coach e preferências de comportamento</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => navigate("/configuracoes/ia-memoria")}>
+            Gerenciar memória da IA
+          </Button>
         </CardContent>
       </Card>
 
