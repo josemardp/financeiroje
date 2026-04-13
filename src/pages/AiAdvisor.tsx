@@ -17,6 +17,7 @@ import { VoiceAdapter } from "@/services/smartCapture/adapters/VoiceAdapter";
 import ReactMarkdown from "react-markdown";
 import { ResponseFeedback } from "@/components/shared/ResponseFeedback";
 import { WhyThisAnswerModal } from "@/components/shared/WhyThisAnswerModal";
+import { DecisionResponseButtons } from "@/components/shared/DecisionResponseButtons";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-advisor`;
 
@@ -27,6 +28,7 @@ interface Message {
   blocks?: AiResponseBlock[];
   timestamp: string;
   contextUsedIds?: { memories: string[]; patterns: string[] };
+  decisionId?: string;
 }
 
 export default function AiAdvisor() {
@@ -359,6 +361,18 @@ export default function AiAdvisor() {
         }
       }
 
+      // Strip RECOMMENDATION_JSON marker do texto exibido (T5.3)
+      const recMarkerIdx = assistantText.indexOf("\nRECOMMENDATION_JSON:");
+      const hasRecommendation = recMarkerIdx !== -1;
+      if (hasRecommendation) {
+        assistantText = assistantText.slice(0, recMarkerIdx).trim();
+        setMessages(prev => prev.map(m =>
+          m.id === assistantId
+            ? { ...m, content: assistantText, blocks: parseAiResponse(assistantText).blocks }
+            : m
+        ));
+      }
+
       if (convId && assistantText) {
         await supabase.from("ai_messages").insert({
           conversation_id: convId,
@@ -366,6 +380,26 @@ export default function AiAdvisor() {
           role: "assistant" as const,
           content: assistantText,
         });
+      }
+
+      // Após salvar, busca o decision_outcomes gerado pela edge function (T5.3)
+      if (hasRecommendation && user) {
+        const capturedId = assistantId;
+        setTimeout(async () => {
+          const { data: rec } = await (supabase as any)
+            .from("decision_outcomes")
+            .select("id")
+            .eq("user_id", user.id)
+            .is("user_response", null)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (rec?.id) {
+            setMessages(prev => prev.map(m =>
+              m.id === capturedId ? { ...m, decisionId: rec.id } : m
+            ));
+          }
+        }, 1500);
       }
 
       queryClient.invalidateQueries({ queryKey: ["ai-conversations"] });
@@ -489,9 +523,14 @@ export default function AiAdvisor() {
                     Valores calculados pela engine determinística. A IA interpreta, não calcula.
                   </p>
                   {msg.contextUsedIds && (
-                    <div className="flex items-center gap-1 pt-1">
-                      <WhyThisAnswerModal contextUsedIds={msg.contextUsedIds} />
-                      <ResponseFeedback messageId={msg.id} contextUsedIds={msg.contextUsedIds} />
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center gap-1">
+                        <WhyThisAnswerModal contextUsedIds={msg.contextUsedIds} />
+                        <ResponseFeedback messageId={msg.id} contextUsedIds={msg.contextUsedIds} />
+                      </div>
+                      {msg.decisionId && (
+                        <DecisionResponseButtons decisionId={msg.decisionId} />
+                      )}
                     </div>
                   )}
                 </>
