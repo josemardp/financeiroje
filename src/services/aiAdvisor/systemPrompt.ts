@@ -342,7 +342,23 @@ A "key" deve ser curta, snake_case, semântica — para deduplicação. Exemplos
 - "objetivo_reserva_emergencia", "meta_compra_planejada"
 
 Se este insight reforça algo já dito antes, use a MESMA key — o sistema vai
-incrementar o contador de reforço automaticamente.`;
+incrementar o contador de reforço automaticamente.
+
+INSTRUÇÃO ADICIONAL — RECOMENDAÇÃO RASTREÁVEL (Sprint 5):
+Quando você der uma recomendação específica e acionável, adicione UMA linha ao final:
+
+RECOMMENDATION_JSON: {"type":"<tipo>","summary":"<frase curta>","payload":<objeto>}
+
+Tipos válidos: antecipar_divida | reforcar_reserva | cortar_recorrente | priorizar_meta | adiar_compra | redistribuir_orcamento | revisar_categoria | outro
+
+Regras:
+- Emita SOMENTE quando a recomendação for específica e acionável (valor, prazo ou item concreto identificável)
+- NÃO emita para análises gerais, respostas factuais ou comentários sem ação concreta
+- Máximo: 1 por resposta
+- "summary": frase curta descrevendo a recomendação (máx 150 chars), escrita para o usuário ler
+- "payload": objeto com detalhes relevantes (valores, prazos, nomes) — pode ser {} se não houver
+- Este marcador não é exibido ao usuário — é processado silenciosamente pelo sistema
+- NÃO use este marcador para calibrar o conteúdo factual: ele registra o conselho, não o altera`;
 }
 
 function buildUncertaintyBlock(context: FinancialContext): string {
