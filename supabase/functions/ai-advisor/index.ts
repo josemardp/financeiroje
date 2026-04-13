@@ -175,6 +175,13 @@ async function fetchTavilySearch(query: string, apiKey: string): Promise<string>
   }
 }
 
+// ── Tipos válidos para decision_outcomes ──────────────────────────────────
+
+const VALID_RECOMMENDATION_TYPES = new Set([
+  "antecipar_divida", "reforcar_reserva", "cortar_recorrente", "priorizar_meta",
+  "adiar_compra", "redistribuir_orcamento", "revisar_categoria", "outro",
+]);
+
 // ── Extrator robusto de INSIGHT_COACH_JSON ─────────────────────────────────
 
 /**
@@ -212,6 +219,39 @@ function extractInsightJson(text: string): { json: string; cleaned: string } | n
   return { json, cleaned };
 }
 
+// ── Extrator de RECOMMENDATION_JSON (Sprint 5 — T5.2) ────────────────────
+
+/**
+ * Mesma lógica de brace-matching do extractInsightJson.
+ * Retorna o JSON bruto e o texto limpo (sem o marcador).
+ */
+function extractRecommendationJson(text: string): { json: string; cleaned: string } | null {
+  const marker = "\nRECOMMENDATION_JSON:";
+  const markerIdx = text.indexOf(marker);
+  if (markerIdx === -1) return null;
+
+  const braceStart = text.indexOf("{", markerIdx + marker.length);
+  if (braceStart === -1) return null;
+
+  let depth = 0;
+  let braceEnd = -1;
+  for (let i = braceStart; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) { braceEnd = i; break; }
+    }
+  }
+  if (braceEnd === -1) return null;
+
+  const json = text.slice(braceStart, braceEnd + 1);
+  let afterBlock = braceEnd + 1;
+  if (afterBlock < text.length && text[afterBlock] === "\n") afterBlock++;
+  const cleaned = (text.slice(0, markerIdx) + text.slice(afterBlock)).trim();
+
+  return { json, cleaned };
+}
+
 // ── Stream + cache ─────────────────────────────────────────────────────────
 
 async function streamAndCache(
@@ -223,7 +263,8 @@ async function streamAndCache(
   intent: string,
   scope: string,
   skipCache = false,
-  memoryIds: string[] = []
+  memoryIds: string[] = [],
+  contextSnapshot: Record<string, unknown> | null = null
 ): Promise<Response> {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
@@ -322,6 +363,41 @@ async function streamAndCache(
         else console.log(`Coach memory upserted: type=${coachInsight!.type} key=${coachInsight!.key}`);
       });
     }
+
+    // ── Sprint 5 T5.2 — extrair e persistir RECOMMENDATION_JSON ────────────
+    // Extrai de `accumulated` (texto original) para evitar conflito com outros extratores.
+    // Remove o marcador de `textToCache` separadamente para não expô-lo ao usuário.
+    const recExtract = extractRecommendationJson(accumulated);
+    if (recExtract) {
+      textToCache = extractRecommendationJson(textToCache)?.cleaned ?? textToCache;
+      try {
+        const rec = JSON.parse(recExtract.json);
+        if (
+          typeof rec.type === "string" && VALID_RECOMMENDATION_TYPES.has(rec.type) &&
+          typeof rec.summary === "string" && rec.summary.length > 0 &&
+          rec.payload !== undefined && typeof rec.payload === "object" &&
+          JSON.stringify(rec.payload).length < 5000
+        ) {
+          await supabase.from("decision_outcomes").insert({
+            user_id:                userId,
+            scope:                  scope as "private" | "family" | "business",
+            recommendation_type:    rec.type,
+            recommendation_summary: String(rec.summary).slice(0, 500),
+            recommendation_payload: rec.payload,
+            context_snapshot:       contextSnapshot ?? {},
+            // message_id: null — referência opcional; sem ID de turno rastreável neste fluxo
+          }).then(({ error }) => {
+            if (error) console.warn("decision_outcomes insert failed:", error.message);
+            else console.log(`decision_outcomes inserted: type=${rec.type}`);
+          });
+        } else {
+          console.warn("RECOMMENDATION_JSON ignorado: tipo inválido ou campos obrigatórios ausentes");
+        }
+      } catch {
+        console.warn("RECOMMENDATION_JSON malformado — ignorado");
+      }
+    }
+    // ── fim T5.2 ────────────────────────────────────────────────────────────
   })();
 
   return new Response(readable, {
@@ -568,7 +644,7 @@ serve(async (req) => {
       });
     }
 
-    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent, scope, isMarketQuery, memoryIds);
+    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent, scope, isMarketQuery, memoryIds, context ?? null);
 
   } catch (e) {
     console.error("ai-advisor error:", e);
