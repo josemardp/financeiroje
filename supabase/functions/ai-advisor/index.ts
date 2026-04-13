@@ -590,6 +590,11 @@ serve(async (req) => {
     const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
     let systemContent = basePrompt + userPrefsSection + coachMemoriesSection;
 
+    // T5.5 — validação: bloco de aderência histórica presente no prompt?
+    console.log(systemContent.includes("ADERÊNCIA HISTÓRICA")
+      ? "aderencia_section_present"
+      : "aderencia_section_absent");
+
     // ── Enriquecimento de contexto para perguntas de mercado ───────────────
     if (isMarketQuery) {
       const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
