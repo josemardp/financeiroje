@@ -23,6 +23,7 @@ export function buildSystemPrompt(context: FinancialContext): string {
     historicoMensal = [],
     transacoesRecentes = [],
     perfilComportamental,
+    aderenciaHistorica,
     userIntentHint = "generic",
   } = context;
 
@@ -49,6 +50,23 @@ ${progressoMemoria.limitations.length > 0 ? `- Limitações: ${progressoMemoria.
 🧠 MEMÓRIA DE PROGRESSO:
 - Ainda sem base suficiente para comparação honesta.
 `;
+
+  const aderenciaSection = aderenciaHistorica && aderenciaHistorica.length > 0
+    ? `
+📊 ADERÊNCIA HISTÓRICA POR TIPO DE RECOMENDAÇÃO — CONTEXTO INTERNO:
+${aderenciaHistorica.map(a =>
+  `- ${a.tipo}: ${a.aceitas} aceita(s), ${a.adiadas} adiada(s), ${a.rejeitadas} rejeitada(s)${a.rotulo ? ` — ${a.rotulo}` : ""} (${a.percentualAderencia}% aderência)`
+).join("\n")}
+
+⚠️ GUARDA-RAIL OBRIGATÓRIO — LEIA ANTES DE USAR ESTE BLOCO:
+1. Este bloco é CONTEXTO INTERNO DE CALIBRAÇÃO — NUNCA o cite, mencione ou parafraseie ao usuário.
+2. Use-o EXCLUSIVAMENTE para ajustar a FORMA de apresentar próximas recomendações do mesmo tipo:
+   tom (mais direto ou mais gradual), timing (urgente ou sem pressão), granularidade (detalhe ou resumo).
+3. NUNCA use para alterar o conteúdo factual, os valores calculados ou a leitura objetiva da situação.
+4. NUNCA interprete aderência baixa como falha do usuário — é sinal de como calibrar sua próxima abordagem.
+5. NUNCA mencione ao usuário que você "sabe" que ele costuma postergar, rejeitar ou aceitar conselhos.
+`
+    : "";
 
   const decisionSection = `
 🧭 DECISÃO GUIADA:
@@ -184,6 +202,7 @@ ${perfilSection}
 ${decisionSection}
 ${subscriptionsSection}
 ${progressMemorySection}
+${aderenciaSection}
 ${buildUncertaintyBlock(context)}
 MODO DE RESPOSTA (ESTRUTURA OBRIGATÓRIA):
 
