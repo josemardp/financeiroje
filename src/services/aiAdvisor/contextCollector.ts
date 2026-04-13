@@ -188,6 +188,17 @@ export interface FinancialContext {
   decisaoGuiada: DecisaoGuiada;
   // Coach psicológico
   perfilComportamental: PerfilComportamental;
+  // Sprint 5 T5.5
+  aderenciaHistorica: Array<{
+    tipo: string;
+    aceitas: number;
+    adiadas: number;
+    rejeitadas: number;
+    ignoradas: number;
+    total: number;
+    percentualAderencia: number;
+    rotulo: string;
+  }> | null;
 }
 
 export async function getFinancialContext(
@@ -822,6 +833,44 @@ export async function getFinancialContext(
 
   // --- Fim Coach Psicológico ---
 
+  // Sprint 5 T5.5 — aderência histórica por tipo de recomendação
+  // Query separada (independente do bloco principal) — falha silenciosa se tabela vazia
+  function buildAderenciaHistorica(
+    records: Array<{ recommendation_type: string; user_response: string }>
+  ): FinancialContext["aderenciaHistorica"] {
+    if (records.length < 3) return null;
+
+    const map = new Map<string, { aceitas: number; adiadas: number; rejeitadas: number; ignoradas: number }>();
+    for (const r of records) {
+      if (!map.has(r.recommendation_type)) {
+        map.set(r.recommendation_type, { aceitas: 0, adiadas: 0, rejeitadas: 0, ignoradas: 0 });
+      }
+      const entry = map.get(r.recommendation_type)!;
+      if (r.user_response === "accepted" || r.user_response === "partial") entry.aceitas++;
+      else if (r.user_response === "postponed") entry.adiadas++;
+      else if (r.user_response === "rejected") entry.rejeitadas++;
+      else if (r.user_response === "ignored") entry.ignoradas++;
+    }
+
+    return Array.from(map.entries()).map(([tipo, v]) => {
+      const total = v.aceitas + v.adiadas + v.rejeitadas + v.ignoradas;
+      const percentualAderencia = total > 0 ? Math.round((v.aceitas / total) * 100) : 0;
+      let rotulo = "";
+      if (v.adiadas > v.aceitas && v.adiadas > v.rejeitadas) rotulo = "tende a postergar";
+      else if (percentualAderencia >= 70) rotulo = "alta receptividade";
+      else if (percentualAderencia <= 30 && (v.rejeitadas + v.ignoradas) > 0) rotulo = "baixa receptividade";
+      return { tipo, ...v, total, percentualAderencia, rotulo };
+    });
+  }
+
+  const { data: decisionData } = await (supabase as any)
+    .from("decision_outcomes")
+    .select("recommendation_type, user_response")
+    .eq("user_id", userId)
+    .not("user_response", "is", null);
+
+  const aderenciaHistorica = buildAderenciaHistorica(decisionData ?? []);
+
   return {
     periodo: { mes, ano },
     escopo: scope,
@@ -853,6 +902,7 @@ export async function getFinancialContext(
     historicoMensal,
     transacoesRecentes,
     perfilComportamental,
+    aderenciaHistorica,
     metadados: {
       dataColeta: now.toISOString(),
       versaoEngine: "4.2-final",
