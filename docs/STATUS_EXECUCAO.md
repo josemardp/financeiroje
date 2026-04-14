@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 6 — EM ANDAMENTO  
 **Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
-**Situação atual:** Sprint 6 em andamento; T6.1 e T6.6 concluídas e validadas no Supabase; próxima tarefa: T6.7 — Edge function `analyze-behavioral-patterns` + cron  
+**Situação atual:** Sprint 6 em andamento; T6.1 e T6.6 concluídas; T6.2, T6.3, T6.4 e T6.5 pendentes; próxima tarefa: T6.2 — Hook `useBehaviorTracking` + `useScreenTracking`  
 **Última atualização:** 2026-04-14
 
 ---
@@ -255,4 +255,4 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 ---
 
 ## Próxima tarefa esperada
-**T6.7 — Edge function `analyze-behavioral-patterns` + cron**
+**T6.2 — Hook `useBehaviorTracking` + `useScreenTracking` + integração nas 8 telas**
