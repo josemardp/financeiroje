@@ -2,10 +2,10 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint 4 — CONCLUÍDO  
-**Próximo sprint:** Sprint 5 — `decision_outcomes` (medir aderência a conselhos)  
-**Situação atual:** Sprint 4 totalmente concluído; todas as migrations e edge functions validadas em produção  
-**Última atualização:** 2026-04-12
+**Sprint atual:** Sprint 5 — CONCLUÍDO  
+**Próximo sprint:** Sprint 6 — Coach Comportamental Profundo e Gamificação Adaptativa  
+**Situação atual:** Sprint 5 totalmente concluído; todos os critérios da seção 8.8 do plano validados em produção  
+**Última atualização:** 2026-04-14
 
 ---
 
@@ -166,8 +166,53 @@
 - Validado: export HTTP 200 conta principal; purge HTTP 400 sem confirm; purge HTTP 200 com confirm conta secundária; export pós-purge zerado; isolamento por user_id confirmado
 - **Sprint 4 concluído**
 
+### Sprint 5 — Aprender com a aderência aos conselhos
+- [x] T5.1 — Migration `decision_outcomes` + enums (`recommendation_type`, `user_response_type`) + RLS + índices
+- [x] T5.2 — Edge function `ai-advisor`: detecção de `RECOMMENDATION_JSON` + persistência em `decision_outcomes`
+- [x] T5.3 — Componente `<DecisionResponseButtons>` + RPC `mark_decision_response` + integração em `AiAdvisor.tsx`
+- [x] T5.4 — Edge function `review-decision-outcomes` + cron `daily-review-decision-outcomes` (04:02 diário)
+- [x] T5.5 — `contextCollector.ts`: `buildAderenciaHistorica()` + `aderenciaHistorica` na interface; `systemPrompt.ts`: bloco aderência + guard-rail anti-moralismo (5 regras)
+- [x] T5.6 — Validação critérios de aceite (seção 8.8): todos os 5 critérios aprovados
+
+---
+
+### 2026-04-14
+
+- T5.1 concluída
+- Migration `20260420000001_decision_outcomes.sql` aplicada
+- Enums `recommendation_type` (8 valores) e `user_response_type` (5 valores) criados
+- Tabela `decision_outcomes` com RLS + 2 índices (`pending_review` parcial, `by_type`)
+- RPC `mark_decision_response` criada
+
+- T5.2 concluída
+- `supabase/functions/ai-advisor/index.ts` (v25): `extractRecommendationJson()` + persistência em `decision_outcomes`
+- Validado: registros reais criados automaticamente por interações com o Advisor
+
+- T5.3 concluída
+- `src/components/shared/DecisionResponseButtons.tsx` criado
+- Botões ✅ "Vou seguir" / ⏸ "Depois" / ❌ "Não vou seguir"
+- `AiAdvisor.tsx`: detecção do marcador no stream, strip do texto exibido, fetch do `decisionId` após 1.5s, render condicional dos botões
+
+- T5.4 concluída
+- `supabase/functions/review-decision-outcomes/index.ts` criado e deployado
+- Cron `daily-review-decision-outcomes` ativo — `2 4 * * *` — `SELECT public.review_pending_decision_outcomes()`
+
+- T5.5 concluída
+- `contextCollector.ts`: `buildAderenciaHistorica()` (threshold ≥ 3 registros com resposta, agrupado por tipo)
+- `systemPrompt.ts`: bloco `📊 ADERÊNCIA HISTÓRICA` injetado + guard-rail obrigatório de 5 regras anti-moralismo
+
+- T5.6 concluída — Sprint 5 finalizado
+- Critério 1 (RECOMMENDATION_JSON): ✅ registros reais em `decision_outcomes`
+- Critério 2 (botões): ✅ fluxo de código validado
+- Critério 3 (cron): ✅ job ativo no pg_cron
+- Critério 4 (bloco aderência): ✅ estrutural — ativa com ≥ 3 registros com resposta
+- Critério 5 (sem moralismo): ✅ guard-rail de 5 regras em `systemPrompt.ts`
+
+**Nota técnica:** `ai-advisor` v23/v24 deployadas com `verify_jwt: true` (default do MCP) causaram 401.
+Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente via `anonClient.auth.getUser()`.
+
 ---
 
 ## Próxima tarefa esperada
-**Sprint 5 — T5.x — `decision_outcomes`**
-Medir aderência a conselhos da IA: tabela `decision_outcomes`, vínculo com mensagens do advisor, rastreamento de execução pelo usuário. Ver seção 8 do plano.
+**Sprint 6 — Coach Comportamental Profundo e Gamificação Adaptativa**
+Ver seção 9 do plano. Sprint opcional — avaliar prioridade antes de iniciar.
