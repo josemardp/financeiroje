@@ -2,9 +2,9 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint 5 — CONCLUÍDO  
-**Próximo sprint:** Sprint 6 — Coach Comportamental Profundo e Gamificação Adaptativa  
-**Situação atual:** Sprint 5 totalmente concluído; todos os critérios da seção 8.8 do plano validados em produção  
+**Sprint atual:** Sprint 6 — EM ANDAMENTO  
+**Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
+**Situação atual:** Sprint 6 iniciado; T6.1 concluída e validada no Supabase; próxima tarefa: T6.6 — Migration `behavioral_tags`  
 **Última atualização:** 2026-04-14
 
 ---
@@ -174,6 +174,19 @@
 - [x] T5.5 — `contextCollector.ts`: `buildAderenciaHistorica()` + `aderenciaHistorica` na interface; `systemPrompt.ts`: bloco aderência + guard-rail anti-moralismo (5 regras)
 - [x] T5.6 — Validação critérios de aceite (seção 8.8): todos os 5 critérios aprovados
 
+### Sprint 6 — Telemetria + Coach Comportamental + Embeddings
+- [x] T6.1 — Migration `user_engagement_events`
+- [ ] T6.2 — Hook `useBehaviorTracking` + `useScreenTracking` + integração nas 8 telas
+- [ ] T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`
+- [ ] T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`
+- [ ] T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade
+- [ ] T6.6 — Migration `behavioral_tags`
+- [ ] T6.7 — Edge function `analyze-behavioral-patterns` + cron
+- [ ] T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`
+- [ ] T6.9 — Validação critérios de aceite Sprint 6
+
+**Nota de escopo:** Gamificação Adaptativa (seção 9.10 do plano) movida para Sprint 7.
+
 ---
 
 ### 2026-04-14
@@ -220,6 +233,17 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 
 ---
 
+### 2026-04-14 (Sprint 6)
+
+- T6.1 concluída
+- `supabase/migrations/20260425000001_engagement_events.sql` criada e aplicada manualmente no Supabase
+- Tabela `user_engagement_events` validada
+- RLS validado (`relrowsecurity = true`)
+- Policies validadas: `Users see own events` (SELECT) + `Users insert own events` (INSERT)
+- Índices validados: `idx_engagement_user_time` + `idx_engagement_recent`
+- Índice parcial com `now()` substituído por índice simples — evita regressão conhecida do projeto
+
+---
+
 ## Próxima tarefa esperada
-**Sprint 6 — Coach Comportamental Profundo e Gamificação Adaptativa**
-Ver seção 9 do plano. Sprint opcional — avaliar prioridade antes de iniciar.
+**T6.6 — Migration `behavioral_tags`**
