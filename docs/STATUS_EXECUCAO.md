@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 6 — EM ANDAMENTO  
 **Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
-**Situação atual:** Sprint 6 iniciado; T6.1 concluída e validada no Supabase; próxima tarefa: T6.6 — Migration `behavioral_tags`  
+**Situação atual:** Sprint 6 em andamento; T6.1 e T6.6 concluídas e validadas no Supabase; próxima tarefa: T6.7 — Edge function `analyze-behavioral-patterns` + cron  
 **Última atualização:** 2026-04-14
 
 ---
@@ -180,7 +180,7 @@
 - [ ] T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`
 - [ ] T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`
 - [ ] T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade
-- [ ] T6.6 — Migration `behavioral_tags`
+- [x] T6.6 — Migration `behavioral_tags`
 - [ ] T6.7 — Edge function `analyze-behavioral-patterns` + cron
 - [ ] T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`
 - [ ] T6.9 — Validação critérios de aceite Sprint 6
@@ -243,7 +243,16 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - Índices validados: `idx_engagement_user_time` + `idx_engagement_recent`
 - Índice parcial com `now()` substituído por índice simples — evita regressão conhecida do projeto
 
+- T6.6 concluída
+- `supabase/migrations/20260425000002_behavioral_tags.sql` criada no repositório e aplicada manualmente no Supabase
+- Tabela `behavioral_tags` validada — 9 colunas corretas
+- UNIQUE (user_id, scope, tag_key) confirmado
+- Índice `idx_behavioral_tags_active` criado (user_id, scope, intensity DESC, expires_at)
+- RLS habilitado (`relrowsecurity = true`)
+- Policy "Users manage own tags" criada (cmd = ALL)
+- Índice parcial com `now()` substituído por índice composto — evita regressão conhecida do projeto
+
 ---
 
 ## Próxima tarefa esperada
-**T6.6 — Migration `behavioral_tags`**
+**T6.7 — Edge function `analyze-behavioral-patterns` + cron**
