@@ -202,6 +202,13 @@
 - `systemPrompt.ts`: bloco `📊 ADERÊNCIA HISTÓRICA` injetado + guard-rail obrigatório de 5 regras anti-moralismo
 
 - T5.6 concluída — Sprint 5 finalizado
+
+**Auditoria de fechamento Sprint 5 — 2026-04-14:**
+Sprint 5 oficialmente concluído. Todos os 5 critérios da seção 8.8 validados.
+Débito técnico D5 registrado (não bloqueador): ciclo real de 30 dias do cron
+review-decision-outcomes será confirmado organicamente em maio/2026.
+Próximo: Sprint 6 — avaliar prioridade antes de iniciar.
+
 - Critério 1 (RECOMMENDATION_JSON): ✅ registros reais em `decision_outcomes`
 - Critério 2 (botões): ✅ fluxo de código validado
 - Critério 3 (cron): ✅ job ativo no pg_cron
