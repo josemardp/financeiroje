@@ -19,6 +19,8 @@ import { ResponseFeedback } from "@/components/shared/ResponseFeedback";
 import { WhyThisAnswerModal } from "@/components/shared/WhyThisAnswerModal";
 import { DecisionResponseButtons } from "@/components/shared/DecisionResponseButtons";
 
+import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-advisor`;
 
 interface Message {
@@ -34,6 +36,7 @@ interface Message {
 export default function AiAdvisor() {
   const { user, session } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
+  useScreenTracking('AiAdvisor');
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);

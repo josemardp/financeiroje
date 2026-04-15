@@ -19,6 +19,8 @@ import type { BudgetRaw, TransactionRaw, BudgetStatus } from "@/services/finance
 import { toast } from "sonner";
 import { PiggyBank, Plus, Loader2, AlertTriangle, CheckCircle2, TrendingUp, Trash2 } from "lucide-react";
 
+import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+
 const STATUS_CONFIG: Record<BudgetStatus, { label: string; className: string; icon: typeof CheckCircle2 }> = {
   ok: { label: "No limite", className: "text-success", icon: CheckCircle2 },
   warning: { label: "Atenção", className: "text-warning", icon: AlertTriangle },
@@ -28,6 +30,7 @@ const STATUS_CONFIG: Record<BudgetStatus, { label: string; className: string; ic
 export default function Budget() {
   const { user } = useAuth();
   const { currentScope, scopeLabel } = useScope();
+  useScreenTracking('Budget');
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
 

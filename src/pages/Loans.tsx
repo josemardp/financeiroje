@@ -19,6 +19,8 @@ import type { LoanRaw, InstallmentRaw, ExtraAmortizationRaw } from "@/services/f
 import { toast } from "sonner";
 import { CreditCard, Plus, Loader2, Trash2, ChevronDown, ChevronUp, DollarSign, Percent, Calendar } from "lucide-react";
 
+import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+
 const LOAN_TYPE_LABELS: Record<string, string> = {
   consignado: "Consignado", pessoal: "Pessoal", cartao: "Cartão", financiamento: "Financiamento", outro: "Outro",
 };
@@ -26,6 +28,7 @@ const LOAN_TYPE_LABELS: Record<string, string> = {
 export default function Loans() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  useScreenTracking('Loans');
   const [isOpen, setIsOpen] = useState(false);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
 

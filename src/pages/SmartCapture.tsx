@@ -58,6 +58,8 @@ import {
   Clipboard,
 } from "lucide-react";
 
+import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+
 type CaptureMode = "text" | "voice" | "file";
 
 function mapOcrConfidence(
@@ -235,6 +237,7 @@ function appendFallbackWarning(
 export default function SmartCapture() {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  useScreenTracking('SmartCapture');
   const { currentScope, scopeLabel } = useScope();
   const queryClient = useQueryClient();
 

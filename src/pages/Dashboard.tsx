@@ -28,6 +28,8 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+
 /**
  * Dashboard principal com destaque para Captura Inteligente (IA)
  * Build disparado via commit forçado na main.
@@ -35,6 +37,7 @@ import {
 export default function Dashboard() {
   const { user, profile } = useAuth();
   const { currentScope, scopeLabel } = useScope();
+  useScreenTracking('Dashboard');
 
   const { data: rawTransactions } = useQuery({
     queryKey: ["dashboard-transactions", user?.id, currentScope],
