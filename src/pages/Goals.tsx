@@ -20,9 +20,12 @@ import type { GoalRaw, GoalContributionRaw } from "@/services/financeEngine/type
 import { toast } from "sonner";
 import { Plus, Target, Loader2, Trash2, PiggyBank, AlertTriangle, CheckCircle, Pencil } from "lucide-react";
 
+import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+
 export default function Goals() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  useScreenTracking('Goals');
   const [isOpen, setIsOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any>(null);
   const [contributionGoalId, setContributionGoalId] = useState<string | null>(null);

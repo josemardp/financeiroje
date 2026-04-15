@@ -19,9 +19,12 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ArrowLeftRight, Search, Trash2, Pencil, Loader2 } from "lucide-react";
 
+import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+
 export default function Transactions() {
   const { user } = useAuth();
   const { currentScope, scopeLabel } = useScope();
+  useScreenTracking('Transactions');
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");

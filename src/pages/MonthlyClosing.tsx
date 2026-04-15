@@ -28,9 +28,12 @@ import { formatCurrency, formatMonthYear } from "@/lib/format";
 import { toast } from "sonner";
 import { Lock, Unlock, AlertTriangle, Loader2, FileText, ChevronDown } from "lucide-react";
 
+import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+
 export default function MonthlyClosing() {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
+  useScreenTracking('MonthlyClosing');
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
