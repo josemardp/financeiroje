@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 6 — EM ANDAMENTO  
 **Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
-**Situação atual:** Sprint 6 em andamento; T6.1 e T6.6 concluídas; T6.2, T6.3, T6.4 e T6.5 pendentes; próxima tarefa: T6.2 — Hook `useBehaviorTracking` + `useScreenTracking`  
+**Situação atual:** Sprint 6 em andamento; T6.1, T6.2 e T6.6 concluídas; T6.3, T6.4 e T6.5 pendentes; próxima tarefa: T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`  
 **Última atualização:** 2026-04-14
 
 ---
@@ -176,7 +176,7 @@
 
 ### Sprint 6 — Telemetria + Coach Comportamental + Embeddings
 - [x] T6.1 — Migration `user_engagement_events`
-- [ ] T6.2 — Hook `useBehaviorTracking` + `useScreenTracking` + integração nas 8 telas
+- [x] T6.2 — Hook `useBehaviorTracking` + `useScreenTracking` + integração nas 8 telas
 - [ ] T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`
 - [ ] T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`
 - [ ] T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade
@@ -233,6 +233,18 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 
 ---
 
+### 2026-04-15 (Sprint 6)
+
+- T6.2 concluída
+- `src/services/telemetry/useBehaviorTracking.ts` criado
+- `EngagementEventType`: `screen_view` | `time_on_page` (demais em T6.3+)
+- `persistEvent()` isolada — único ponto de acoplamento com Supabase; guard `import.meta.env.DEV` bloqueia escrita em desenvolvimento
+- `useBehaviorTracking()` — `trackEvent` com `useCallback`, enriquecimento automático (`dayOfWeek`, `hourOfDay`), fallback scope `'all'→'private'`
+- `useScreenTracking(screenName)` — `screen_view` no mount, `time_on_page` no unmount (guard >2s); `trackRef` evita closure stale
+- Integrado nas 8 telas: Dashboard, Loans, Goals, Budget, Transactions, AiAdvisor, SmartCapture, MonthlyClosing
+- tsc --noEmit: 0 erros
+- commit 9d85a32 realizado, push realizado
+
 ### 2026-04-14 (Sprint 6)
 
 - T6.1 concluída
@@ -255,4 +267,4 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 ---
 
 ## Próxima tarefa esperada
-**T6.2 — Hook `useBehaviorTracking` + `useScreenTracking` + integração nas 8 telas**
+**T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx` (`field_hovered`, `mirror_hesitation`)**
