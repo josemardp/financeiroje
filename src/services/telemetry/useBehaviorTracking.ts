@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useScopeContext } from '@/contexts/ScopeContext';
+import { useScope } from '@/contexts/ScopeContext';
 import { supabase } from '@/integrations/supabase/client';
 
 // ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ function persistEvent(row: EngagementEventRow): void {
 
 export function useBehaviorTracking() {
   const { user } = useAuth();
-  const { currentScope } = useScopeContext();
+  const { currentScope } = useScope();
 
   const trackEvent = useCallback(
     ({ event_type, target_id, context_data = {} }: TrackEventParams): void => {
