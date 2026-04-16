@@ -7,6 +7,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+export const EMBEDDING_MODEL = "text-embedding-3-small";
+export const EMBEDDING_DIMENSIONS = 384;
+export const EMBEDDING_VERSION = 1;
+// Reservado para T6.6 (query de similaridade no smart-capture-interpret)
+export const SIMILARITY_THRESHOLD = 0.78;
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface Transaction {
@@ -64,7 +70,22 @@ interface ExistingPatternRow {
   hit_count: number;
 }
 
+interface EmbeddingMetadata {
+  embedding_source_text: string;
+  embedding_model: string;
+  embedding_version: number;
+  embedded_at: string;
+}
+
 // ── Algoritmos (seção 5.5 do plano) ───────────────────────────────────────
+
+export function buildEmbeddingSourceText(
+  patternKey: string,
+  sampleDescriptions: string[],
+): string {
+  const parts = [patternKey, ...sampleDescriptions.filter(Boolean)];
+  return [...new Set(parts)].join(" | ");
+}
 
 export function normalizeMerchant(desc: string): string {
   return desc
@@ -271,6 +292,139 @@ async function upsertPatternsBatch(
   return adjusted.length;
 }
 
+// ── Embeddings ────────────────────────────────────────────────────────────
+
+async function generateEmbeddingsBatch(
+  texts: string[],
+): Promise<(number[] | null)[]> {
+  if (texts.length === 0) return [];
+
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) {
+    console.warn("generateEmbeddingsBatch: OPENAI_API_KEY ausente — embeddings ignorados");
+    return texts.map(() => null);
+  }
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: EMBEDDING_MODEL,
+        input: texts,
+        dimensions: EMBEDDING_DIMENSIONS,
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn("generateEmbeddingsBatch: API retornou", res.status, "— embeddings ignorados");
+      return texts.map(() => null);
+    }
+
+    const data = await res.json();
+    return (data.data as Array<{ embedding: number[] }>).map((item) => item.embedding);
+  } catch (e) {
+    console.warn("generateEmbeddingsBatch: exceção", e, "— embeddings ignorados");
+    return texts.map(() => null);
+  }
+}
+
+async function backfillEmbeddingsForScope(
+  supabase: SupabaseClient,
+  userId: string,
+  scope: string,
+  merchantPatterns: Array<{ pattern_key: string; sample_descriptions: string[] }>,
+): Promise<void> {
+  if (merchantPatterns.length === 0) return;
+
+  const patternKeys = merchantPatterns.map((p) => p.pattern_key);
+
+  const { data: existing } = await supabase
+    .from("user_patterns")
+    .select("id, pattern_key, merchant_embedding, embedding_metadata")
+    .eq("user_id", userId)
+    .eq("scope", scope)
+    .eq("pattern_type", "merchant_category")
+    .in("pattern_key", patternKeys);
+
+  const needsEmbedding = (existing ?? []).filter((row) => {
+    if (!row.merchant_embedding) return true;
+    const meta = row.embedding_metadata as EmbeddingMetadata | null;
+    return !meta || meta.embedding_version < EMBEDDING_VERSION;
+  });
+
+  if (needsEmbedding.length === 0) return;
+
+  const sourceMap = new Map(merchantPatterns.map((p) => [p.pattern_key, p.sample_descriptions]));
+  const toProcess = needsEmbedding.map((row) => ({
+    id: row.id as string,
+    pattern_key: row.pattern_key as string,
+    source_text: buildEmbeddingSourceText(
+      row.pattern_key as string,
+      sourceMap.get(row.pattern_key as string) ?? [],
+    ),
+  }));
+
+  const embeddings = await generateEmbeddingsBatch(toProcess.map((p) => p.source_text));
+  const now = new Date().toISOString();
+
+  for (let i = 0; i < toProcess.length; i++) {
+    const embedding = embeddings[i];
+    if (!embedding) continue;
+
+    const metadata: EmbeddingMetadata = {
+      embedding_source_text: toProcess[i].source_text,
+      embedding_model: EMBEDDING_MODEL,
+      embedding_version: EMBEDDING_VERSION,
+      embedded_at: now,
+    };
+
+    const { error } = await supabase
+      .from("user_patterns")
+      .update({ merchant_embedding: embedding, embedding_metadata: metadata })
+      .eq("id", toProcess[i].id);
+
+    if (error) {
+      console.warn("backfillEmbeddingsForScope: update falhou para", toProcess[i].pattern_key, error.message);
+    }
+  }
+}
+
+async function generateAndSaveSingleEmbedding(
+  supabase: SupabaseClient,
+  userId: string,
+  scope: string,
+  patternKey: string,
+  sampleDescriptions: string[],
+): Promise<void> {
+  const sourceText = buildEmbeddingSourceText(patternKey, sampleDescriptions);
+  const embeddings = await generateEmbeddingsBatch([sourceText]);
+  const embedding = embeddings[0];
+  if (!embedding) return;
+
+  const metadata: EmbeddingMetadata = {
+    embedding_source_text: sourceText,
+    embedding_model: EMBEDDING_MODEL,
+    embedding_version: EMBEDDING_VERSION,
+    embedded_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("user_patterns")
+    .update({ merchant_embedding: embedding, embedding_metadata: metadata })
+    .eq("user_id", userId)
+    .eq("scope", scope)
+    .eq("pattern_type", "merchant_category")
+    .eq("pattern_key", patternKey);
+
+  if (error) {
+    console.warn("generateAndSaveSingleEmbedding: update falhou para", patternKey, error.message);
+  }
+}
+
 // ── Helper: busca nomes de categorias ─────────────────────────────────────
 
 async function fetchCategoryNames(
@@ -398,6 +552,7 @@ async function handleFull(
     }
 
     totalWritten += await upsertPatternsBatch(supabase, userId, scope, rows);
+    await backfillEmbeddingsForScope(supabase, userId, scope, merchantPatterns);
   }
 
   return totalWritten;
@@ -427,7 +582,7 @@ async function handleIncremental(
   const catNames = await fetchCategoryNames(supabase, [tx.categoria_id as string]);
   const now = new Date().toISOString();
 
-  return await upsertPatternsBatch(supabase, userId, scope, [
+  const written = await upsertPatternsBatch(supabase, userId, scope, [
     {
       user_id: userId,
       scope,
@@ -446,6 +601,8 @@ async function handleIncremental(
       source: "observed",
     },
   ]);
+  await generateAndSaveSingleEmbedding(supabase, userId, scope, patternKey, [tx.descricao as string]);
+  return written;
 }
 
 async function handleFromCorrection(
@@ -512,7 +669,9 @@ async function handleFromCorrection(
     });
   }
 
-  return await upsertPatternsBatch(supabase, userId, scope, rows);
+  const written = await upsertPatternsBatch(supabase, userId, scope, rows);
+  await generateAndSaveSingleEmbedding(supabase, userId, scope, patternKey, [tx.descricao as string]);
+  return written;
 }
 
 // ── Handler principal ──────────────────────────────────────────────────────

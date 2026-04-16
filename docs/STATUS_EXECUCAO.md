@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 6 — EM ANDAMENTO  
 **Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
-**Situação atual:** Sprint 6 em andamento; T6.1, T6.2, T6.3, T6.4 e T6.6 concluídas; T6.5 pendente; próxima tarefa: T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade  
+**Situação atual:** Sprint 6 em andamento; T6.1, T6.2, T6.3, T6.4, T6.5 e T6.6 concluídas; T6.7 pendente; próxima tarefa: T6.7 — Edge function `analyze-behavioral-patterns` + cron  
 **Última atualização:** 2026-04-16
 
 ---
@@ -179,7 +179,7 @@
 - [x] T6.2 — Hook `useBehaviorTracking` + `useScreenTracking` + integração nas 8 telas
 - [x] T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`
 - [x] T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`
-- [ ] T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade
+- [x] T6.5 — Edge function `learn-patterns`: geração de embeddings
 - [x] T6.6 — Migration `behavioral_tags`
 - [ ] T6.7 — Edge function `analyze-behavioral-patterns` + cron
 - [ ] T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`
@@ -274,6 +274,20 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - Validado: extensão, coluna e índice confirmados via SQL Editor
 - Nenhuma migration existente alterada
 
+- T6.5 concluída — validada em produção
+- `supabase/functions/learn-patterns/index.ts` atualizado — 161 inserções, 0 remoções de lógica existente
+- Constantes exportadas: `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS`, `EMBEDDING_VERSION`, `SIMILARITY_THRESHOLD`
+- Interface `EmbeddingMetadata` com campos `embedding_source_text`, `embedding_model`, `embedding_version`, `embedded_at`
+- `buildEmbeddingSourceText()` — monta texto para embedar (`pattern_key | sample_descriptions`)
+- `generateEmbeddingsBatch()` — chamada à API OpenAI com fallback silencioso em todos os erros
+- `backfillEmbeddingsForScope()` — modo `full`: detecta padrões sem embedding ou com versão desatualizada, gera em batch, atualiza DB
+- `generateAndSaveSingleEmbedding()` — modos `incremental` e `from_correction`: gera e salva embedding para um único padrão
+- Lógica determinística existente intacta — embeddings são complemento, não substituição
+- tsc --noEmit: 0 erros
+- Deploy realizado via painel Supabase
+- Validado em produção: mode=full → ok: true, patterns_written=9
+- merchant_embedding confirmado, embedding_metadata confirmado, vector_dims=384
+
 - T6.3 concluída
 - `src/pages/SmartCapture.tsx` instrumentado — nenhum outro arquivo alterado
 - Constante `MIRROR_HESITATION_THRESHOLD_MS = 20_000` adicionada fora do componente
@@ -291,4 +305,4 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 ---
 
 ## Próxima tarefa esperada
-**T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade**
+**T6.7 — Edge function `analyze-behavioral-patterns` + cron**
