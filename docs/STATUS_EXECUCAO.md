@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 6 — EM ANDAMENTO  
 **Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
-**Situação atual:** Sprint 6 em andamento; T6.1, T6.2, T6.3 e T6.6 concluídas; T6.4, T6.5 pendentes; próxima tarefa: T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`  
+**Situação atual:** Sprint 6 em andamento; T6.1, T6.2, T6.3, T6.4 e T6.6 concluídas; T6.5 pendente; próxima tarefa: T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade  
 **Última atualização:** 2026-04-16
 
 ---
@@ -178,7 +178,7 @@
 - [x] T6.1 — Migration `user_engagement_events`
 - [x] T6.2 — Hook `useBehaviorTracking` + `useScreenTracking` + integração nas 8 telas
 - [x] T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`
-- [ ] T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`
+- [x] T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`
 - [ ] T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade
 - [x] T6.6 — Migration `behavioral_tags`
 - [ ] T6.7 — Edge function `analyze-behavioral-patterns` + cron
@@ -266,6 +266,14 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 
 ### 2026-04-16 (Sprint 6)
 
+- T6.4 concluída
+- `supabase/migrations/20260426000001_pgvector_merchant_embedding.sql` criada e aplicada manualmente no Supabase
+- `CREATE EXTENSION IF NOT EXISTS vector` — pgvector habilitado
+- `ALTER TABLE public.user_patterns ADD COLUMN merchant_embedding vector(384)` — coluna nullable adicionada
+- `CREATE INDEX idx_patterns_embedding` — ivfflat com cosine_ops, parcial para `merchant_category`
+- Validado: extensão, coluna e índice confirmados via SQL Editor
+- Nenhuma migration existente alterada
+
 - T6.3 concluída
 - `src/pages/SmartCapture.tsx` instrumentado — nenhum outro arquivo alterado
 - Constante `MIRROR_HESITATION_THRESHOLD_MS = 20_000` adicionada fora do componente
@@ -283,4 +291,4 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 ---
 
 ## Próxima tarefa esperada
-**T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`**
+**T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade**
