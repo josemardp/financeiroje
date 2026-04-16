@@ -58,7 +58,7 @@ import {
   Clipboard,
 } from "lucide-react";
 
-import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+import { useScreenTracking, useBehaviorTracking, type EngagementEventType } from "@/services/telemetry/useBehaviorTracking";
 
 type CaptureMode = "text" | "voice" | "file";
 
@@ -234,10 +234,13 @@ function appendFallbackWarning(
   };
 }
 
+const MIRROR_HESITATION_THRESHOLD_MS = 20_000;
+
 export default function SmartCapture() {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   useScreenTracking('SmartCapture');
+  const { trackEvent } = useBehaviorTracking();
   const { currentScope, scopeLabel } = useScope();
   const queryClient = useQueryClient();
 
@@ -275,6 +278,8 @@ export default function SmartCapture() {
   const aiSuggestedRef = useRef<ConfirmedForm | null>(null);
   const mirrorStartRef = useRef<number | null>(null);
   const ocrRawTextRef = useRef<string | undefined>(undefined);
+  const hesitationFiredRef = useRef<boolean>(false);
+  const mirrorHesitationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isInterpreting, setIsInterpreting] = useState(false);
   const [isExtractingFile, setIsExtractingFile] = useState(false);
   const [sourceLabel, setSourceLabel] = useState("Texto Livre");
@@ -348,6 +353,43 @@ export default function SmartCapture() {
     };
     mirrorStartRef.current = Date.now();
     if (source !== "photo_ocr") ocrRawTextRef.current = undefined;
+
+    hesitationFiredRef.current = false;
+    if (mirrorHesitationTimerRef.current !== null) {
+      clearTimeout(mirrorHesitationTimerRef.current);
+    }
+    mirrorHesitationTimerRef.current = setTimeout(() => {
+      if (!hesitationFiredRef.current) {
+        hesitationFiredRef.current = true;
+        void trackEvent({
+          event_type: 'mirror_hesitation' as EngagementEventType,
+          context_data: { since_mirror_opened_ms: MIRROR_HESITATION_THRESHOLD_MS },
+        });
+      }
+    }, MIRROR_HESITATION_THRESHOLD_MS);
+  };
+
+  const handleFieldFocus = (field: string) => {
+    const sinceOpened = mirrorStartRef.current !== null
+      ? Date.now() - mirrorStartRef.current
+      : 0;
+
+    if (!hesitationFiredRef.current && sinceOpened > MIRROR_HESITATION_THRESHOLD_MS) {
+      hesitationFiredRef.current = true;
+      if (mirrorHesitationTimerRef.current !== null) {
+        clearTimeout(mirrorHesitationTimerRef.current);
+        mirrorHesitationTimerRef.current = null;
+      }
+      void trackEvent({
+        event_type: 'mirror_hesitation' as EngagementEventType,
+        context_data: { since_mirror_opened_ms: sinceOpened },
+      });
+    }
+
+    void trackEvent({
+      event_type: 'field_hovered' as EngagementEventType,
+      context_data: { field, since_mirror_opened_ms: sinceOpened },
+    });
   };
 
   useEffect(() => {
@@ -535,6 +577,10 @@ export default function SmartCapture() {
   const needsInstallmentAnswer = hasInstallment && installmentStart === null;
 
   const handleSave = async () => {
+    if (mirrorHesitationTimerRef.current !== null) {
+      clearTimeout(mirrorHesitationTimerRef.current);
+      mirrorHesitationTimerRef.current = null;
+    }
     if (!user || !editForm.valor || Number(editForm.valor) <= 0) {
       toast.error("Valor inválido");
       return;
@@ -671,6 +717,10 @@ export default function SmartCapture() {
   };
 
   const handleDiscard = () => {
+    if (mirrorHesitationTimerRef.current !== null) {
+      clearTimeout(mirrorHesitationTimerRef.current);
+      mirrorHesitationTimerRef.current = null;
+    }
     setParsed(null);
     setTextInput("");
     toast.info("Captura descartada");
@@ -1185,6 +1235,7 @@ export default function SmartCapture() {
                     step="0.01"
                     value={editForm.valor}
                     onChange={(e) => setEditForm((f) => ({ ...f, valor: e.target.value }))}
+                    onFocus={() => handleFieldFocus("valor")}
                   />
                 </div>
 
@@ -1194,7 +1245,7 @@ export default function SmartCapture() {
                     value={editForm.tipo}
                     onValueChange={(value) => setEditForm((f) => ({ ...f, tipo: value }))}
                   >
-                    <SelectTrigger id="tipo">
+                    <SelectTrigger id="tipo" onFocus={() => handleFieldFocus("tipo")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1210,6 +1261,7 @@ export default function SmartCapture() {
                     id="descricao"
                     value={editForm.descricao}
                     onChange={(e) => setEditForm((f) => ({ ...f, descricao: e.target.value }))}
+                    onFocus={() => handleFieldFocus("descricao")}
                   />
                 </div>
 
@@ -1220,6 +1272,7 @@ export default function SmartCapture() {
                     type="date"
                     value={editForm.data}
                     onChange={(e) => setEditForm((f) => ({ ...f, data: e.target.value }))}
+                    onFocus={() => handleFieldFocus("data")}
                   />
                 </div>
 
@@ -1231,7 +1284,7 @@ export default function SmartCapture() {
                       setEditForm((f) => ({ ...f, categoria_id: value }))
                     }
                   >
-                    <SelectTrigger id="categoria">
+                    <SelectTrigger id="categoria" onFocus={() => handleFieldFocus("categoria")}>
                       <SelectValue placeholder="Selecionar categoria" />
                     </SelectTrigger>
                     <SelectContent>
