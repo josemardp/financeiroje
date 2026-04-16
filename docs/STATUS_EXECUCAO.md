@@ -4,8 +4,8 @@
 
 **Sprint atual:** Sprint 6 — EM ANDAMENTO  
 **Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
-**Situação atual:** Sprint 6 em andamento; T6.1, T6.2 e T6.6 concluídas; T6.3, T6.4 e T6.5 pendentes; próxima tarefa: T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`  
-**Última atualização:** 2026-04-14
+**Situação atual:** Sprint 6 em andamento; T6.1, T6.2, T6.3 e T6.6 concluídas; T6.4, T6.5 pendentes; próxima tarefa: T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`  
+**Última atualização:** 2026-04-16
 
 ---
 
@@ -177,7 +177,7 @@
 ### Sprint 6 — Telemetria + Coach Comportamental + Embeddings
 - [x] T6.1 — Migration `user_engagement_events`
 - [x] T6.2 — Hook `useBehaviorTracking` + `useScreenTracking` + integração nas 8 telas
-- [ ] T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`
+- [x] T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx`
 - [ ] T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`
 - [ ] T6.5 — Edge function `learn-patterns`: embeddings + query de similaridade
 - [x] T6.6 — Migration `behavioral_tags`
@@ -264,7 +264,23 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - Policy "Users manage own tags" criada (cmd = ALL)
 - Índice parcial com `now()` substituído por índice composto — evita regressão conhecida do projeto
 
+### 2026-04-16 (Sprint 6)
+
+- T6.3 concluída
+- `src/pages/SmartCapture.tsx` instrumentado — nenhum outro arquivo alterado
+- Constante `MIRROR_HESITATION_THRESHOLD_MS = 20_000` adicionada fora do componente
+- `useBehaviorTracking()` instanciado no componente (já existia o hook; T6.2 criou)
+- 2 novos refs: `hesitationFiredRef` (deduplicação por sessão) + `mirrorHesitationTimerRef` (timer setTimeout)
+- `applyParsedResult`: reset de ambos os refs + agendamento de `mirror_hesitation` via `setTimeout`
+- `handleFieldFocus`: disparo de `mirror_hesitation` se threshold ultrapassado no foco (proteção híbrida) + `field_hovered` em todos os focos
+- `handleSave` + `handleDiscard`: `clearTimeout` antes de qualquer lógica
+- `onFocus` adicionado nos 5 campos editáveis: `valor` (Input), `tipo` (SelectTrigger), `descricao` (Input), `data` (Input), `categoria` (SelectTrigger)
+- Escopo não instrumentado (campo desabilitado quando `currentScope !== "all"`)
+- `as EngagementEventType` usado como cast localizado — `useBehaviorTracking.ts` não alterado (extensão do tipo postergada para tarefa de tipagem dedicada)
+- Fire-and-forget em todos os `trackEvent` (`void` sem `await`)
+- Backend já suportava `field_hovered` e `mirror_hesitation` (`event_type text NOT NULL` na migration T6.1)
+
 ---
 
 ## Próxima tarefa esperada
-**T6.3 — Instrumentação do Modo Espelho em `SmartCapture.tsx` (`field_hovered`, `mirror_hesitation`)**
+**T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`**
