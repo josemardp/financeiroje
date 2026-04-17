@@ -4,8 +4,8 @@
 
 **Sprint atual:** Sprint 6 — EM ANDAMENTO  
 **Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
-**Situação atual:** Sprint 6 em andamento; T6.1, T6.2, T6.3, T6.4, T6.5 e T6.6 concluídas; T6.7 pendente; próxima tarefa: T6.7 — Edge function `analyze-behavioral-patterns` + cron  
-**Última atualização:** 2026-04-16
+**Situação atual:** Sprint 6 em andamento; T6.1, T6.2, T6.3, T6.4, T6.5, T6.6 e T6.7 concluídas; próxima tarefa: T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`  
+**Última atualização:** 2026-04-17
 
 ---
 
@@ -181,7 +181,7 @@
 - [x] T6.4 — Migration `pgvector` + coluna `merchant_embedding` em `user_patterns`
 - [x] T6.5 — Edge function `learn-patterns`: geração de embeddings
 - [x] T6.6 — Migration `behavioral_tags`
-- [ ] T6.7 — Edge function `analyze-behavioral-patterns` + cron
+- [x] T6.7 — Edge function `analyze-behavioral-patterns` + cron
 - [ ] T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`
 - [ ] T6.9 — Validação critérios de aceite Sprint 6
 
@@ -264,6 +264,22 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - Policy "Users manage own tags" criada (cmd = ALL)
 - Índice parcial com `now()` substituído por índice composto — evita regressão conhecida do projeto
 
+### 2026-04-17 (Sprint 6)
+
+- T6.7 concluída
+- `supabase/functions/analyze-behavioral-patterns/index.ts` criado
+- Detectores implementados: `anxiety_debt_focus` e `late_night_spending` (pseudocódigo do plano §9.8)
+- Stub: `fim_de_mes_pressionado` — retorna null, implementação futura
+- Guard: descarta pares (user_id, scope) com < 50 eventos/30d; filtra eventos com durationMs < 2s
+- `fetchActiveUserScopes()` retorna pares (user_id, scope) diretamente — sem etapa separada de descoberta de scopes
+- Upsert em `behavioral_tags` ON CONFLICT (user_id, scope, tag_key) — atualiza intensity, confidence, evidence, detected_at, expires_at
+- verify_jwt: true (padrão mantido) — cron usa SERVICE_ROLE_KEY no header Authorization
+- Cron `daily-analyze-behavioral-patterns` criado — `10 4 * * *`
+- Deploy realizado via painel Supabase
+- Teste pós-deploy: `{"ok":true,"users_analyzed":0,"tags_written":0}` (esperado — < 50 eventos acumulados)
+
+---
+
 ### 2026-04-16 (Sprint 6)
 
 - T6.4 concluída
@@ -305,4 +321,4 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 ---
 
 ## Próxima tarefa esperada
-**T6.7 — Edge function `analyze-behavioral-patterns` + cron**
+**T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`**
