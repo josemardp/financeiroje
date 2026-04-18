@@ -189,7 +189,7 @@
 
 ### Sprint 7 — Gamificação Adaptativa
 - [x] T7.1 — Migration `achievements_catalog` + `user_achievements` + `user_streaks` + seed 7 conquistas
-- [ ] T7.2 — Edge function `evaluate-achievements` + cron
+- [x] T7.2 — Edge function `evaluate-achievements` + cron
 - [ ] T7.3 — Componente `MicroRewardCheckmark.tsx` + integração em `SmartCapture.tsx`
 - [ ] T7.4 — Componente `AchievementUnlockedToast.tsx` + integração em `Dashboard.tsx`
 - [ ] T7.5 — Tela `Challenges.tsx` + rota `/challenges`
@@ -377,7 +377,19 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
   → `ALTER TABLE public.achievements_catalog DISABLE ROW LEVEL SECURITY;` aplicado manualmente e confirmado
 - T7.1 administrativamente encerrada
 
+- T7.2 concluída
+- `supabase/functions/evaluate-achievements/index.ts` criado
+- Edge function deployada manualmente via painel Supabase
+- Cron `daily-evaluate-achievements` criado via SQL Editor — `15 4 * * *` — `net.http_post` → `evaluate-achievements`
+- Cron validado: `SELECT jobid, jobname, schedule FROM cron.job WHERE jobname = 'daily-evaluate-achievements'`
+- Teste pós-deploy executado via painel: `{"ok":true,"users_evaluated":0,"achievements_unlocked":0}` (esperado — < 10 eventos acumulados)
+- Avaliadores ativos (3): `transactions_count`, `weekly_closing_views`, `app_usage_window`
+- Avaliadores desativados por ausência de fonte de verdade (4): `recurring_paid`, `donation_percent`, `reserve_coverage`, `zero_pending`
+- Streaks não implementados nesta tarefa — sem fonte validada
+- Catálogo inválido/ausente: guard `if (!row.criteria || typeof row.criteria.type !== "string") continue` — execução não quebra
+- Idempotência: upsert com `ignoreDuplicates: true` em `user_achievements`
+
 ---
 
 ## Próxima tarefa esperada
-**T7.2 — Edge function `evaluate-achievements` + cron**
+**T7.3 — Componente `MicroRewardCheckmark.tsx` + integração em `SmartCapture.tsx`**
