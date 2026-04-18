@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 7 — Gamificação Adaptativa — NÃO INICIADO  
 **Sprint anterior:** Sprint 6 — CONCLUÍDO (2026-04-18)  
-**Situação atual:** Sprint 6 encerrado; todos os critérios estruturais validados; próximo: Sprint 7  
+**Situação atual:** Sprint 6 encerrado; débito D6 quitado (sourceTrust.ts); próximo: Sprint 7  
 **Última atualização:** 2026-04-18
 
 ---
@@ -342,6 +342,18 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - Todos os critérios estruturais aprovados
 - Risco de TypeScript identificado (cast `supabase as any` em behavioral_tags) — não bloqueia runtime
 - Sprint 6 declarado concluído
+
+---
+
+### 2026-04-18 (débito D6)
+
+- Débito D6 quitado: `sourceTrust.ts` criado em `src/services/userProfile/`
+- `getSourceTrust(source_type, confidence) → 1|2|3|4|5` — normaliza confidence texto e numérico
+- Mapeamento completo do enum real do banco (manual, free_text, voice, photo_ocr, sms, ai_suggestion, system_generated)
+- `SOURCE_TRUST_LABELS` exportado para uso futuro
+- `systemPrompt.ts`: item 8 adicionado ao PROTOCOLO DE INTEGRIDADE — hierarquia de confiança de fonte
+- tsc --noEmit: 0 erros
+- commit 4f438be — push realizado
 
 ---
 
