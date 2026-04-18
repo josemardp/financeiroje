@@ -368,12 +368,14 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 ### 2026-04-18 (Sprint 7)
 
 - T7.1 concluída
-- `supabase/migrations/20260428000001_gamification.sql` criada
+- `supabase/migrations/20260428000001_gamification.sql` criada e aplicada manualmente no Supabase
 - Tabelas: `achievements_catalog` (sem RLS), `user_achievements` (RLS + seen_at), `user_streaks` (RLS)
 - Índices: `idx_user_achievements_recent` (user_id, unlocked_at DESC), `idx_user_streaks_user` (user_id)
 - Seed: 7 conquistas inseridas em `achievements_catalog` (3 identidade, 3 processo, 1 consistência)
-- ⚠️ Pendência pós-aplicação: Supabase auto-habilitou RLS em `achievements_catalog` — requer
-  `ALTER TABLE public.achievements_catalog DISABLE ROW LEVEL SECURITY;` no SQL Editor antes de T7.4/T7.5
+- Checklist de validação executado: 3 tabelas, 2 policies, 2 índices, 7 seeds — tudo confirmado
+- Correção pós-aplicação: Supabase auto-habilitou RLS em `achievements_catalog` (comportamento do projeto)
+  → `ALTER TABLE public.achievements_catalog DISABLE ROW LEVEL SECURITY;` aplicado manualmente e confirmado
+- T7.1 administrativamente encerrada
 
 ---
 
