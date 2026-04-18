@@ -74,6 +74,13 @@ export interface DecisaoGuiada {
 
 // --- Fim Fase 12 ---
 
+export interface BehavioralTag {
+  tag_key: string;
+  intensity: number;
+  confidence: number;
+  evidence: Record<string, unknown>;
+}
+
 export interface PerfilComportamental {
   consistenciaRegistro: "alta" | "media" | "baixa";
   indicadorEvitacao: number;       // 0-1: ratio de transações pendentes sobre total
@@ -199,6 +206,8 @@ export interface FinancialContext {
     percentualAderencia: number;
     rotulo: string;
   }> | null;
+  // Sprint 6 T6.8
+  behavioralTags: BehavioralTag[] | null;
 }
 
 export async function getFinancialContext(
@@ -220,7 +229,7 @@ export async function getFinancialContext(
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
     accountTxResult, prevAlertResult, historyTxResult, recentTxResult,
-    aiPrefsResult,
+    aiPrefsResult, behavioralTagsResult,
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
@@ -279,6 +288,16 @@ export async function getFinancialContext(
       return q;
     })(),
     supabase.from("user_ai_preferences").select("*").eq("user_id", userId).maybeSingle(),
+    (() => {
+      let q = supabase.from("behavioral_tags")
+        .select("tag_key, intensity, confidence, evidence")
+        .eq("user_id", userId)
+        .gt("expires_at", now.toISOString())
+        .order("intensity", { ascending: false })
+        .limit(8);
+      if (scope !== "all") q = q.eq("scope", scopeTyped);
+      return q;
+    })(),
   ]);
 
   // Map raw data
@@ -871,6 +890,17 @@ export async function getFinancialContext(
 
   const aderenciaHistorica = buildAderenciaHistorica(decisionData ?? []);
 
+  const behavioralTags: BehavioralTag[] = (behavioralTagsResult.data || [])
+    .map((t: any) => ({
+      tag_key: t.tag_key,
+      intensity: Number(t.intensity),
+      confidence: Number(t.confidence),
+      evidence: (t.evidence || {}) as Record<string, unknown>,
+    }))
+    .filter((t: BehavioralTag) => t.intensity * t.confidence > 0.09)
+    .sort((a: BehavioralTag, b: BehavioralTag) => b.intensity * b.confidence - a.intensity * a.confidence)
+    .slice(0, 5);
+
   return {
     periodo: { mes, ano },
     escopo: scope,
@@ -903,6 +933,7 @@ export async function getFinancialContext(
     transacoesRecentes,
     perfilComportamental,
     aderenciaHistorica,
+    behavioralTags: behavioralTags.length > 0 ? behavioralTags : null,
     metadados: {
       dataColeta: now.toISOString(),
       versaoEngine: "4.2-final",

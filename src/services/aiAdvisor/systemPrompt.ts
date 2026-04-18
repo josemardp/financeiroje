@@ -24,6 +24,7 @@ export function buildSystemPrompt(context: FinancialContext): string {
     transacoesRecentes = [],
     perfilComportamental,
     aderenciaHistorica,
+    behavioralTags,
     userIntentHint = "generic",
   } = context;
 
@@ -124,6 +125,21 @@ ${transacoesRecentes.slice(0, 10).map(t =>
 `
     : "";
 
+  const behavioralTagsSection = behavioralTags && behavioralTags.length > 0
+    ? `
+🏷️ TENDÊNCIAS COMPORTAMENTAIS (padrões observados — não diagnósticos):
+${behavioralTags.map(t =>
+  `- ${t.tag_key}: intensidade ${(t.intensity * 100).toFixed(0)}%, confiança ${(t.confidence * 100).toFixed(0)}%`
+).join("\n")}
+
+DIRETRIZ OBRIGATÓRIA:
+- Use linguagem reflexiva: "notei que...", "costuma...", "parece que..." — nunca "você é..." ou "você sempre..."
+- Devolva a interpretação ao usuário: "isso faz sentido pra você?"
+- Nunca use para criar urgência fabricada ou pressão emocional
+- Este bloco é observação de padrão, não diagnóstico clínico
+`
+    : "";
+
   const perfilSection = perfilComportamental
     ? `
 🧬 PERFIL COMPORTAMENTAL (análise baseada no histórico real):
@@ -199,6 +215,7 @@ ${alertasAtivos.topAlerts?.length > 0 ? `Principais: ${alertasAtivos.topAlerts.j
 ${historicoSection}
 ${recentTxSection}
 ${perfilSection}
+${behavioralTagsSection}
 ${decisionSection}
 ${subscriptionsSection}
 ${progressMemorySection}
