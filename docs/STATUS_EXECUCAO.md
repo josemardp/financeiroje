@@ -2,9 +2,9 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint 7 — Gamificação Adaptativa — NÃO INICIADO  
+**Sprint atual:** Sprint 7 — Gamificação Adaptativa — EM ANDAMENTO  
 **Sprint anterior:** Sprint 6 — CONCLUÍDO (2026-04-18)  
-**Situação atual:** Sprint 6 encerrado; débito D6 quitado (sourceTrust.ts); próximo: Sprint 7  
+**Situação atual:** T7.1 concluída (migration criada, pendente aplicação no Supabase); próxima: T7.2  
 **Última atualização:** 2026-04-18
 
 ---
@@ -187,6 +187,14 @@
 
 **Nota de escopo:** Gamificação Adaptativa (seção 9.10 do plano) movida para Sprint 7.
 
+### Sprint 7 — Gamificação Adaptativa
+- [x] T7.1 — Migration `achievements_catalog` + `user_achievements` + `user_streaks` + seed 7 conquistas
+- [ ] T7.2 — Edge function `evaluate-achievements` + cron
+- [ ] T7.3 — Componente `MicroRewardCheckmark.tsx` + integração em `SmartCapture.tsx`
+- [ ] T7.4 — Componente `AchievementUnlockedToast.tsx` + integração em `Dashboard.tsx`
+- [ ] T7.5 — Tela `Challenges.tsx` + rota `/challenges`
+- [ ] T7.6 — Validação critérios de aceite Sprint 7
+
 **Auditoria de fechamento Sprint 6 — 2026-04-18:**
 Sprint 6 oficialmente concluído. Todos os critérios estruturais da seção 9.12 validados.
 Critérios de runtime (≥50 eventos/dia, ≥3 tags detectadas) dependem de 30 dias de uso orgânico — infraestrutura deployada e validada.
@@ -357,5 +365,17 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 
 ---
 
+### 2026-04-18 (Sprint 7)
+
+- T7.1 concluída
+- `supabase/migrations/20260428000001_gamification.sql` criada
+- Tabelas: `achievements_catalog` (sem RLS), `user_achievements` (RLS + seen_at), `user_streaks` (RLS)
+- Índices: `idx_user_achievements_recent` (user_id, unlocked_at DESC), `idx_user_streaks_user` (user_id)
+- Seed: 7 conquistas inseridas em `achievements_catalog` (3 identidade, 3 processo, 1 consistência)
+- ⚠️ Pendência pós-aplicação: Supabase auto-habilitou RLS em `achievements_catalog` — requer
+  `ALTER TABLE public.achievements_catalog DISABLE ROW LEVEL SECURITY;` no SQL Editor antes de T7.4/T7.5
+
+---
+
 ## Próxima tarefa esperada
-**Sprint 7 — Gamificação Adaptativa (seção 9.10 do plano)**
+**T7.2 — Edge function `evaluate-achievements` + cron**
