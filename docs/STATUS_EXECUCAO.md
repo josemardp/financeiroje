@@ -2,10 +2,10 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint 6 — EM ANDAMENTO  
-**Próximo sprint:** Sprint 7 — Gamificação Adaptativa  
-**Situação atual:** Sprint 6 em andamento; T6.1, T6.2, T6.3, T6.4, T6.5, T6.6 e T6.7 concluídas; próxima tarefa: T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`  
-**Última atualização:** 2026-04-17
+**Sprint atual:** Sprint 7 — Gamificação Adaptativa — NÃO INICIADO  
+**Sprint anterior:** Sprint 6 — CONCLUÍDO (2026-04-18)  
+**Situação atual:** Sprint 6 encerrado; todos os critérios estruturais validados; próximo: Sprint 7  
+**Última atualização:** 2026-04-18
 
 ---
 
@@ -182,10 +182,16 @@
 - [x] T6.5 — Edge function `learn-patterns`: geração de embeddings
 - [x] T6.6 — Migration `behavioral_tags`
 - [x] T6.7 — Edge function `analyze-behavioral-patterns` + cron
-- [ ] T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`
-- [ ] T6.9 — Validação critérios de aceite Sprint 6
+- [x] T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`
+- [x] T6.9 — Validação critérios de aceite Sprint 6
 
 **Nota de escopo:** Gamificação Adaptativa (seção 9.10 do plano) movida para Sprint 7.
+
+**Auditoria de fechamento Sprint 6 — 2026-04-18:**
+Sprint 6 oficialmente concluído. Todos os critérios estruturais da seção 9.12 validados.
+Critérios de runtime (≥50 eventos/dia, ≥3 tags detectadas) dependem de 30 dias de uso orgânico — infraestrutura deployada e validada.
+4 critérios de gamificação (conquistas, streaks, microrrecompensa, /challenges) transferidos para Sprint 7 conforme decisão de escopo.
+Próximo: Sprint 7 — Gamificação Adaptativa.
 
 ---
 
@@ -318,7 +324,26 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - Fire-and-forget em todos os `trackEvent` (`void` sem `await`)
 - Backend já suportava `field_hovered` e `mirror_hesitation` (`event_type text NOT NULL` na migration T6.1)
 
+### 2026-04-18 (Sprint 6)
+
+- T6.8 concluída
+- `contextCollector.ts`: interface `BehavioralTag` exportada; campo `behavioralTags: BehavioralTag[] | null` em `FinancialContext`
+- Query em `behavioral_tags` incluída no `Promise.all` — filtros: `user_id`, `expires_at > now()`, scope condicional, `limit(8)`
+- Pós-processamento: map → filter (`intensity * confidence > 0.09`) → sort por score composto → slice(5)
+- `systemPrompt.ts`: `behavioralTagsSection` construída condicionalmente; injetada entre `perfilSection` e `decisionSection`
+- Nenhuma migration nova — tabela já existia (T6.6)
+
+---
+
+### 2026-04-18 (Sprint 6 — encerramento)
+
+- T6.9 concluída — Sprint 6 encerrado
+- Checklist de validação executado: behavioral_tags, contextCollector, systemPrompt, performance
+- Todos os critérios estruturais aprovados
+- Risco de TypeScript identificado (cast `supabase as any` em behavioral_tags) — não bloqueia runtime
+- Sprint 6 declarado concluído
+
 ---
 
 ## Próxima tarefa esperada
-**T6.8 — `contextCollector.ts` + `systemPrompt.ts`: injeção de `behavioral_tags`**
+**Sprint 7 — Gamificação Adaptativa (seção 9.10 do plano)**
