@@ -39,6 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataStatusBadge } from "@/components/shared/DataStatusBadge";
+import { MicroRewardCheckmark } from "@/components/shared/MicroRewardCheckmark";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import { extractTextFromSupportedFile } from "@/services/smartCapture/fileExtraction";
@@ -250,6 +251,7 @@ export default function SmartCapture() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [installmentStart, setInstallmentStart] = useState<"this_month" | "next_month" | null>(null);
+  const [showReward, setShowReward] = useState(false);
 
   const {
     isRecording,
@@ -573,6 +575,11 @@ export default function SmartCapture() {
     }
   };
 
+  const fireReward = () => {
+    setShowReward(false);
+    setTimeout(() => setShowReward(true), 0);
+  };
+
   const hasInstallment = parsed && parsed.installmentCount && parsed.installmentCount > 1;
   const needsInstallmentAnswer = hasInstallment && installmentStart === null;
 
@@ -662,7 +669,7 @@ export default function SmartCapture() {
         toast.success(`${installCount} parcelas criadas com sucesso`, {
           description: `Valor por parcela: R$ ${parcelaValue.toFixed(2)} — de ${installmentRows[0].data} a ${installmentRows[installCount - 1].data}`,
         });
-
+        fireReward();
         setParsed(null);
         setTextInput("");
         setInstallmentStart(null);
@@ -702,7 +709,7 @@ export default function SmartCapture() {
                 : "Negócio"
           }.`,
         });
-
+        fireReward();
         setParsed(null);
         setTextInput("");
         setInstallmentStart(null);
@@ -1377,6 +1384,7 @@ export default function SmartCapture() {
           </CardFooter>
         </Card>
       )}
+      <MicroRewardCheckmark show={showReward} onDone={() => setShowReward(false)} />
     </div>
   );
 }
