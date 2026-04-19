@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useScope } from "@/contexts/ScopeContext";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+import { AchievementUnlockedToast } from "@/components/shared/AchievementUnlockedToast";
 
 /**
  * Dashboard principal com destaque para Captura Inteligente (IA)
@@ -38,6 +39,48 @@ export default function Dashboard() {
   const { user, profile } = useAuth();
   const { currentScope, scopeLabel } = useScope();
   useScreenTracking('Dashboard');
+
+  const [toastIdx, setToastIdx] = useState(0);
+
+  const { data: unseenRaw } = useQuery({
+    queryKey: ["dashboard-unseen-achievements", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_achievements")
+        .select("id, achievements_catalog!inner(title, description, icon)")
+        .is("seen_at", null)
+        .order("unlocked_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as Array<{
+        id: string;
+        achievements_catalog: { title: string; description: string; icon: string | null };
+      }>;
+    },
+    enabled: !!user,
+  });
+
+  const unseenAchievements = (unseenRaw || []).map((row) => ({
+    id: row.id,
+    title: row.achievements_catalog.title,
+    description: row.achievements_catalog.description,
+    icon: row.achievements_catalog.icon,
+  }));
+
+  const currentToast = unseenAchievements[toastIdx] ?? null;
+
+  useEffect(() => {
+    if (!currentToast) return;
+    void (async () => {
+      try {
+        await supabase
+          .from("user_achievements")
+          .update({ seen_at: new Date().toISOString() })
+          .eq("id", currentToast.id);
+      } catch {
+        // falha silenciosa — toast ainda exibe; próxima abertura tentará novamente
+      }
+    })();
+  }, [currentToast?.id]);
 
   const { data: rawTransactions } = useQuery({
     queryKey: ["dashboard-transactions", user?.id, currentScope],
@@ -331,6 +374,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+      <AchievementUnlockedToast
+        achievement={currentToast}
+        onDone={() => setToastIdx((i) => i + 1)}
+      />
     </div>
   );
 }

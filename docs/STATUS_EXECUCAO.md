@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 7 — Gamificação Adaptativa — EM ANDAMENTO  
 **Sprint anterior:** Sprint 6 — CONCLUÍDO (2026-04-18)  
-**Situação atual:** T7.3 concluída; próxima: T7.4  
+**Situação atual:** T7.4 concluída; próxima: T7.5  
 **Última atualização:** 2026-04-19
 
 ---
@@ -191,7 +191,7 @@
 - [x] T7.1 — Migration `achievements_catalog` + `user_achievements` + `user_streaks` + seed 7 conquistas
 - [x] T7.2 — Edge function `evaluate-achievements` + cron
 - [x] T7.3 — Componente `MicroRewardCheckmark.tsx` + integração em `SmartCapture.tsx`
-- [ ] T7.4 — Componente `AchievementUnlockedToast.tsx` + integração em `Dashboard.tsx`
+- [x] T7.4 — Componente `AchievementUnlockedToast.tsx` + integração em `Dashboard.tsx`
 - [ ] T7.5 — Tela `Challenges.tsx` + rota `/challenges`
 - [ ] T7.6 — Validação critérios de aceite Sprint 7
 
@@ -404,5 +404,16 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - tsc --noEmit: 0 erros
 - Sem migration, sem edge function, sem alteração de schema
 
+### 2026-04-19 (Sprint 7 — continuação)
+
+- T7.4 concluída
+- `src/components/shared/AchievementUnlockedToast.tsx` criado
+- Query `user_achievements` JOIN `achievements_catalog!inner` WHERE `seen_at IS NULL`
+- `seen_at` marcado com `await` + try/catch antes da animação iniciar
+- Fila via `toastIdx` — múltiplas conquistas exibidas sequencialmente
+- Componente `pointer-events-none`, auto-dismiss ~2,8s, fora de qualquer bloco condicional
+- tsc --noEmit: 0 erros
+- Sem migration, sem edge function
+
 ## Próxima tarefa esperada
-**T7.4 — Componente `AchievementUnlockedToast.tsx` + integração em `Dashboard.tsx`**
+**T7.5 — Tela `Challenges.tsx` + rota `/challenges`**
