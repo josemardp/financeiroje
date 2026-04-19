@@ -117,7 +117,7 @@ interface AiPrefsRow {
 }
 
 /** Formata padrões aprendidos em texto compacto para o LLM */
-function formatPatterns(patterns: PatternRow[]): string {
+export function formatPatterns(patterns: PatternRow[]): string {
   if (patterns.length === 0) return "";
 
   const fmtBrl = (n: number) => `R$${Math.round(n)}`;
