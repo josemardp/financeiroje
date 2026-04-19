@@ -474,8 +474,13 @@ Próximo sprint a definir.
 ### Sessão 3 — Detector comportamental (stub)
 > Pré-requisito: alinhamento sobre critério de "fim de mês pressionado". Estimativa: 1h.
 
-- [ ] **DI-3** — Implementar `fim_de_mes_pressionado` em `analyze-behavioral-patterns` (hoje stub, retorna null)
-  - Critério sugerido: gastos dos últimos 5 dias do mês > média dos outros dias em ≥ 2 meses
+- [x] **DI-3** — Implementar `fim_de_mes_pressionado` em `analyze-behavioral-patterns`
+  - Critério: gasto diário médio nos últimos 5 dias do mês > resto do mês em ≥ 2 meses completos
+  - Interface `Transaction` ampliada: campos `tipo` e `data` adicionados
+  - `fetchTransactions` select atualizado: `tipo, data` incluídos
+  - Guard: mínimo 10 despesas confirmadas; exclui mês atual (incompleto)
+  - intensity = pressuredMonths / monthsWithData; confidence = monthsWithData / 3
+  - **Requer redeploy manual da edge function `analyze-behavioral-patterns`**
 
 ### Sessão 4 — UI de streaks (D7-B)
 > Pré-requisito: ≥ 30 dias de uso orgânico (dados reais em `user_streaks`). Previsão: maio/2026.
@@ -509,4 +514,4 @@ Próximo sprint a definir.
 | 6 | D7-A | Sprint futuro | Modelagem de schema |
 
 ## Próxima tarefa esperada
-**Sessão 3 — DI-3: implementar detector `fim_de_mes_pressionado` em `analyze-behavioral-patterns`**
+**Sessão 4 — D7-B: UI de streaks (aguarda dados orgânicos em maio/2026)**

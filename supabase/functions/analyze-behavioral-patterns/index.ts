@@ -25,6 +25,8 @@ interface Transaction {
   valor: number | string;
   categoria_id: string | null;
   created_at: string;
+  tipo: string;
+  data: string;
 }
 
 interface DetectionResult {
@@ -84,13 +86,51 @@ function detectLateNightSpending(
   };
 }
 
-// Stub: análise dos últimos 6 meses de saldos nos últimos 5 dias do mês
-// Implementação planejada em iteração futura do Sprint 6
 function detectFimDeMesPressionado(
   _events: EngagementEvent[],
-  _txs: Transaction[],
+  txs: Transaction[],
 ): DetectionResult | null {
-  return null;
+  const expenses = txs.filter((t) => t.tipo === "expense");
+  if (expenses.length < 10) return null;
+
+  // Agrupa despesas por mês, separando últimos 5 dias vs. restante
+  const byMonth = new Map<string, { fim: number[]; resto: number[] }>();
+  for (const tx of expenses) {
+    const d = new Date(tx.data);
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    const isFim = d.getDate() > lastDay - 5;
+    if (!byMonth.has(monthKey)) byMonth.set(monthKey, { fim: [], resto: [] });
+    const v = parseFloat(String(tx.valor));
+    if (isFim) byMonth.get(monthKey)!.fim.push(v);
+    else byMonth.get(monthKey)!.resto.push(v);
+  }
+
+  // Exclui mês atual (incompleto)
+  const now = new Date();
+  byMonth.delete(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+  );
+
+  const avg = (arr: number[]) =>
+    arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length;
+
+  let pressuredMonths = 0;
+  let monthsWithData = 0;
+  for (const [, { fim, resto }] of byMonth) {
+    if (fim.length === 0 || resto.length === 0) continue;
+    monthsWithData++;
+    if (avg(fim) > avg(resto)) pressuredMonths++;
+  }
+
+  // Critério: gasto diário médio no fim-do-mês > resto em ≥ 2 meses completos
+  if (monthsWithData < 2 || pressuredMonths < 2) return null;
+
+  return {
+    intensity: Math.min(1, pressuredMonths / monthsWithData),
+    confidence: Math.min(1, monthsWithData / 3),
+    evidence: { pressuredMonths, monthsAnalyzed: monthsWithData },
+  };
 }
 
 const DETECTORS: PatternDetector[] = [
@@ -177,7 +217,7 @@ async function fetchTransactions(
 ): Promise<Transaction[]> {
   const { data, error } = await supabase
     .from("transactions")
-    .select("id, user_id, scope, valor, categoria_id, created_at")
+    .select("id, user_id, scope, valor, categoria_id, created_at, tipo, data")
     .eq("user_id", userId)
     .eq("scope", scope)
     .eq("data_status", "confirmed")
