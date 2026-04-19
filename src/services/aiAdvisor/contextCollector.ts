@@ -882,11 +882,12 @@ export async function getFinancialContext(
     });
   }
 
-  const { data: decisionData } = await (supabase as any)
+  type DecisionRow = { recommendation_type: string; user_response: string | null };
+  const { data: decisionData } = await supabase
     .from("decision_outcomes")
     .select("recommendation_type, user_response")
     .eq("user_id", userId)
-    .not("user_response", "is", null);
+    .not("user_response", "is", null) as unknown as { data: DecisionRow[] | null };
 
   const aderenciaHistorica = buildAderenciaHistorica(decisionData ?? []);
 
