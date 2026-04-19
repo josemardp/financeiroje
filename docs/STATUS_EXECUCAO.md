@@ -19,9 +19,9 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint de Quitação de Débitos — EM ANDAMENTO  
+**Sprint atual:** Sprint 8 — Memória Conversacional Profunda e Defesa de Prompt — PLANEJADO  
 **Sprint anterior:** Sprint 7 — CONCLUÍDO (2026-04-19)  
-**Situação atual:** Quitando débitos técnicos acumulados (D3, D5, D7-A, D7-B + informais)  
+**Situação atual:** Fase 2 iniciada. Documentação de Sprints 8-10 pronta. Aguardando início de Sprint 8.  
 **Última atualização:** 2026-04-19
 
 ---
@@ -211,6 +211,35 @@
 - [x] T7.4 — Componente `AchievementUnlockedToast.tsx` + integração em `Dashboard.tsx`
 - [x] T7.5 — Tela `Challenges.tsx` + rota `/challenges`
 - [x] T7.6 — Validação critérios de aceite Sprint 7
+
+### Sprint 8 — Memória Conversacional Profunda e Defesa de Prompt
+- [ ] T8.1 — Migration `ai_messages_embedding` + edge function `embed-ai-messages`
+- [ ] T8.2 — `findRelatedConversations()` + integração em `systemPrompt.ts`
+- [ ] T8.3 — Migration `ai_self_observations` + parser `META_REFLECTION_JSON`
+- [ ] T8.4 — `promptSanitizer.ts` + aplicação em 4 pontos de entrada
+- [ ] T8.5 — Suite adversarial `injection.test.ts` (20 payloads)
+- [ ] T8.6 — Migration `pattern_learning_queue` + edge function `process-pattern-learning-queue`
+- [ ] T8.7 — Validação critérios de aceite Sprint 8
+
+### Sprint 9 — IA Proativa e Relatório Semanal Interno
+- [ ] T9.1 — Migration `weekly_digests` + edge function `generate-weekly-digest`
+- [ ] T9.2 — Componente `<WeeklyDigestCard>` no Dashboard
+- [ ] T9.3 — Migration `prompt_variants` + A/B testing no `ai-advisor`
+- [ ] T9.4 — Hook `useTransactionAnomalyCheck` + modal de anomalias
+- [ ] T9.5 — Dashboard `/settings/ai-evolution` (4 gráficos)
+- [ ] T9.6 — Dashboard `/settings/ai-experiments` (taxas por variante)
+- [ ] T9.7 — Validação critérios de aceite Sprint 9
+
+### Sprint 10 — Alinhamento de Identidade e Valores
+- [ ] T10.1 — `activeGoals.ts` + bloco de metas ativas no prompt
+- [ ] T10.2 — Migration `life_events` + tela `/settings/life-calendar`
+- [ ] T10.3 — Migration `scripture_library` + seed ACF (~40 versículos)
+- [ ] T10.4 — `scriptureSelector.ts` + injeção de versículos no `ai-advisor`
+- [ ] T10.5 — Correção lacuna silenciosa: consolidar `userAiPreferences` em `systemPrompt.ts`
+- [ ] T10.6 — (Condicional) Migration `family_preferences` + `get_effective_ai_prefs()`
+- [ ] T10.7 — Validação critérios de aceite Sprint 10
+
+---
 
 **Auditoria de fechamento Sprint 6 — 2026-04-18:**
 Sprint 6 oficialmente concluído. Todos os critérios estruturais da seção 9.12 validados.
