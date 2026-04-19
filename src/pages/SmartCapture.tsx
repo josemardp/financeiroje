@@ -364,7 +364,7 @@ export default function SmartCapture() {
       if (!hesitationFiredRef.current) {
         hesitationFiredRef.current = true;
         void trackEvent({
-          event_type: 'mirror_hesitation' as EngagementEventType,
+          event_type: 'mirror_hesitation',
           context_data: { since_mirror_opened_ms: MIRROR_HESITATION_THRESHOLD_MS },
         });
       }
@@ -383,13 +383,13 @@ export default function SmartCapture() {
         mirrorHesitationTimerRef.current = null;
       }
       void trackEvent({
-        event_type: 'mirror_hesitation' as EngagementEventType,
+        event_type: 'mirror_hesitation',
         context_data: { since_mirror_opened_ms: sinceOpened },
       });
     }
 
     void trackEvent({
-      event_type: 'field_hovered' as EngagementEventType,
+      event_type: 'field_hovered',
       context_data: { field, since_mirror_opened_ms: sinceOpened },
     });
   };

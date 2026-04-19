@@ -13,7 +13,11 @@ const ENGAGEMENT_TABLE = 'user_engagement_events' as const;
 // Tipos
 // ---------------------------------------------------------------------------
 
-export type EngagementEventType = 'screen_view' | 'time_on_page';
+export type EngagementEventType =
+  | 'screen_view'
+  | 'time_on_page'
+  | 'field_hovered'
+  | 'mirror_hesitation';
 
 export interface TrackEventParams {
   event_type: EngagementEventType;
