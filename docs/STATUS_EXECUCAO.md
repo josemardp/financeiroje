@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 7 — Gamificação Adaptativa — EM ANDAMENTO  
 **Sprint anterior:** Sprint 6 — CONCLUÍDO (2026-04-18)  
-**Situação atual:** T7.4 concluída; próxima: T7.5  
+**Situação atual:** T7.5 concluída; próxima: T7.6  
 **Última atualização:** 2026-04-19
 
 ---
@@ -192,7 +192,7 @@
 - [x] T7.2 — Edge function `evaluate-achievements` + cron
 - [x] T7.3 — Componente `MicroRewardCheckmark.tsx` + integração em `SmartCapture.tsx`
 - [x] T7.4 — Componente `AchievementUnlockedToast.tsx` + integração em `Dashboard.tsx`
-- [ ] T7.5 — Tela `Challenges.tsx` + rota `/challenges`
+- [x] T7.5 — Tela `Challenges.tsx` + rota `/challenges`
 - [ ] T7.6 — Validação critérios de aceite Sprint 7
 
 **Auditoria de fechamento Sprint 6 — 2026-04-18:**
@@ -415,5 +415,16 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - tsc --noEmit: 0 erros
 - Sem migration, sem edge function
 
+### 2026-04-19 (Sprint 7 — continuação)
+
+- T7.5 concluída
+- `supabase/migrations/20260428000002_challenges_catalog.sql` criada e aplicada manualmente no Supabase
+- Tabela `challenges_catalog` validada — 4 linhas (sem_saida_7, categorizar_semana, registrar_30, reduzir_despesas)
+- `ALTER TABLE DISABLE ROW LEVEL SECURITY` incluído na migration — evita regressão conhecida do projeto
+- `src/pages/Challenges.tsx` criado — lê catálogo do banco, detecta ativos via `goals WHERE notas ILIKE 'challenge:%'`
+- Ativação cria goal com `notas = 'challenge:<id>'`; encerramento seta `ativo = false`
+- Rota `/challenges` adicionada em `App.tsx` (lazy)
+- tsc --noEmit: 0 erros
+
 ## Próxima tarefa esperada
-**T7.5 — Tela `Challenges.tsx` + rota `/challenges`**
+**T7.6 — Validação critérios de aceite Sprint 7**

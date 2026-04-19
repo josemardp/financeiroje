@@ -33,6 +33,7 @@ const Accounts = lazy(() => import("./pages/Accounts"));
 const Reports = lazy(() => import("./pages/Reports"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const AIMemory = lazy(() => import("./pages/settings/AIMemory"));
+const Challenges = lazy(() => import("./pages/Challenges"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -88,6 +89,7 @@ function AppRoutes() {
         <Route path="/relatorios" element={<Suspense fallback={<LazyFallback />}><Reports /></Suspense>} />
         <Route path="/configuracoes" element={<Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>} />
         <Route path="/configuracoes/ia-memoria" element={<Suspense fallback={<LazyFallback />}><AIMemory /></Suspense>} />
+        <Route path="/challenges" element={<Suspense fallback={<LazyFallback />}><Challenges /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
