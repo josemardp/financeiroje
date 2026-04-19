@@ -459,15 +459,17 @@ Próximo sprint a definir.
 ### Sessão 1 — Limpeza de tipagem (rápida, hoje)
 > Pré-requisito: nenhum. Estimativa: 30 min.
 
-- [ ] **DI-1** — Corrigir cast `supabase as any` em `behavioral_tags` query (`contextCollector.ts` ou `Dashboard.tsx`)
-- [ ] **DI-2** — Estender `EngagementEventType` em `useBehaviorTracking.ts` para incluir `field_hovered` e `mirror_hesitation` — eliminar cast localizado em `SmartCapture.tsx`
+- [x] **DI-1** — Corrigir cast `supabase as any` em `contextCollector.ts` — tipo explícito `DecisionRow`, cast `as unknown as { data: DecisionRow[] | null }`
+- [x] **DI-2** — Estender `EngagementEventType` em `useBehaviorTracking.ts` para incluir `field_hovered` e `mirror_hesitation` — 3 casts localizados removidos de `SmartCapture.tsx`
 
 ### Sessão 2 — Testes unitários (D3)
 > Pré-requisito: nenhum. Estimativa: 1–2h.
 
-- [ ] **D3-a** — Testes para `buildDiff()` em `captureLearningEvents.ts`
-- [ ] **D3-b** — Testes para `recordCaptureLearningEvent()` em `captureLearningEvents.ts`
-- [ ] **D3-c** — Testes para `formatPatterns()` em `captureContext.ts`
+- [x] **D3-a** — Testes para `buildDiff()` em `captureLearningEvents.ts` (5 casos)
+- [x] **D3-b** — Testes para `recordCaptureLearningEvent()` em `captureLearningEvents.ts` (3 casos: sucesso, erro supabase, exceção)
+- [x] **D3-c** — Testes para `formatPatterns()` em `captureContext.ts` (8 casos)
+- Funções exportadas: `buildDiff`, `confidenceToNumeric` (captureLearningEvents.ts), `formatPatterns` (captureContext.ts)
+- 20/20 testes passando — `src/services/smartCapture/__tests__/`
 
 ### Sessão 3 — Detector comportamental (stub)
 > Pré-requisito: alinhamento sobre critério de "fim de mês pressionado". Estimativa: 1h.
@@ -507,4 +509,4 @@ Próximo sprint a definir.
 | 6 | D7-A | Sprint futuro | Modelagem de schema |
 
 ## Próxima tarefa esperada
-**Sessão 1 — DI-1 e DI-2 (limpeza de tipagem)**
+**Sessão 3 — DI-3: implementar detector `fim_de_mes_pressionado` em `analyze-behavioral-patterns`**

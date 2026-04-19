@@ -31,7 +31,7 @@ const TRACKED_FIELDS = [
   "scope",
 ] as const;
 
-function buildDiff(ai: ConfirmedForm, user: ConfirmedForm) {
+export function buildDiff(ai: ConfirmedForm, user: ConfirmedForm) {
   const fieldDiff: Record<string, { before: unknown; after: unknown }> = {};
   const acceptedFields: string[] = [];
   const correctedFields: string[] = [];
@@ -48,7 +48,7 @@ function buildDiff(ai: ConfirmedForm, user: ConfirmedForm) {
   return { fieldDiff, acceptedFields, correctedFields };
 }
 
-function confidenceToNumeric(c?: "alta" | "media" | "baixa"): number | null {
+export function confidenceToNumeric(c?: "alta" | "media" | "baixa"): number | null {
   if (c === "alta") return 0.90;
   if (c === "media") return 0.65;
   if (c === "baixa") return 0.40;
