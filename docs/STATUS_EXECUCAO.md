@@ -2,9 +2,9 @@
 
 ## Estado atual
 
-**Sprint atual:** Sprint 7 — Gamificação Adaptativa — EM ANDAMENTO  
-**Sprint anterior:** Sprint 6 — CONCLUÍDO (2026-04-18)  
-**Situação atual:** Sprint 7 concluído (2026-04-19) — 2 débitos registrados (D7-A, D7-B)  
+**Sprint atual:** Sprint de Quitação de Débitos — EM ANDAMENTO  
+**Sprint anterior:** Sprint 7 — CONCLUÍDO (2026-04-19)  
+**Situação atual:** Quitando débitos técnicos acumulados (D3, D5, D7-A, D7-B + informais)  
 **Última atualização:** 2026-04-19
 
 ---
@@ -452,5 +452,59 @@ Sprint 7 oficialmente concluído. Critérios estruturais validados.
 Critérios de runtime dependem de uso orgânico (analogia: D5 Sprint 5, critérios Sprint 6).
 Próximo sprint a definir.
 
+---
+
+## Cronograma de Quitação de Débitos
+
+### Sessão 1 — Limpeza de tipagem (rápida, hoje)
+> Pré-requisito: nenhum. Estimativa: 30 min.
+
+- [ ] **DI-1** — Corrigir cast `supabase as any` em `behavioral_tags` query (`contextCollector.ts` ou `Dashboard.tsx`)
+- [ ] **DI-2** — Estender `EngagementEventType` em `useBehaviorTracking.ts` para incluir `field_hovered` e `mirror_hesitation` — eliminar cast localizado em `SmartCapture.tsx`
+
+### Sessão 2 — Testes unitários (D3)
+> Pré-requisito: nenhum. Estimativa: 1–2h.
+
+- [ ] **D3-a** — Testes para `buildDiff()` em `captureLearningEvents.ts`
+- [ ] **D3-b** — Testes para `recordCaptureLearningEvent()` em `captureLearningEvents.ts`
+- [ ] **D3-c** — Testes para `formatPatterns()` em `captureContext.ts`
+
+### Sessão 3 — Detector comportamental (stub)
+> Pré-requisito: alinhamento sobre critério de "fim de mês pressionado". Estimativa: 1h.
+
+- [ ] **DI-3** — Implementar `fim_de_mes_pressionado` em `analyze-behavioral-patterns` (hoje stub, retorna null)
+  - Critério sugerido: gastos dos últimos 5 dias do mês > média dos outros dias em ≥ 2 meses
+
+### Sessão 4 — UI de streaks (D7-B)
+> Pré-requisito: ≥ 30 dias de uso orgânico (dados reais em `user_streaks`). Previsão: maio/2026.
+
+- [ ] **D7-B** — Componente de streak suave ("X de Y dias") visível no Dashboard ou `/challenges`
+
+### Sessão 5 — Confirmação cron aderência (D5)
+> Pré-requisito: orgânico — cron `review-decision-outcomes` rodando desde 2026-04-14. Previsão: maio/2026.
+
+- [ ] **D5** — Confirmar via SQL que `decision_outcomes` tem registros com `reviewed_at` preenchido pelo cron
+
+### Sessão 6 — Avaliadores de identidade (D7-A)
+> Pré-requisito: modelagem de recorrências/dízimo no schema. Sem data — depende de Sprint futuro.
+
+- [ ] **D7-A-1** — Avaliador `recurring_paid` (dízimo) — requer `recurring_transactions` ou campo equivalente
+- [ ] **D7-A-2** — Avaliador `reserve_coverage` (reserva) — requer cálculo via saldo de contas + meta de reserva
+- [ ] **D7-A-3** — Avaliador `donation_percent` (doações) — requer categorização de doações + renda confirmada
+- [ ] **D7-A-4** — Avaliador `zero_pending` — requer query de `transactions WHERE data_status = 'pending'` por N dias
+
+---
+
+### Resumo do cronograma
+
+| Sessão | Débitos | Quando | Bloqueio |
+|---|---|---|---|
+| 1 | DI-1, DI-2 | Hoje | Nenhum |
+| 2 | D3-a, D3-b, D3-c | Hoje | Nenhum |
+| 3 | DI-3 | Próxima sessão | Alinhamento de critério |
+| 4 | D7-B | Maio/2026 | Dados orgânicos |
+| 5 | D5 | Maio/2026 | Orgânico |
+| 6 | D7-A | Sprint futuro | Modelagem de schema |
+
 ## Próxima tarefa esperada
-**Sprint 8 — a definir**
+**Sessão 1 — DI-1 e DI-2 (limpeza de tipagem)**
