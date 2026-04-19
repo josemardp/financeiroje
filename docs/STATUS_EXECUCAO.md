@@ -4,7 +4,7 @@
 
 **Sprint atual:** Sprint 7 — Gamificação Adaptativa — EM ANDAMENTO  
 **Sprint anterior:** Sprint 6 — CONCLUÍDO (2026-04-18)  
-**Situação atual:** T7.5 concluída; próxima: T7.6  
+**Situação atual:** Sprint 7 concluído (2026-04-19) — 2 débitos registrados (D7-A, D7-B)  
 **Última atualização:** 2026-04-19
 
 ---
@@ -193,7 +193,7 @@
 - [x] T7.3 — Componente `MicroRewardCheckmark.tsx` + integração em `SmartCapture.tsx`
 - [x] T7.4 — Componente `AchievementUnlockedToast.tsx` + integração em `Dashboard.tsx`
 - [x] T7.5 — Tela `Challenges.tsx` + rota `/challenges`
-- [ ] T7.6 — Validação critérios de aceite Sprint 7
+- [x] T7.6 — Validação critérios de aceite Sprint 7
 
 **Auditoria de fechamento Sprint 6 — 2026-04-18:**
 Sprint 6 oficialmente concluído. Todos os critérios estruturais da seção 9.12 validados.
@@ -426,5 +426,31 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 - Rota `/challenges` adicionada em `App.tsx` (lazy)
 - tsc --noEmit: 0 erros
 
+### 2026-04-19 (Sprint 7 — encerramento)
+
+- T7.6 concluída — Sprint 7 oficialmente encerrado
+- Critérios atendidos: microrrecompensa ✅, /challenges ✅, sem push ✅, linguagem reflexiva ✅
+- Critérios de runtime (conquistas de identidade, streaks) dependem de uso orgânico — infraestrutura deployada e validada
+- cron `daily-evaluate-achievements` ativo (`15 4 * * *`)
+- `seen_at` funcional: marcado com await antes da animação, query filtra IS NULL
+- tsc --noEmit: 0 erros em todos os arquivos do Sprint 7
+
+**Débito técnico D7-A — aceito, não bloqueador:**
+- Conquistas de identidade (`mordomo_fiel_3m`, `protetor_da_familia`, `semeador`) sem avaliador ativo
+- Motivo: ausência de fonte de verdade validada para dízimo/doações/reserva no schema atual
+- Efeito: essas 3 conquistas jamais desbloqueam automaticamente — não derruba o app
+- Tratar quando modelagem de recorrências/dízimo for formalizada
+
+**Débito técnico D7-B — aceito, não bloqueador:**
+- Tabela `user_streaks` existe mas sem UI ("X de Y dias")
+- Motivo: sem dados populados — exibir zeros não agrega valor real
+- Efeito: streaks invisíveis para o usuário — não derruba o app
+- Tratar quando `user_streaks` tiver dados orgânicos após 30+ dias de uso
+
+**Auditoria de fechamento Sprint 7 — 2026-04-19:**
+Sprint 7 oficialmente concluído. Critérios estruturais validados.
+Critérios de runtime dependem de uso orgânico (analogia: D5 Sprint 5, critérios Sprint 6).
+Próximo sprint a definir.
+
 ## Próxima tarefa esperada
-**T7.6 — Validação critérios de aceite Sprint 7**
+**Sprint 8 — a definir**
