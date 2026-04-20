@@ -246,7 +246,28 @@ Status: concluída
 ### Observações
 - Correção aplicada no cron (Authorization Bearer)
 - Ajuste operacional em .env.local (remoção de BOM)
-- [ ] T8.2 — `findRelatedConversations()` + integração em `systemPrompt.ts`
+- [x] T8.2 — `findRelatedConversations()` + integração em `systemPrompt.ts`
+
+## Sprint 8 — T8.2: findRelatedConversations + memória conversacional
+
+Status: concluída
+
+### Entregas
+- RPC `find_related_conversations` formalizada no repo (migration 20260501000002)
+  - PL/pgSQL com guard `array_length <> 384`
+  - JOIN em `ai_conversations` para filtro de scope
+  - Duplo filtro `user_id` (c + m)
+  - `::vector(384)` explícito em todos os usos
+- `embed-ai-messages`: mode="embed" adicionado — embedding único autenticado
+- `contextCollector.ts`: `ConversaRelacionada`, `ScopeType`, `findRelatedConversations`, `currentQuestion` em `getFinancialContext`, execução paralela
+- `systemPrompt.ts`: bloco `conversasRelacionadasSection` entre `behavioralTagsSection` e `decisionSection`
+- `AiAdvisor.tsx`: wiring — `userText` passado como 5º argumento de `getFinancialContext`
+
+### Validação técnica
+- tsc --noEmit: 0 erros
+- mode="embed" validado: `{ ok: true, embedding: number[384] }`
+- batch mode sem regressão
+- wiring confirmado em AiAdvisor.tsx
 - [ ] T8.3 — Migration `ai_self_observations` + parser `META_REFLECTION_JSON`
 - [ ] T8.4 — `promptSanitizer.ts` + aplicação em 4 pontos de entrada
 - [ ] T8.5 — Suite adversarial `injection.test.ts` (20 payloads)
