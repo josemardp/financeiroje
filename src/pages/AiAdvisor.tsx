@@ -249,7 +249,13 @@ export default function AiAdvisor() {
         userIntentHint = "checklist";
       }
 
-      const context = await getFinancialContext(user.id, currentScope);
+      const context = await getFinancialContext(
+        user.id,
+        currentScope,
+        undefined,
+        undefined,
+        userText
+      );
       context.userIntentHint = userIntentHint;
 
       const effectiveModel = currentModel === "auto" ? routeModel(userIntentHint) : currentModel;
