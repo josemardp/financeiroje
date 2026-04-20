@@ -12,6 +12,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { buildArchetype } from "@/services/userProfile/buildArchetype";
+import { sanitizePromptContext } from "./promptSanitizer";
 
 type ScopeType = Database["public"]["Enums"]["scope_type"];
 import {
