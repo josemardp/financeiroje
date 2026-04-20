@@ -213,7 +213,39 @@
 - [x] T7.6 — Validação critérios de aceite Sprint 7
 
 ### Sprint 8 — Memória Conversacional Profunda e Defesa de Prompt
-- [ ] T8.1 — Migration `ai_messages_embedding` + edge function `embed-ai-messages`
+
+## Sprint 8  T8.1: Embeddings em ai_messages
+
+Status: concluída
+
+### Entregas
+- Migration criada: ai_messages_embedding
+  - content_embedding vector(384)
+  - embedded_at timestamptz
+  - embedding_version text
+- Índices criados:
+  - idx_ai_messages_embedding (ivfflat)
+  - idx_ai_messages_pending_embedding
+- Edge function criada e deployada:
+  - embed-ai-messages
+- Cron criado:
+  - embed-ai-messages-every-15-min (*/15 * * * *)
+
+### Validação técnica
+- Colunas presentes em public.ai_messages
+- Índices confirmados
+- Function executando sem erro (teste manual OK)
+- Cron executando com sucesso (status 200 nas invocations)
+
+### Validação funcional
+- embeddings_gravados = 59
+- pendencias_restantes = 0
+- embedding_version = '1' aplicado corretamente
+- embedded_at preenchido
+
+### Observações
+- Correção aplicada no cron (Authorization Bearer)
+- Ajuste operacional em .env.local (remoção de BOM)
 - [ ] T8.2 — `findRelatedConversations()` + integração em `systemPrompt.ts`
 - [ ] T8.3 — Migration `ai_self_observations` + parser `META_REFLECTION_JSON`
 - [ ] T8.4 — `promptSanitizer.ts` + aplicação em 4 pontos de entrada
