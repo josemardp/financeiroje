@@ -10,7 +10,10 @@
  * REGRA: Saldo das contas = saldo_inicial + transações confirmadas.
  */
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { buildArchetype } from "@/services/userProfile/buildArchetype";
+
+type ScopeType = Database["public"]["Enums"]["scope_type"];
 import {
   calculateMonthlySummary,
   calculateBudgetDeviation,
@@ -79,6 +82,15 @@ export interface BehavioralTag {
   intensity: number;
   confidence: number;
   evidence: Record<string, unknown>;
+}
+
+export interface ConversaRelacionada {
+  message_id:      string;
+  conversation_id: string | null;
+  role:            "user" | "assistant";
+  content:         string;
+  created_at:      string;
+  similarity:      number;
 }
 
 export interface PerfilComportamental {
@@ -208,18 +220,83 @@ export interface FinancialContext {
   }> | null;
   // Sprint 6 T6.8
   behavioralTags: BehavioralTag[] | null;
+  // Sprint 8 T8.2
+  conversasRelacionadas: ConversaRelacionada[] | null;
+}
+
+export async function findRelatedConversations(
+  scope: string,
+  currentQuestion: string,
+  topK: number = 3
+): Promise<ConversaRelacionada[] | null> {
+  if (!currentQuestion || currentQuestion.trim().length < 10) return null;
+  if (scope === "all") return null;
+
+  const scopeTyped = scope as ScopeType; // seguro: guard "all" acima
+
+  try {
+    const session = await supabase.auth.getSession();
+    const accessToken = session.data.session?.access_token;
+    if (!accessToken) return null;
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
+    // 1. Embedding da pergunta atual
+    const embedRes = await fetch(`${supabaseUrl}/functions/v1/embed-ai-messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ mode: "embed", text: currentQuestion }),
+    });
+    if (!embedRes.ok) return null;
+
+    const embedData: { ok: boolean; embedding?: number[] } = await embedRes.json();
+    const embedding = embedData.embedding;
+    if (!Array.isArray(embedding)) return null;
+
+    // 2. Retrieval semântico via RPC
+    const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/find_related_conversations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+        "Authorization": `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        p_scope:           scopeTyped,
+        p_query_embedding: embedding,
+        p_top_k:           topK,
+      }),
+    });
+    if (!rpcRes.ok) return null;
+
+    const rows = await rpcRes.json() as ConversaRelacionada[];
+    if (!Array.isArray(rows)) return null;
+    return rows.slice(0, topK);
+  } catch {
+    return null;
+  }
 }
 
 export async function getFinancialContext(
   userId: string,
   scope: string = "all",
   month?: number,
-  year?: number
+  year?: number,
+  currentQuestion?: string
 ): Promise<FinancialContext> {
-  const scopeTyped = scope as "private" | "family" | "business";
+  const scopeTyped = scope as ScopeType;
   const now = new Date();
   const mes = month || now.getMonth() + 1;
   const ano = year || now.getFullYear();
+
+  const relatedConvsPromise = (currentQuestion && scope !== "all")
+    ? findRelatedConversations(scope, currentQuestion)
+    : Promise.resolve(null);
+
   const startOfMonth = new Date(ano, mes - 1, 1).toISOString().split("T")[0];
   const endOfMonth = new Date(ano, mes, 0).toISOString().split("T")[0];
 
@@ -935,6 +1012,7 @@ export async function getFinancialContext(
     perfilComportamental,
     aderenciaHistorica,
     behavioralTags: behavioralTags.length > 0 ? behavioralTags : null,
+    conversasRelacionadas: await relatedConvsPromise,
     metadados: {
       dataColeta: now.toISOString(),
       versaoEngine: "4.2-final",
