@@ -268,7 +268,25 @@ Status: concluída
 - mode="embed" validado: `{ ok: true, embedding: number[384] }`
 - batch mode sem regressão
 - wiring confirmado em AiAdvisor.tsx
-- [ ] T8.3 — Migration `ai_self_observations` + parser `META_REFLECTION_JSON`
+- [x] T8.3 — Migration `ai_self_observations` + parser `META_REFLECTION_JSON`
+
+## Sprint 8 — T8.3: Meta-reflexão da IA (Auto-observações)
+
+Status: concluída e validada
+
+### Entregas
+- Migration `20260501000003_ai_self_observations.sql`
+  - Enum `self_observation_type` (pattern_stale, context_conflict, calibration_miss, confidence_overreach, other)
+  - Tabela `ai_self_observations` com RLS restrito a `SELECT`
+- `ai-advisor`: helper `extractMetaReflectionJson` (brace-matching)
+- `ai-advisor`: persistência em `ai_self_observations` integrada ao stream
+
+### Validação técnica
+- Deploy da Edge Function realizado com sucesso
+- Migration aplicada via SQL Editor
+- Parser isolado com try/catch silencioso
+- Persistência via serviceClient confirmada
+
 - [ ] T8.4 — `promptSanitizer.ts` + aplicação em 4 pontos de entrada
 - [ ] T8.5 — Suite adversarial `injection.test.ts` (20 payloads)
 - [ ] T8.6 — Migration `pattern_learning_queue` + edge function `process-pattern-learning-queue`
