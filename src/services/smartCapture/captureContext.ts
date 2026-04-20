@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ScopeType } from "@/contexts/ScopeContext";
 import { getUserBehavioralSnapshot } from "@/services/userProfile/snapshot";
 import type { UserBehavioralSnapshot } from "@/services/userProfile/snapshot";
+import { sanitizePromptContext } from "../aiAdvisor/promptSanitizer";
 
 export interface CaptureContextData {
   /** Texto compacto pronto para injetar no prompt do LLM */
@@ -230,7 +231,7 @@ export async function getCaptureContext(
 
     const contextBlock = [catBlock, txBlock, snapshotBlock, patternBlock, prefsBlock].filter(Boolean).join("\n\n");
 
-    return { contextBlock };
+    return { contextBlock: sanitizePromptContext(contextBlock) };
   } catch {
     // Falha silenciosa: contexto histórico é enriquecimento opcional
     return { contextBlock: "" };

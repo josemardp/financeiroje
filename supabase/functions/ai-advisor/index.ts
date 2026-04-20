@@ -281,6 +281,32 @@ function extractMetaReflectionJson(text: string): { json: string; cleaned: strin
   return { json, cleaned };
 }
 
+// ── Sanitizador de Input (Sprint 8 — T8.4) ───────────────────────────────
+
+function sanitizeInput(input: string): string {
+  if (!input) return "";
+  const patterns = [
+    /ignore\s+previous\s+instructions/gi,
+    /you\s+are\s+now/gi,
+    /system:/gi,
+    /forget\s+everything/gi,
+    /new\s+instructions/gi,
+    /roleplay\s+as/gi,
+    /disregard/gi,
+    /pretend/gi,
+    /act\s+as/gi,
+    /override/gi,
+    /<system>/gi,
+    /<instruction>/gi,
+    /\[\[SYSTEM\]\]/gi
+  ];
+
+  let s = input.replace(/<\/user_data>/gi, "[TAG_BLOCK]");
+  patterns.forEach(p => s = s.replace(p, "[REDACTED]"));
+  
+  return `<user_data>\n${s.trim()}\n</user_data>`;
+}
+
 // ── Stream + cache ─────────────────────────────────────────────────────────
 
 async function streamAndCache(
@@ -521,6 +547,11 @@ serve(async (req) => {
 
     const { messages, context, model: requestedModel } = await req.json();
 
+    const sanitizedMessages = (messages as Array<{ role: string; content: string }>).map(m => ({
+      ...m,
+      content: m.role === "user" ? sanitizeInput(m.content) : m.content
+    }));
+
     const ALLOWED_MODELS = [
       "google/gemini-3-flash-preview",
       "openai/gpt-4o-mini",
@@ -533,9 +564,8 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    const allMessages = messages as Array<{ role: string; content: string }>;
-    const frontendSystemPrompt = allMessages.find(m => m.role === "system")?.content ?? "";
-    const userMessages = allMessages.filter(m => m.role !== "system");
+    const frontendSystemPrompt = sanitizedMessages.find(m => m.role === "system")?.content ?? "";
+    const userMessages = sanitizedMessages.filter(m => m.role !== "system");
     const lastUserMsg = [...userMessages].reverse().find(m => m.role === "user")?.content ?? "";
     const intent = (context?.userIntentHint as string) ?? "generic";
     const scope = (context?.escopo as string) ?? "private";

@@ -287,7 +287,27 @@ Status: concluída e validada
 - Parser isolado com try/catch silencioso
 - Persistência via serviceClient confirmada
 
-- [ ] T8.4 — `promptSanitizer.ts` + aplicação em 4 pontos de entrada
+- [x] T8.4 — `promptSanitizer.ts` + aplicação em 4 pontos de entrada
+
+## Sprint 8 — T8.4: promptSanitizer + Defesa Adversarial
+
+Status: concluída e validada
+
+### Entregas
+- **Serviço Centralizado**: `src/services/aiAdvisor/promptSanitizer.ts`
+  - Lista expandida de `KNOWN_JAILBREAK_PATTERNS` (ignore, system:, roleplay, disregard, pretend, override, etc.)
+  - Proteção contra quebra de tags (`</user_data>`)
+- **Isolamento Semântico**: Tags `<user_data>` injetadas em todos os inputs dinâmicos
+- **System Prompt Guardrail**: Instrução rígida de inércia semântica adicionada ao `systemPrompt.ts`
+- **Sanitização em Camadas**:
+  - **Frontend**: `contextCollector.ts` (pergunta) e `captureContext.ts` (bloco OCR/Descrições)
+  - **Backend**: Edge Function `ai-advisor` sanitiza TODO o histórico de mensagens do usuário (`messages.map`)
+
+### Validação técnica
+- **Preservação de RAG**: `findRelatedConversations` continua usando `rawQuestion` para manter a qualidade do embedding, enquanto o prompt usa a versão sanitizada.
+- **Defesa Profunda**: Backend atua como "porteiro final", garantindo isolamento mesmo se o frontend for ignorado.
+- **Inércia**: O modelo é instruído a tratar conteúdo em `<user_data>` estritamente como dado, nunca como instrução.
+
 - [ ] T8.5 — Suite adversarial `injection.test.ts` (20 payloads)
 - [ ] T8.6 — Migration `pattern_learning_queue` + edge function `process-pattern-learning-queue`
 - [ ] T8.7 — Validação critérios de aceite Sprint 8
