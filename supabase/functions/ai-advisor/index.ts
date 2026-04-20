@@ -252,6 +252,35 @@ function extractRecommendationJson(text: string): { json: string; cleaned: strin
   return { json, cleaned };
 }
 
+// ── Extrator de META_REFLECTION_JSON (Sprint 8 — T8.3) ───────────────────
+
+function extractMetaReflectionJson(text: string): { json: string; cleaned: string } | null {
+  const marker = "\nMETA_REFLECTION_JSON:";
+  const markerIdx = text.indexOf(marker);
+  if (markerIdx === -1) return null;
+
+  const braceStart = text.indexOf("{", markerIdx + marker.length);
+  if (braceStart === -1) return null;
+
+  let depth = 0;
+  let braceEnd = -1;
+  for (let i = braceStart; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) { braceEnd = i; break; }
+    }
+  }
+  if (braceEnd === -1) return null;
+
+  const json = text.slice(braceStart, braceEnd + 1);
+  let afterBlock = braceEnd + 1;
+  if (afterBlock < text.length && text[afterBlock] === "\n") afterBlock++;
+  const cleaned = (text.slice(0, markerIdx) + text.slice(afterBlock)).trim();
+
+  return { json, cleaned };
+}
+
 // ── Stream + cache ─────────────────────────────────────────────────────────
 
 async function streamAndCache(
@@ -398,6 +427,31 @@ async function streamAndCache(
       }
     }
     // ── fim T5.2 ────────────────────────────────────────────────────────────
+
+    // ── Sprint 8 T8.3 — extrair e persistir META_REFLECTION_JSON ───────────
+    const metaExtract = extractMetaReflectionJson(accumulated);
+    if (metaExtract) {
+      textToCache = extractMetaReflectionJson(textToCache)?.cleaned ?? textToCache;
+      try {
+        const meta = JSON.parse(metaExtract.json);
+        if (meta.observation_type && meta.observation) {
+          await supabase.from("ai_self_observations").insert({
+            user_id:            userId,
+            observation_type:   meta.observation_type,
+            observation:        meta.observation,
+            message_id:         meta.message_id || null,
+            related_pattern_id: meta.related_pattern_id || null,
+            related_memory_id:  meta.related_memory_id || null,
+          }).then(({ error }) => {
+            if (error) console.warn("ai_self_observations insert failed:", error.message);
+            else console.log(`ai_self_observations inserted: type=${meta.observation_type}`);
+          });
+        }
+      } catch {
+        console.warn("META_REFLECTION_JSON malformado — ignorado");
+      }
+    }
+    // ── fim T8.3 ────────────────────────────────────────────────────────────
   })();
 
   return new Response(readable, {
