@@ -62,6 +62,53 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Parse body — cron envia {}, frontend envia { mode, text } para mode="embed"
+  let body: Record<string, unknown> = {};
+  try { body = await req.json(); } catch { /* body vazio ou sem content-type */ }
+
+  // ── mode="embed": embedding único — usado por findRelatedConversations ─────
+  if (body.mode === "embed") {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const anonClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: { user } } = await anonClient.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    if (text.length < 10) {
+      return new Response(
+        JSON.stringify({ error: "text muito curto (mínimo 10 chars)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const embeddings = await generateEmbeddingsBatch([text]);
+    const embedding = embeddings[0];
+    if (!embedding) {
+      return new Response(JSON.stringify({ error: "Falha ao gerar embedding" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, embedding }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  // ── fim mode="embed" ───────────────────────────────────────────────────────
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

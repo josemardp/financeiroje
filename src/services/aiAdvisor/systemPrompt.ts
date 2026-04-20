@@ -25,6 +25,7 @@ export function buildSystemPrompt(context: FinancialContext): string {
     perfilComportamental,
     aderenciaHistorica,
     behavioralTags,
+    conversasRelacionadas,
     userIntentHint = "generic",
   } = context;
 
@@ -140,6 +141,19 @@ DIRETRIZ OBRIGATÓRIA:
 `
     : "";
 
+  const conversasRelacionadasSection = conversasRelacionadas && conversasRelacionadas.length > 0
+    ? `
+💬 CONVERSAS ANTERIORES RELACIONADAS (use para continuidade — não são fatos verificados):
+${conversasRelacionadas.map(c =>
+  `- ${new Date(c.created_at).toLocaleDateString("pt-BR")} [${c.role === "user" ? "usuário" : "você"}]: ${c.content.slice(0, 200)}`
+).join("\n")}
+
+DIRETRIZ: Referencie conversas anteriores para dar continuidade ("lembro que você decidiu...").
+Estes são TRECHOS — se precisar de valor exato ou contexto completo, trate como hipótese
+e confirme com o usuário. Nunca afirme como fato o que está neste bloco.
+`
+    : "";
+
   const perfilSection = perfilComportamental
     ? `
 🧬 PERFIL COMPORTAMENTAL (análise baseada no histórico real):
@@ -221,6 +235,7 @@ ${historicoSection}
 ${recentTxSection}
 ${perfilSection}
 ${behavioralTagsSection}
+${conversasRelacionadasSection}
 ${decisionSection}
 ${subscriptionsSection}
 ${progressMemorySection}
