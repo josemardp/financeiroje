@@ -19,7 +19,7 @@ serve(async (req) => {
     // 1. Claim do lote via RPC
     const { data: batch, error: claimError } = await supabase.rpc(
       "claim_pattern_learning_batch",
-      { p_batch_size: 50 }
+      { p_batch_size: 100 }
     );
 
     if (claimError) {

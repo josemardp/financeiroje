@@ -382,18 +382,30 @@ export default function AiAdvisor() {
         ));
       }
 
+      let finalMessageId = assistantId;
       if (convId && assistantText) {
-        await supabase.from("ai_messages").insert({
-          conversation_id: convId,
-          user_id: user.id,
-          role: "assistant" as const,
-          content: assistantText,
-        });
+        const { data: savedMsg, error: insertError } = await supabase
+          .from("ai_messages")
+          .insert({
+            conversation_id: convId,
+            user_id: user.id,
+            role: "assistant" as const,
+            content: assistantText,
+          })
+          .select("id")
+          .single();
+
+        if (!insertError && savedMsg) {
+          finalMessageId = savedMsg.id;
+          setMessages(prev => prev.map(m => 
+            m.id === assistantId ? { ...m, id: savedMsg.id } : m
+          ));
+        }
       }
 
       // Após salvar, busca o decision_outcomes gerado pela edge function (T5.3)
       if (hasRecommendation && user) {
-        const capturedId = assistantId;
+        const targetId = finalMessageId;
         setTimeout(async () => {
           const { data: rec } = await (supabase as any)
             .from("decision_outcomes")
@@ -405,7 +417,7 @@ export default function AiAdvisor() {
             .maybeSingle();
           if (rec?.id) {
             setMessages(prev => prev.map(m =>
-              m.id === capturedId ? { ...m, decisionId: rec.id } : m
+              m.id === targetId ? { ...m, decisionId: rec.id } : m
             ));
           }
         }, 1500);
