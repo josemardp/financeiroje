@@ -66,6 +66,11 @@ Impedimentos:
 - Validação estrutural do JSON retornado pelo LLM adicionada
 - Teste manual executado com resposta HTTP 200
 - Digest persistido com sucesso em produção
+- T9.1 (parte 3 — cron semanal `weekly-generate-digest-monday`) concluída
+- Secrets `weekly_digest_project_url` e `weekly_digest_anon_key` criadas no Vault
+- Cron `weekly-generate-digest-monday` criado no Supabase
+- Agendamento validado com `schedule = 0 6 * * 1`
+- T9.1 concluída integralmente
 
 ### 2026-04-20 (Sprint 8)
 
