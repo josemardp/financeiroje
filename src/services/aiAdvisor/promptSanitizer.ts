@@ -12,8 +12,15 @@ const KNOWN_JAILBREAK_PATTERNS = [
   /act\s+as/gi,
   /override/gi,
   /<system>/gi,
+  /<\/system>/gi,
   /<instruction>/gi,
-  /\[\[SYSTEM\]\]/gi
+  /<\/instruction>/gi,
+  /\[\[SYSTEM\]\]/gi,
+  /\bsudo\b/gi,
+  /\bdrop\s+table\b/gi,
+  /\brm\s+-rf\b/gi,
+  /\bexec\s*\(/gi,
+  /\bDAN\b/gi
 ];
 
 /**
@@ -21,7 +28,7 @@ const KNOWN_JAILBREAK_PATTERNS = [
  * Bloqueia padrões conhecidos e isola semanticamente em tags <user_data>.
  */
 export function sanitizePromptContext(input: string | null | undefined): string {
-  if (!input) return "";
+  if (!input) return "<user_data>\n\n</user_data>";
 
   let sanitized = input;
 
