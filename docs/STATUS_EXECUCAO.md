@@ -1,28 +1,13 @@
 # STATUS_EXECUCAO — FinanceiroJe
 
-## Transição Fase 1 → Fase 2 (2026-04-19)
+## Fase 2 — EM EXECUÇÃO (2026-04-20)
 
-**Fase 1 (Sprints 1-7) — ENCERRADA**
-- PLANO_INTELIGENCIA_PESSOAL.md v1.3 — Implementação concluída (~92-95%)
-- Débitos técnicos aceitos: D3, D5, D7-A, D7-B (documentados)
-- Status: Estável em produção. Arquivo movido para `docs/_archive/`
+Sprint atual: Sprint 8 — Memória Conversacional e Defesa
+Situação: T8.1 a T8.6 concluídas. T8.7 em andamento (validação).
 
-**Fase 2 (Sprints 8-10) — PLANEJADA, NÃO INICIADA**
-- Plano complementar elaborado: PLANO_COMPLEMENTAR_INTELIGENCIA.md
-- Prompts novos: PROMPTS_POR_SPRINT_COMPLEMENTAR.md
-- Backlog estratégico: PLANOS_DE_EVOLUCAO.md (22 planos fora do escopo
-  de inteligência, em 7 categorias — plataforma, segurança, qualidade,
-  produto, business, família, inteligência deferida)
-- Próximo passo: aguardar início do Sprint 8; Sprint de Quitação de Débitos encerrada administrativamente por bloqueios externos
-
----
-
-## Estado atual
-
-**Sprint atual:** Sprint de Quitação de Débitos — CONCLUÍDA  
-**Sprint anterior:** Sprint 7 — CONCLUÍDO (2026-04-19)  
-**Situação atual:** Sprint de Quitação de Débitos encerrada administrativamente. Pendências remanescentes dependem de uso orgânico ou modelagem futura. Aguardando início do Sprint 8.  
-**Última atualização:** 2026-04-19
+Impedimentos:
+- SLA de embeddings não validado (backlog histórico distorceu métrica)
+- Meta-reflexão sem evidência em produção
 
 ---
 
