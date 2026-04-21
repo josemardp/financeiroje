@@ -71,6 +71,11 @@ Impedimentos:
 - Cron `weekly-generate-digest-monday` criado no Supabase
 - Agendamento validado com `schedule = 0 6 * * 1`
 - T9.1 concluída integralmente
+- T9.2 — WeeklyDigestCard no Dashboard concluída
+- Componente criado em src/components/shared/WeeklyDigestCard.tsx
+- Integração no Dashboard abaixo do PageHeader
+- Query baseada em dismissed_at IS NULL
+- UX passiva validada (sem push, sem badge)
 
 ### 2026-04-20 (Sprint 8)
 
