@@ -49,6 +49,17 @@ Impedimentos:
 
 ## Últimas tarefas concluídas
 
+### 2026-04-21 (Sprint 9)
+
+- T9.1 (parte 1 — migration `weekly_digests`) concluída
+- Arquivo `supabase/migrations/20260508000001_weekly_digests.sql` criado
+- Migration aplicada manualmente no Supabase
+- Tabela `public.weekly_digests` validada com:
+  - integridade temporal (`week_start` segunda-feira; `week_end = week_start + 6 dias`)
+  - RLS habilitado
+  - policies `Users can select own digests` (SELECT) e `Users can update own digests` (UPDATE)
+- Índices `idx_digest_pending` e `idx_digest_history` criados
+
 ### 2026-04-20 (Sprint 8)
 
 **Auditoria de fechamento Sprint 8:**
