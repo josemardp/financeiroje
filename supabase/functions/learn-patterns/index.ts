@@ -674,6 +674,71 @@ async function handleFromCorrection(
   return written;
 }
 
+async function handleFromCorrectionsBatch(
+  supabase: SupabaseClient,
+  userId: string,
+  corrections: Array<{ transaction_id: string; new_category_id: string }>,
+): Promise<number> {
+  const transactionIds = corrections.map((c) => c.transaction_id);
+
+  const { data: txs } = await supabase
+    .from("transactions")
+    .select("id, user_id, scope, descricao, valor, categoria_id, data")
+    .in("id", transactionIds);
+
+  if (!txs || txs.length === 0) return 0;
+
+  const txMap = new Map(txs.map((t) => [t.id, t]));
+  const allNewCatIds = [...new Set(corrections.map((c) => c.new_category_id))];
+  const catNames = await fetchCategoryNames(supabase, allNewCatIds);
+  const now = new Date().toISOString();
+
+  const rowsByScope = new Map<string, PatternRow[]>();
+
+  for (const corr of corrections) {
+    const tx = txMap.get(corr.transaction_id);
+    if (!tx || !tx.descricao) continue;
+
+    const scope = (tx.scope as string) ?? "private";
+    const patternKey = normalizeMerchant(tx.descricao as string);
+    if (patternKey.length < 3) continue;
+
+    const row: PatternRow = {
+      user_id: userId,
+      scope,
+      pattern_type: "merchant_category",
+      pattern_key: patternKey,
+      pattern_value: {
+        type: "merchant_category",
+        merchant_normalized: patternKey,
+        category_id: corr.new_category_id,
+        category_name: catNames.get(corr.new_category_id) ?? corr.new_category_id,
+        sample_descriptions: [tx.descricao as string],
+      },
+      hit_count: 1,
+      last_seen_at: now,
+      confidence: 0.95,
+      source: "corrected",
+    };
+
+    if (!rowsByScope.has(scope)) rowsByScope.set(scope, []);
+    rowsByScope.get(scope)!.push(row);
+  }
+
+  let totalWritten = 0;
+  for (const [scope, rows] of rowsByScope) {
+    totalWritten += await upsertPatternsBatch(supabase, userId, scope, rows);
+
+    const uniqueMerchantKeys = [...new Set(rows.map((r) => r.pattern_key))];
+    for (const key of uniqueMerchantKeys) {
+      const row = rows.find((r) => r.pattern_key === key);
+      await generateAndSaveSingleEmbedding(supabase, userId, scope, key, (row?.pattern_value as any).sample_descriptions);
+    }
+  }
+
+  return totalWritten;
+}
+
 // ── Handler principal ──────────────────────────────────────────────────────
 
 async function handler(req: Request): Promise<Response> {
@@ -687,7 +752,7 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { mode, user_id, transaction_id, new_category_id } = await req.json();
+    const { mode, user_id, transaction_id, new_category_id, corrections } = await req.json();
 
     if (!mode || !user_id) {
       return new Response(
@@ -721,6 +786,15 @@ async function handler(req: Request): Promise<Response> {
         patternsWritten = await handleFromCorrection(
           supabase, user_id, transaction_id, new_category_id,
         );
+        break;
+      case "from_corrections_batch":
+        if (!corrections || !Array.isArray(corrections)) {
+          return new Response(
+            JSON.stringify({ error: "corrections array obrigatório para modo batch" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        patternsWritten = await handleFromCorrectionsBatch(supabase, user_id, corrections);
         break;
       default:
         return new Response(
