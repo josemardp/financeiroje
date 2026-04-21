@@ -30,6 +30,7 @@ import {
 
 import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
 import { AchievementUnlockedToast } from "@/components/shared/AchievementUnlockedToast";
+import { WeeklyDigestCard } from "@/components/shared/WeeklyDigestCard";
 
 /**
  * Dashboard principal com destaque para Captura Inteligente (IA)
@@ -207,6 +208,8 @@ export default function Dashboard() {
           </Button>
         </div>
       </PageHeader>
+
+      <WeeklyDigestCard />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard title="Receitas" value={formatCurrency(summaryConfirmed?.totalIncome || 0)} icon={TrendingUp} variant="success" />
