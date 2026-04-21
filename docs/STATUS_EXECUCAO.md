@@ -59,6 +59,13 @@ Impedimentos:
   - RLS habilitado
   - policies `Users can select own digests` (SELECT) e `Users can update own digests` (UPDATE)
 - Índices `idx_digest_pending` e `idx_digest_history` criados
+- T9.1 (parte 2 — edge function `generate-weekly-digest`) concluída
+- Edge Function `generate-weekly-digest` criada e deployada no Supabase
+- Guard de ambiente implementado com dry-run fora de produção
+- Validação de `OPENROUTER_API_KEY` adicionada
+- Validação estrutural do JSON retornado pelo LLM adicionada
+- Teste manual executado com resposta HTTP 200
+- Digest persistido com sucesso em produção
 
 ### 2026-04-20 (Sprint 8)
 
