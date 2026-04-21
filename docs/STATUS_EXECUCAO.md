@@ -329,7 +329,26 @@ Status: concluída e validada
 - Unicidade das tags `<user_data>` validada por Regex.
 - Bloqueio de termos sensíveis confirmado em todas as camadas de sanitização.
 
-- [ ] T8.6 — Migration `pattern_learning_queue` + edge function `process-pattern-learning-queue`
+- [x] T8.6 — Migration `pattern_learning_queue` + trigger + processamento assíncrono
+
+## Sprint 8 — T8.6: pattern_learning_queue + trigger + processamento assíncrono
+
+Status: concluída e validada
+
+### Entregas
+- **Arquitetura Outbox**: Migration `20260505000001_pattern_learning_queue.sql` aplicada.
+- **Trigger Assíncrono**: `notify_pattern_learning_on_correction` desacoplado de chamadas HTTP.
+- **Orquestrador Corrigido**: Edge Function `process-pattern-learning-queue` implementada com logs detalhados e tratamento de exceções.
+- **Automação**: Cron job `process-pattern-learning-queue-every-5-min` ativo.
+
+### Correções pós-validação (Hotfix)
+- **Diagnóstico**: Identificada falha silenciosa na orquestração inicial (processed_at permanecia NULL).
+- **Ação**: 
+  - Edge function redeployada com `try/catch` granular por bloco de usuário.
+  - Persistência obrigatória de erros via `increment_queue_attempts` em falhas de fetch/rede.
+  - Normalização da `SUPABASE_URL` para evitar erros de resolução de DNS interno.
+- **Resultado**: Fluxo ponta-ponta validado: Correção -> Queue -> Cron -> Edge Function -> aprendizado de padrão.
+
 - [ ] T8.7 — Validação critérios de aceite Sprint 8
 
 ### Sprint 9 — IA Proativa e Relatório Semanal Interno
