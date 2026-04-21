@@ -308,7 +308,27 @@ Status: concluída e validada
 - **Defesa Profunda**: Backend atua como "porteiro final", garantindo isolamento mesmo se o frontend for ignorado.
 - **Inércia**: O modelo é instruído a tratar conteúdo em `<user_data>` estritamente como dado, nunca como instrução.
 
-- [ ] T8.5 — Suite adversarial `injection.test.ts` (20 payloads)
+- [x] T8.5 — Suite adversarial `injection.test.ts` (25 payloads)
+
+## Sprint 8 — T8.5: Suite adversarial injection.test.ts
+
+Status: concluída e validada
+
+### Entregas
+- Suite de testes robusta: `src/services/aiAdvisor/__tests__/injection.test.ts`
+- 25+ payloads cobrindo 8 categorias:
+  - Classic jailbreak, Role override, Tag breakouts, JSON injection, OCR injection, Transaction contamination, Edge cases, Prompt leakage.
+- Correção de vulnerabilidades no `promptSanitizer.ts`:
+  - Bloqueio de comandos executáveis: `sudo`, `DROP TABLE`, `rm -rf`, `exec(`.
+  - Sanitização de personagens maliciosos conhecidos (`DAN`).
+  - Proteção contra quebra de tags de sistema (`<system>`, `<instruction>`).
+  - Tratamento correto de inputs vazios.
+
+### Validação técnica
+- Vitest: 8 suítes / 8 testes passando (100% coverage de payloads críticos).
+- Unicidade das tags `<user_data>` validada por Regex.
+- Bloqueio de termos sensíveis confirmado em todas as camadas de sanitização.
+
 - [ ] T8.6 — Migration `pattern_learning_queue` + edge function `process-pattern-learning-queue`
 - [ ] T8.7 — Validação critérios de aceite Sprint 8
 
