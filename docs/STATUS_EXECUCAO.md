@@ -51,6 +51,18 @@ Impedimentos:
 
 ### 2026-04-22 (Sprint 9)
 
+- Hotfix de segurança concluído
+- Migration `20260508000003_secure_achievements_catalog_and_pattern_learning_queue.sql` criada
+- Migration aplicada manualmente no Supabase
+- RLS habilitado em `public.achievements_catalog`
+- Policy `Authenticated can read achievements catalog` validada
+- RLS habilitado em `public.pattern_learning_queue`
+- Policy `No access for clients` validada
+- EXECUTE das RPCs `claim_pattern_learning_batch(integer)` e `increment_queue_attempts(uuid[], text)` restrito a `service_role`
+- Supabase Security Advisor validado com 0 errors
+- Dashboard validado sem quebra funcional
+- Registro de transação validado sem erro após o hotfix
+
 - T9.3 — Infra de A/B testing de prompts concluída
 - Migration `20260508000002_prompt_variants.sql` criada
 - Migration aplicada manualmente no Supabase
@@ -191,6 +203,7 @@ Sprint 8 oficialmente encerrado com 100% dos critérios técnicos validados.
 - [x] T8.5 — Suite adversarial `injection.test.ts` (25 payloads)
 - [x] T8.6 — Migration `pattern_learning_queue` + trigger + processamento assíncrono
 - [x] T8.7 — Validação critérios de aceite Sprint 8
+- [x] T8.7-B — Hotfix de segurança RLS/RPC para `achievements_catalog` e `pattern_learning_queue`
 
 ---
 
@@ -368,13 +381,24 @@ Corrigido na v25 com `verify_jwt: false` — função valida JWT internamente vi
 
 - T7.1 concluída
 - `supabase/migrations/20260428000001_gamification.sql` criada e aplicada manualmente no Supabase
-- Tabelas: `achievements_catalog` (sem RLS), `user_achievements` (RLS + seen_at), `user_streaks` (RLS)
+- Tabelas: `achievements_catalog` (estado original da T7.1: sem RLS; corrigido posteriormente no hotfix T8.7-B), `user_achievements` (RLS + seen_at), `user_streaks` (RLS)
 - Índices: `idx_user_achievements_recent` (user_id, unlocked_at DESC), `idx_user_streaks_user` (user_id)
 - Seed: 7 conquistas inseridas em `achievements_catalog` (3 identidade, 3 processo, 1 consistência)
 - Checklist de validação executado: 3 tabelas, 2 policies, 2 índices, 7 seeds — tudo confirmado
 - Correção pós-aplicação: Supabase auto-habilitou RLS em `achievements_catalog` (comportamento do projeto)
   → `ALTER TABLE public.achievements_catalog DISABLE ROW LEVEL SECURITY;` aplicado manualmente e confirmado
 - T7.1 administrativamente encerrada
+
+### 2026-04-22 (Hotfix T8.7-B — Segurança Supabase)
+
+- `supabase/migrations/20260508000003_secure_achievements_catalog_and_pattern_learning_queue.sql` criada
+- Migration aplicada manualmente no Supabase
+- `public.achievements_catalog`: RLS reabilitado com policy `Authenticated can read achievements catalog`
+- `public.pattern_learning_queue`: RLS habilitado com policy `No access for clients`
+- RPCs `claim_pattern_learning_batch(integer)` e `increment_queue_attempts(uuid[], text)` com EXECUTE restrito a `service_role`
+- Supabase Security Advisor validado com 0 errors
+- Dashboard validado sem quebra funcional
+- Registro de transação validado sem erro após o hotfix
 
 - T7.2 concluída
 - `supabase/functions/evaluate-achievements/index.ts` criado
