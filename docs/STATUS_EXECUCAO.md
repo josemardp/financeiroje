@@ -62,6 +62,15 @@ Impedimentos:
 - Supabase Security Advisor validado com 0 errors
 - Dashboard validado sem quebra funcional
 - Registro de transação validado sem erro após o hotfix
+- Hotfix de segurança (search_path) concluído
+- Migration `20260508000004_fix_search_path_for_client_rpcs.sql` criada
+- Migration aplicada manualmente no Supabase
+- search_path fix aplicado em:
+  - public.apply_response_feedback
+  - public.mark_decision_response
+- Warnings do Security Advisor reduzidos para funções não expostas ao client
+- Feedback da IA validado após alteração
+- Decision response validado após alteração
 
 - T9.3 — Infra de A/B testing de prompts concluída
 - Migration `20260508000002_prompt_variants.sql` criada
