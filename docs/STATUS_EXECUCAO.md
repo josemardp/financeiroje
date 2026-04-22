@@ -49,6 +49,23 @@ Impedimentos:
 
 ## Últimas tarefas concluídas
 
+### 2026-04-22 (Sprint 9)
+
+- T9.3 — Infra de A/B testing de prompts concluída
+- Migration `20260508000002_prompt_variants.sql` criada
+- Migration aplicada manualmente no Supabase
+- Tabela `public.prompt_variants` validada
+- Coluna `public.ai_messages.prompt_variant_keys` validada com default `{}`
+- Experimento inicial `advisor_tone_test` criado em produção
+- Edge function `ai-advisor` atualizada com:
+  - `assignVariants()` determinístico por `hash(user_id + experiment_key)`
+  - carregamento de experimentos ativos em `prompt_variants`
+  - injeção da variante antes da montagem do system prompt
+  - inclusão da variante no fingerprint/cache key
+  - header `X-Prompt-Variants`
+- Persistência de `prompt_variant_keys` integrada ao fluxo
+- T9.3 concluída integralmente
+
 ### 2026-04-21 (Sprint 9)
 
 - T9.1 (parte 1 — migration `weekly_digests`) concluída
