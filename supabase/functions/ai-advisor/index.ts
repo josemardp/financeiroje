@@ -4,7 +4,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  "Access-Control-Expose-Headers": "X-Context-Used, X-Cache",
+  "Access-Control-Expose-Headers": "X-Context-Used, X-Cache, X-Prompt-Variants",
+};
+
+type PromptVariantOption = {
+  key: string;
+  promptFragment?: string;
 };
 
 const SYSTEM_PROMPT_FALLBACK = `Você é um Coach Financeiro Pessoal e Psicólogo Financeiro — parceiro estratégico do usuário no longo prazo.
@@ -38,6 +43,67 @@ function djb2(str: string): string {
   return (h >>> 0).toString(36);
 }
 
+function hashUint32(str: string): number {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h, 33) ^ str.charCodeAt(i);
+  }
+  return h >>> 0;
+}
+
+function normalizeVariantOptions(variants: unknown): PromptVariantOption[] {
+  const source = Array.isArray(variants)
+    ? variants
+    : variants && typeof variants === "object" && Array.isArray((variants as { options?: unknown[] }).options)
+      ? (variants as { options: unknown[] }).options
+      : [];
+
+  return source.flatMap((variant) => {
+    if (typeof variant === "string") {
+      return [{ key: variant }];
+    }
+
+    if (!variant || typeof variant !== "object") {
+      return [];
+    }
+
+    const record = variant as Record<string, unknown>;
+    const rawKey = record.key ?? record.variant_key ?? record.id ?? record.name;
+    if (typeof rawKey !== "string" || !rawKey.trim()) {
+      return [];
+    }
+
+    const rawPrompt = record.prompt_fragment ?? record.prompt ?? record.instructions ?? record.text;
+    return [{
+      key: rawKey,
+      promptFragment: typeof rawPrompt === "string" && rawPrompt.trim()
+        ? rawPrompt.trim()
+        : undefined,
+    }];
+  });
+}
+
+function assignVariants(userId: string, experimentKey: string, variants: unknown): PromptVariantOption | null {
+  const options = normalizeVariantOptions(variants);
+  if (options.length === 0) return null;
+
+  const hash = hashUint32(`${userId}:${experimentKey}`);
+  return options[hash % options.length];
+}
+
+function buildVariantPromptSection(assignments: Record<string, PromptVariantOption>): string {
+  const lines = Object.entries(assignments)
+    .flatMap(([experimentKey, variant]) => (
+      variant.promptFragment
+        ? [`- ${experimentKey}/${variant.key}: ${variant.promptFragment}`]
+        : []
+    ));
+
+  if (lines.length === 0) return "";
+
+  return `\n\nPROMPT_VARIANTS_ATIVOS:\n${lines.join("\n")}`;
+}
+
 function contextFingerprint(ctx: Record<string, any> | null): string {
   if (!ctx) return "empty";
   const parts = [
@@ -60,10 +126,11 @@ function buildCacheKey(
   scope: string,
   model: string,
   userMessage: string,
-  ctxFp: string
+  ctxFp: string,
+  variantFp: string
 ): string {
   const normalized = userMessage.toLowerCase().trim().replace(/\s+/g, " ").slice(0, 300);
-  return djb2(`${userId}:${scope}:${model}:${normalized}:${ctxFp}`);
+  return djb2(`${userId}:${scope}:${model}:${normalized}:${ctxFp}:${variantFp}`);
 }
 
 function ttlMinutes(intent: string): number {
@@ -75,10 +142,16 @@ function ttlMinutes(intent: string): number {
   return map[intent] ?? 30;
 }
 
-function cachedSSEResponse(text: string): Response {
+function cachedSSEResponse(text: string, promptVariantKeys: Record<string, string>): Response {
   const chunk = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`;
   return new Response(chunk, {
-    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Cache": "HIT", "X-Context-Used": JSON.stringify({ memories: [], patterns: [] }) },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream",
+      "X-Cache": "HIT",
+      "X-Context-Used": JSON.stringify({ memories: [], patterns: [] }),
+      "X-Prompt-Variants": JSON.stringify(promptVariantKeys),
+    },
   });
 }
 
@@ -319,7 +392,8 @@ async function streamAndCache(
   scope: string,
   skipCache = false,
   memoryIds: string[] = [],
-  contextSnapshot: Record<string, unknown> | null = null
+  contextSnapshot: Record<string, unknown> | null = null,
+  promptVariantKeys: Record<string, string> = {}
 ): Promise<Response> {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
@@ -486,6 +560,7 @@ async function streamAndCache(
       "Content-Type": "text/event-stream",
       "X-Cache": "MISS",
       "X-Context-Used": JSON.stringify({ memories: memoryIds, patterns: [] }),
+      "X-Prompt-Variants": JSON.stringify(promptVariantKeys),
     },
   });
 }
@@ -570,6 +645,32 @@ serve(async (req) => {
     const intent = (context?.userIntentHint as string) ?? "generic";
     const scope = (context?.escopo as string) ?? "private";
     const isMarketQuery = intent === "mercado";
+    const { data: activePromptExperiments, error: promptVariantsError } = await supabase
+      .from("prompt_variants")
+      .select("experiment_key, variants")
+      .eq("active", true);
+
+    if (promptVariantsError) {
+      console.warn("prompt_variants fetch failed:", promptVariantsError.message);
+    }
+
+    const assignedVariants = Object.fromEntries(
+      (activePromptExperiments ?? [])
+        .map((experiment) => {
+          const selected = assignVariants(userId, experiment.experiment_key, experiment.variants);
+          return selected ? [experiment.experiment_key, selected] : null;
+        })
+        .filter((entry): entry is [string, PromptVariantOption] => entry !== null)
+    );
+
+    const promptVariantKeys = Object.fromEntries(
+      Object.entries(assignedVariants).map(([experimentKey, variant]) => [experimentKey, variant.key])
+    );
+    const promptVariantFingerprint = Object.entries(promptVariantKeys)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([experimentKey, variantKey]) => `${experimentKey}:${variantKey}`)
+      .join("|") || "none";
+    const variantPromptSection = buildVariantPromptSection(assignedVariants);
 
     supabase
       .from("ai_response_cache")
@@ -579,7 +680,7 @@ serve(async (req) => {
       .then(() => {});
 
     const ctxFp = contextFingerprint(context);
-    const cacheKey = buildCacheKey(userId, scope, selectedModel, lastUserMsg, ctxFp);
+    const cacheKey = buildCacheKey(userId, scope, selectedModel, lastUserMsg, ctxFp, promptVariantFingerprint);
 
     if (!isMarketQuery) {
       const { data: cached } = await supabase
@@ -596,7 +697,7 @@ serve(async (req) => {
           .eq("cache_key", cacheKey)
           .then(() => {});
         console.log(`Cache HIT — key=${cacheKey} model=${selectedModel} intent=${intent}`);
-        return cachedSSEResponse(cached.response_text);
+        return cachedSSEResponse(cached.response_text, promptVariantKeys);
       }
     }
 
@@ -672,7 +773,7 @@ serve(async (req) => {
       : "";
 
     const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
-    let systemContent = basePrompt + userPrefsSection + coachMemoriesSection;
+    let systemContent = basePrompt + variantPromptSection + userPrefsSection + coachMemoriesSection;
 
     // T5.5 — validação: bloco de aderência histórica presente no prompt?
     console.log(systemContent.includes("ADERÊNCIA HISTÓRICA")
@@ -733,7 +834,19 @@ serve(async (req) => {
       });
     }
 
-    return streamAndCache(response, supabase, cacheKey, userId, selectedModel, intent, scope, isMarketQuery, memoryIds, context ?? null);
+    return streamAndCache(
+      response,
+      supabase,
+      cacheKey,
+      userId,
+      selectedModel,
+      intent,
+      scope,
+      isMarketQuery,
+      memoryIds,
+      context ?? null,
+      promptVariantKeys,
+    );
 
   } catch (e) {
     console.error("ai-advisor error:", e);

@@ -96,6 +96,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           id: string
+          prompt_variant_keys: Json | null
           role: Database["public"]["Enums"]["ai_message_role"]
           user_id: string
         }
@@ -105,6 +106,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           id?: string
+          prompt_variant_keys?: Json | null
           role: Database["public"]["Enums"]["ai_message_role"]
           user_id: string
         }
@@ -114,6 +116,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           id?: string
+          prompt_variant_keys?: Json | null
           role?: Database["public"]["Enums"]["ai_message_role"]
           user_id?: string
         }
@@ -126,6 +129,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      prompt_variants: {
+        Row: {
+          active: boolean
+          created_at: string
+          experiment_key: string
+          id: string
+          variants: Json
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          experiment_key: string
+          id?: string
+          variants: Json
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          experiment_key?: string
+          id?: string
+          variants?: Json
+        }
+        Relationships: []
       }
       alerts: {
         Row: {

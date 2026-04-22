@@ -316,6 +316,11 @@ export default function AiAdvisor() {
         try { return contextUsedHeader ? JSON.parse(contextUsedHeader) : { memories: [], patterns: [] }; }
         catch { return { memories: [], patterns: [] }; }
       })();
+      const promptVariantsHeader = resp.headers.get("X-Prompt-Variants");
+      const promptVariantKeys: Record<string, string> = (() => {
+        try { return promptVariantsHeader ? JSON.parse(promptVariantsHeader) : {}; }
+        catch { return {}; }
+      })();
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
@@ -391,6 +396,7 @@ export default function AiAdvisor() {
             user_id: user.id,
             role: "assistant" as const,
             content: assistantText,
+            prompt_variant_keys: promptVariantKeys as any,
           })
           .select("id")
           .single();
