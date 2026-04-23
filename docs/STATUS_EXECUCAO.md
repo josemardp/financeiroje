@@ -1,9 +1,9 @@
 # STATUS_EXECUCAO — FinanceiroJe
 
-## Fase 2 — EM EXECUÇÃO (2026-04-20)
+## Fase 2 — EM EXECUÇÃO (2026-04-23)
 
-Sprint atual: Sprint 9 — IA Proativa e Relatórios Semanais
-Situação: Sprint 8 encerrado com 100% de aproveitamento técnico. Hotfix T8.7-B validado em produção.
+Sprint atual: Sprint 10 — Alinhamento de Identidade e Valores
+Situação: Sprint 9 encerrado com 95% de aproveitamento técnico. Pendência de telemetria histórica (T9.5) registrada.
 
 Impedimentos:
 - SLA de embeddings (D8-A): aguarda ciclo orgânico para ignorar backlog histórico.
@@ -48,6 +48,17 @@ Impedimentos:
 ---
 
 ## Últimas tarefas concluídas
+
+### 2026-04-23 (Sprint 9 — Encerramento)
+
+- Sprint 9 oficialmente encerrado com 95% de aproveitamento técnico (T9.5 bloqueada por design)
+- Weekly Digest: geração automática via cron (segunda 06:00), persistência e UI passiva validadas
+- A/B Testing: infraestrutura de variantes determinísticas implementada + dashboard de experimentos operacional
+- Anomalias: detecção p90/p50 integrada ao fluxo de transações com bloqueio seletivo de alta anomalia
+- Governança: confirmado zero push notifications e zero métricas artificiais
+- Débitos:
+  - T9.5 (Dashboard de Evolução) bloqueada por ausência de telemetria histórica
+  - Necessidade futura de snapshots semanais para habilitar série temporal real
 
 ### 2026-04-23 (Sprint 9)
 
@@ -228,7 +239,9 @@ Sprint 8 oficialmente encerrado com 100% dos critérios técnicos validados.
 - [x] T9.2 — WeeklyDigestCard no Dashboard
 - [x] T9.3 — Infra de A/B testing de prompts
 - [x] T9.4 — Detecção de anomalias em transações
-- [ ] T9.5 — Dashboard de evolução da IA (BLOQUEADO — ausência de telemetria histórica)
+- [x] T9.5 — Dashboard de evolução da IA (ENCERRADO COM DÉBITO — telemetria histórica)
+- [x] T9.6 — Dashboard de experimentos (Laboratório de IA)
+- [x] T9.7 — Validação final do Sprint 9
 
 ---
 
