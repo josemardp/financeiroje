@@ -49,6 +49,15 @@ Impedimentos:
 
 ## Últimas tarefas concluídas
 
+### 2026-04-23 (Sprint 9)
+
+- T9.4 — Detecção de anomalias em transações concluída
+- Hook `useTransactionAnomalyCheck` implementado com lógica p50/p90
+- `AnomalyWarningModal` implementado para bloqueio de alta anomalia
+- Integração reativa em `Transactions.tsx` (Novos lançamentos e Edição)
+- Alerta visual suave para anomalias médias (> p90 * 2)
+- Bloqueio com modal para anomalias altas (> p90 * 3 com n >= 5)
+
 ### 2026-04-22 (Sprint 9)
 
 - Hotfix de segurança concluído
@@ -213,6 +222,12 @@ Sprint 8 oficialmente encerrado com 100% dos critérios técnicos validados.
 - [x] T8.6 — Migration `pattern_learning_queue` + trigger + processamento assíncrono
 - [x] T8.7 — Validação critérios de aceite Sprint 8
 - [x] T8.7-B — Hotfix de segurança RLS/RPC para `achievements_catalog` e `pattern_learning_queue`
+
+### Sprint 9 — IA Proativa e Relatórios Semanais
+- [x] T9.1 — Weekly Digests (Migration + Edge Function + Cron)
+- [x] T9.2 — WeeklyDigestCard no Dashboard
+- [x] T9.3 — Infra de A/B testing de prompts
+- [x] T9.4 — Detecção de anomalias em transações
 
 ---
 

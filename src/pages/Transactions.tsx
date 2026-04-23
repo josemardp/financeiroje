@@ -20,6 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, ArrowLeftRight, Search, Trash2, Pencil, Loader2 } from "lucide-react";
 
 import { useScreenTracking } from "@/services/telemetry/useBehaviorTracking";
+import { useTransactionAnomalyCheck } from "@/hooks/useTransactionAnomalyCheck";
+import { AnomalyWarningModal } from "@/components/shared/AnomalyWarningModal";
 
 export default function Transactions() {
   const { user } = useAuth();
@@ -221,14 +223,31 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
   const { currentScope } = useScope();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({ valor: "", tipo: "expense", categoria_id: "", descricao: "", data: new Date().toISOString().split("T")[0], scope: currentScope === "all" ? "private" : currentScope });
+  const [showAnomalyModal, setShowAnomalyModal] = useState(false);
   const [parcelas, setParcelas] = useState("1");
   const [installmentStart, setInstallmentStart] = useState<"this_month" | "next_month">("this_month");
 
   const installmentCount = Math.max(1, Math.min(48, parseInt(parcelas, 10) || 1));
   const isInstallment = installmentCount > 1;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const anomaly = useTransactionAnomalyCheck(
+    user?.id,
+    form.categoria_id,
+    Number(form.valor),
+    form.tipo
+  );
+
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (anomaly.isHighAnomaly) {
+      setShowAnomalyModal(true);
+    } else {
+      handleSubmit(e);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!user) return;
     setIsSubmitting(true);
 
@@ -271,11 +290,16 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleFormSubmit} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Valor total (R$)</Label>
           <Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} required />
+          {anomaly.isMediumAnomaly && (
+            <p className="text-[10px] text-amber-600 font-medium">
+              ⚠️ Acima da faixa habitual (máx {formatCurrency(anomaly.expectedRange.max)})
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label>Tipo</Label>
@@ -339,6 +363,13 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
           {installmentCount}x de R$ {(Math.round((Number(form.valor) / installmentCount) * 100) / 100).toFixed(2)} — início: {installmentStart === "this_month" ? "este mês" : "próximo mês"}
         </p>
       )}
+      <AnomalyWarningModal 
+        isOpen={showAnomalyModal}
+        onClose={() => setShowAnomalyModal(false)}
+        onConfirm={() => { setShowAnomalyModal(false); handleSubmit(null as any); }}
+        value={Number(form.valor)}
+        expectedRange={anomaly.expectedRange}
+      />
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {isInstallment ? `Salvar ${installmentCount} parcelas` : "Salvar transação"}
@@ -351,6 +382,7 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInstallmentConfirm, setShowInstallmentConfirm] = useState(false);
+  const [showAnomalyModal, setShowAnomalyModal] = useState(false);
   const [pendingConfirmAfter, setPendingConfirmAfter] = useState(false);
   const [form, setForm] = useState({
     valor: transaction?.valor || "",
@@ -360,6 +392,13 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
     data: transaction?.data || new Date().toISOString().split("T")[0],
     scope: transaction?.scope || "private",
   });
+
+  const anomaly = useTransactionAnomalyCheck(
+    user?.id,
+    form.categoria_id,
+    Number(form.valor),
+    form.tipo
+  );
 
   const installmentMatch = transaction?.descricao?.match(/\((\d+)\/(\d+)\)$/);
   const isInstallment = !!installmentMatch;
@@ -425,9 +464,20 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
     onSuccess();
   };
 
-  const handleSubmit = async (e: React.FormEvent, confirmAfter: boolean = false) => {
-    e.preventDefault();
+  const handleFormSubmit = async (e: React.FormEvent, confirmAfter: boolean = false) => {
+    if (e) e.preventDefault();
     if (!user || !validateMinimumFields()) { toast.error("Preencha os campos obrigatórios: valor, tipo e data"); return; }
+    
+    if (anomaly.isHighAnomaly) {
+      setPendingConfirmAfter(confirmAfter);
+      setShowAnomalyModal(true);
+      return;
+    }
+    
+    await proceedWithSubmit(confirmAfter);
+  };
+
+  const proceedWithSubmit = async (confirmAfter: boolean) => {
     if (isInstallment) {
       setPendingConfirmAfter(confirmAfter);
       setShowInstallmentConfirm(true);
@@ -438,11 +488,16 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={(e) => handleFormSubmit(e)} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Valor (R$)</Label>
             <Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} required />
+            {anomaly.isMediumAnomaly && (
+              <p className="text-[10px] text-amber-600 font-medium">
+                ⚠️ Acima da faixa habitual (máx {formatCurrency(anomaly.expectedRange.max)})
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Tipo</Label>
@@ -489,10 +544,18 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
           </p>
         )}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button type="button" variant="outline" className="flex-1" onClick={(e) => handleSubmit(e as any, true)} disabled={isSubmitting}>Salvar e Confirmar</Button>
+          <Button type="button" variant="outline" className="flex-1" onClick={(e) => handleFormSubmit(e as any, true)} disabled={isSubmitting}>Salvar e Confirmar</Button>
           <Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Apenas Salvar</Button>
         </div>
       </form>
+
+      <AnomalyWarningModal 
+        isOpen={showAnomalyModal}
+        onClose={() => setShowAnomalyModal(false)}
+        onConfirm={() => { setShowAnomalyModal(false); proceedWithSubmit(pendingConfirmAfter); }}
+        value={Number(form.valor)}
+        expectedRange={anomaly.expectedRange}
+      />
 
       <Dialog open={showInstallmentConfirm} onOpenChange={setShowInstallmentConfirm}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-[380px]">
