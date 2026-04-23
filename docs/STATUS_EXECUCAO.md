@@ -567,5 +567,15 @@ Próximo sprint a definir.
 | 5 | D5 | Maio/2026 | Orgânico |
 | 6 | D7-A | Sprint futuro | Modelagem de schema |
 
+- [x] T9.6 — Dashboard de experimentos (Laboratório de IA) concluída
+- Rota `/configuracoes/ia-experimentos` implementada com lazy loading
+- Aba "Experimentos" integrada em `AIMemory.tsx` (agora com 5 abas)
+- Métricas baseadas em dados reais: `prompt_variants`, `ai_messages.prompt_variant_keys` e `ai_self_observations.user_feedback`
+- Integridade estatística:
+  - Score corrigido: `(upvotes - downvotes) / totalMessages`
+  - Wilson Score Interval (95% CI) baseado em `totalMessages`
+  - Status dinâmico baseado em sobreposição de intervalos (VENCEDOR, INFERIOR, ESTÁVEL, INCONCLUSIVO)
+- Validação real: tratamento de estado vazio e cruzamento de UUIDs via `message_id` confirmado
+
 ## Próxima tarefa esperada
-**Sessão 7 — T9.6: Dashboard /settings/ai-experiments (taxas por variante)**
+**Sessão 8 — Sprint 9 Finalização (ou Sprint 10 conforme PLANO_COMPLEMENTAR_INTELIGENCIA.md)**
