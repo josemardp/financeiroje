@@ -223,6 +223,14 @@ export interface FinancialContext {
   behavioralTags: BehavioralTag[] | null;
   // Sprint 8 T8.2
   conversasRelacionadas: ConversaRelacionada[] | null;
+  // Sprint 10 T10.1
+  metasAtivas: Array<{
+    titulo: string;
+    descricao: string | null;
+    valor_alvo: number | null;
+    prazo: string | null;
+    tipo: string | null;
+  }>;
 }
 
 export async function findRelatedConversations(
@@ -980,6 +988,15 @@ export async function getFinancialContext(
     .sort((a: BehavioralTag, b: BehavioralTag) => b.intensity * b.confidence - a.intensity * a.confidence)
     .slice(0, 5);
 
+  // --- Sprint 10 T10.1: Metas Ativas Simplificadas ---
+  const metasAtivas: FinancialContext["metasAtivas"] = goals.map(g => ({
+    titulo: g.nome,
+    descricao: g.notas || null,
+    valor_alvo: g.valor_alvo,
+    prazo: g.prazo,
+    tipo: null // Conforme plano: ZERO inferência
+  }));
+
   return {
     periodo: { mes, ano },
     escopo: scope,
@@ -998,6 +1015,7 @@ export async function getFinancialContext(
     contas: accountsList,
     padroesPorCategoria,
     impactoEmMetas,
+    metasAtivas, // Injetado aqui
     reservaEmergencia,
     preferenciasUsuario: userPrefs,
     userAiPreferences: aiPrefsResult.data ?? null,
