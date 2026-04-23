@@ -228,6 +228,7 @@ Sprint 8 oficialmente encerrado com 100% dos critérios técnicos validados.
 - [x] T9.2 — WeeklyDigestCard no Dashboard
 - [x] T9.3 — Infra de A/B testing de prompts
 - [x] T9.4 — Detecção de anomalias em transações
+- [ ] T9.5 — Dashboard de evolução da IA (BLOQUEADO — ausência de telemetria histórica)
 
 ---
 
@@ -239,9 +240,15 @@ Próximo: Sprint 7 — Gamificação Adaptativa.
 
 ---
 
-### 2026-04-14 (Sprint 5)
+### 2026-04-23 (Sprint 9)
 
-- T5.1 concluída
+- T9.5 — Dashboard de evolução da IA
+- Status: BLOQUEADO
+- Motivo: ausência de dados históricos persistidos para os 4 indicadores definidos no plano (Afinidade Categoria, Afinidade Comportamental, Confiabilidade Média, Momento Atual).
+- Decisão: não implementar com heurística ou reconstrução artificial para evitar violação de integridade do sistema e do plano de inteligência.
+- Próxima ação: tratar via plano futuro de telemetria/snapshots semanais (fora do escopo do Sprint 9).
+
+- T9.4 — Detecção de anomalias em transações concluída
 - Migration `20260420000001_decision_outcomes.sql` aplicada
 - Enums `recommendation_type` (8 valores) e `user_response_type` (5 valores) criados
 - Tabela `decision_outcomes` com RLS + 2 índices (`pending_review` parcial, `by_type`)
