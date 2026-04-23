@@ -123,6 +123,8 @@ export interface GoalRaw {
   valor_atual: number | null;
   prazo: string | null;
   prioridade: "alta" | "media" | "baixa" | null;
+  notas: string | null;
+  para_quem: string | null;
   ativo: boolean | null;
 }
 

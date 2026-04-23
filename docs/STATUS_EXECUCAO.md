@@ -49,6 +49,14 @@ Impedimentos:
 
 ## Últimas tarefas concluídas
 
+### 2026-04-23 (Sprint 10)
+
+- T10.1 — Injeção de metas ativas no system prompt concluída
+- `FinancialContext` atualizado para incluir `metasAtivas` (titulo, descricao, valor_alvo, prazo, tipo)
+- `contextCollector.ts` atualizado com query direta em `goals` e mapeamento simples
+- `systemPrompt.ts` atualizado com o bloco `🎯 METAS ATIVAS DO USUÁRIO` e diretrizes de uso
+- Correção aplicada para remover improvisos e manter alinhamento estrito ao plano (zero inferência)
+
 ### 2026-04-23 (Sprint 9 — Encerramento)
 
 - Sprint 9 oficialmente encerrado com 95% de aproveitamento técnico (T9.5 bloqueada por design)
@@ -242,6 +250,12 @@ Sprint 8 oficialmente encerrado com 100% dos critérios técnicos validados.
 - [x] T9.5 — Dashboard de evolução da IA (ENCERRADO COM DÉBITO — telemetria histórica)
 - [x] T9.6 — Dashboard de experimentos (Laboratório de IA)
 - [x] T9.7 — Validação final do Sprint 9
+
+### Sprint 10 — Alinhamento de Identidade e Valores
+- [x] T10.1 — Injeção de metas ativas no system prompt
+- [ ] T10.2 — Injeção de contexto de identidade (Identidade/Valores/Versículos)
+- [ ] T10.3 — Injeção de compromissos fixos e recorrências no prompt
+- [ ] T10.4 — Validação final do Sprint 10
 
 ---
 

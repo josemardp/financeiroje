@@ -34,11 +34,26 @@ export function buildSystemPrompt(context: FinancialContext): string {
     aderenciaHistorica,
     behavioralTags,
     conversasRelacionadas,
+    metasAtivas,
     userIntentHint = "generic",
   } = context;
 
   const scoreGeral = scoreFinanceiro?.scoreGeral ?? null;
   const scoreCategoria = scoreGeral !== null ? (scoreGeral >= 80 ? "Excelente" : scoreGeral >= 60 ? "Bom" : scoreGeral >= 40 ? "Adequado" : "Precisa melhorar") : "Não calculado";
+
+  const metasAtivasSection = metasAtivas && metasAtivas.length > 0
+    ? `
+🎯 METAS ATIVAS DO USUÁRIO:
+${metasAtivas.map(m =>
+  `- ${m.titulo}: ${m.tipo || "Geral"} | Alvo: R$ ${m.valor_alvo?.toFixed(2) || "---"} | Prazo: ${m.prazo || "Indefinido"} | Notas: ${m.descricao || "---"}`
+).join("\n")}
+
+⚠️ DIRETRIZES DE USO DAS METAS:
+1. Use as metas para orientar prioridades em toda resposta de decisão.
+2. NUNCA trate uma meta como fato garantido — trate como objetivo do usuário.
+3. Se uma sugestão sua conflitar com uma meta (ex: sugere gasto extra quando há meta de economia), reconheça o conflito explicitamente.
+`
+    : "";
 
   const dataQualityWarning = qualidadeDados.impactoNaPrecisao === "alto"
     ? `⚠️ AVISO: Há ${pendencias.count} transações pendentes. A precisão desta análise é LIMITADA.`
@@ -244,6 +259,7 @@ ${recentTxSection}
 ${perfilSection}
 ${behavioralTagsSection}
 ${conversasRelacionadasSection}
+${metasAtivasSection}
 ${decisionSection}
 ${subscriptionsSection}
 ${progressMemorySection}
