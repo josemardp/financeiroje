@@ -568,4 +568,4 @@ Próximo sprint a definir.
 | 6 | D7-A | Sprint futuro | Modelagem de schema |
 
 ## Próxima tarefa esperada
-**Sessão 4 — D7-B: UI de streaks (aguarda dados orgânicos em maio/2026)**
+**Sessão 7 — T9.6: Dashboard /settings/ai-experiments (taxas por variante)**
