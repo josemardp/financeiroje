@@ -223,6 +223,9 @@ export interface FinancialContext {
   behavioralTags: BehavioralTag[] | null;
   // Sprint 8 T8.2
   conversasRelacionadas: ConversaRelacionada[] | null;
+  // Sprint 10 T10.2
+  valoresUsuario: Array<{ value_key: string; description: string; priority_level: number }>;
+  versiculosRelevantes: Array<{ reference: string; text: string }>;
   // Sprint 10 T10.1
   metasAtivas: Array<{
     titulo: string;
@@ -309,13 +312,17 @@ export async function getFinancialContext(
   const startOfMonth = new Date(ano, mes - 1, 1).toISOString().split("T")[0];
   const endOfMonth = new Date(ano, mes, 0).toISOString().split("T")[0];
 
+  // Sprint 10 T10.2: Carregamento prévio de preferências para otimizar queries subsequentes
+  const { data: aiPrefs } = await supabase.from("user_ai_preferences").select("*").eq("user_id", userId).maybeSingle();
+  const usarVersiculos = aiPrefs?.usar_versiculos_acf ?? false;
+
   // Fetch all data in parallel
   const [
     txResult, budgetResult, recurringResult, loanResult,
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
     accountTxResult, prevAlertResult, historyTxResult, recentTxResult,
-    aiPrefsResult, behavioralTagsResult,
+    behavioralTagsResult, userValuesResult, scriptureResult
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
@@ -373,7 +380,6 @@ export async function getFinancialContext(
       if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
-    supabase.from("user_ai_preferences").select("*").eq("user_id", userId).maybeSingle(),
     (() => {
       let q = supabase.from("behavioral_tags")
         .select("tag_key, intensity, confidence, evidence")
@@ -384,6 +390,11 @@ export async function getFinancialContext(
       if (scope !== "all") q = q.eq("scope", scopeTyped);
       return q;
     })(),
+    // Sprint 10 T10.2
+    supabase.from("user_values_profile").select("value_key, description, priority_level").eq("user_id", userId).order("priority_level", { ascending: false }),
+    usarVersiculos 
+      ? supabase.from("scripture_library").select("reference, text_acf, theme") 
+      : Promise.resolve({ data: [] }),
   ]);
 
   // Map raw data
@@ -988,6 +999,30 @@ export async function getFinancialContext(
     .sort((a: BehavioralTag, b: BehavioralTag) => b.intensity * b.confidence - a.intensity * a.confidence)
     .slice(0, 5);
 
+  // --- Sprint 10 T10.2: Identidade e Versículos (Determinístico) ---
+  const questionLower = currentQuestion?.toLowerCase() || "";
+  const allScriptures = (scriptureResult.data || []) as any[];
+  
+  // 1. Match por tema (includes simples - determinístico)
+  let selected = allScriptures.filter(s => questionLower.includes(s.theme.toLowerCase()));
+  
+  // 2. Fallback determinístico (preencher com os primeiros registros até limite de 3)
+  if (selected.length < 3) {
+    const remaining = allScriptures.filter(s => !selected.find(sel => sel.reference === s.reference));
+    selected = [...selected, ...remaining.slice(0, 3 - selected.length)];
+  }
+
+  const versiculosRelevantes = selected.slice(0, 3).map(s => ({
+    reference: s.reference,
+    text: s.text_acf
+  }));
+
+  const valoresUsuario = (userValuesResult.data || []).map(v => ({
+    value_key: v.value_key,
+    description: v.description,
+    priority_level: v.priority_level
+  }));
+
   // --- Sprint 10 T10.1: Metas Ativas Simplificadas ---
   const metasAtivas: FinancialContext["metasAtivas"] = goals.map(g => ({
     titulo: g.nome,
@@ -1015,10 +1050,12 @@ export async function getFinancialContext(
     contas: accountsList,
     padroesPorCategoria,
     impactoEmMetas,
-    metasAtivas, // Injetado aqui
+    metasAtivas,
+    valoresUsuario,
+    versiculosRelevantes,
     reservaEmergencia,
     preferenciasUsuario: userPrefs,
-    userAiPreferences: aiPrefsResult.data ?? null,
+    userAiPreferences: aiPrefs ?? null,
     userIntentHint: "generic",
     assinaturas: undefined, // Will be populated by caller if needed
     // Fase 12
