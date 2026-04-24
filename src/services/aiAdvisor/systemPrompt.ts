@@ -41,6 +41,29 @@ export function buildSystemPrompt(context: FinancialContext): string {
   const scoreGeral = scoreFinanceiro?.scoreGeral ?? null;
   const scoreCategoria = scoreGeral !== null ? (scoreGeral >= 80 ? "Excelente" : scoreGeral >= 60 ? "Bom" : scoreGeral >= 40 ? "Adequado" : "Precisa melhorar") : "Não calculado";
 
+  const identitySection = context.valoresUsuario && context.valoresUsuario.length > 0
+    ? `
+💎 VALORES E IDENTIDADE DO USUÁRIO (NORTE ÉTICO):
+${context.valoresUsuario.map(v => `- [${v.value_key}] ${v.description} (Prioridade: ${v.priority_level})`).join("\n")}
+
+DIRETRIZ DE IDENTIDADE:
+- Suas recomendações devem respeitar estes valores. 
+- Em caso de trade-off, priorize o que for de maior nível de prioridade.
+`
+    : "";
+
+  const scriptureSection = context.versiculosRelevantes && context.versiculosRelevantes.length > 0
+    ? `
+📖 FUNDAMENTO BÍBLICO (ACF):
+${context.versiculosRelevantes.map(v => `"${v.text}" (${v.reference})`).join("\n")}
+
+⚠️ DIRETRIZ CRÍTICA DE ESCRITURAS:
+- NUNCA gere ou invente versículos bíblicos. Use APENAS os fornecidos acima.
+- Cite LITERALMENTE se, e somente se, o versículo for diretamente pertinente ao conselho financeiro.
+- Se nenhum versículo acima fizer sentido no contexto imediato da resposta, ignore este bloco completamente.
+`
+    : "";
+
   const metasAtivasSection = metasAtivas && metasAtivas.length > 0
     ? `
 🎯 METAS ATIVAS DO USUÁRIO:
@@ -192,7 +215,10 @@ ${perfilComportamental.areasAtencao.length > 0 ? `- Áreas de atenção: ${perfi
 `
     : "";
 
-  return `${SECURITY_GUARDRAIL}\nVocê é um Coach Financeiro Pessoal e Psicólogo Financeiro — parceiro estratégico do usuário no longo prazo.
+  return `${SECURITY_GUARDRAIL}
+${identitySection}
+${scriptureSection}
+Você é um Coach Financeiro Pessoal e Psicólogo Financeiro — parceiro estratégico do usuário no longo prazo.
 
 Você conhece o histórico financeiro real desta pessoa. Você acompanha a evolução mês a mês. Você lembra padrões, repete alertas quando necessário e celebra avanços reais.
 
