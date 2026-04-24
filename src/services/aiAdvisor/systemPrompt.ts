@@ -78,6 +78,20 @@ ${metasAtivas.map(m =>
 `
     : "";
 
+  const calendarioSection = context.eventosProximos30d && context.eventosProximos30d.length > 0
+    ? `
+📅 PRÓXIMOS 30 DIAS — EVENTOS E COMPROMISSOS:
+${context.eventosProximos30d.slice(0, 5).map(e =>
+  `- ${e.title} em ${e.daysUntil} dias${e.reserve_amount ? ` (valor sugerido reservar: R$ ${e.reserve_amount.toFixed(0)})` : ""}`
+).join("\n")}
+
+⚠️ DIRETRIZES DE PLANEJAMENTO:
+- Quando o usuário perguntar sobre capacidade de gasto ou decisão imediata, considere estes compromissos. 
+- Valores sugeridos para reserva são considerados "pré-comprometidos" e reduzem o caixa livre real.
+- Antecipe a necessidade de liquidez para estes eventos sem causar alarmismo, mas com realismo.
+`
+    : "";
+
   const dataQualityWarning = qualidadeDados.impactoNaPrecisao === "alto"
     ? `⚠️ AVISO: Há ${pendencias.count} transações pendentes. A precisão desta análise é LIMITADA.`
     : qualidadeDados.impactoNaPrecisao === "medio"
@@ -286,6 +300,7 @@ ${perfilSection}
 ${behavioralTagsSection}
 ${conversasRelacionadasSection}
 ${metasAtivasSection}
+${calendarioSection}
 ${decisionSection}
 ${subscriptionsSection}
 ${progressMemorySection}

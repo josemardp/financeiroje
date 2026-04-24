@@ -107,6 +107,14 @@ export interface PerfilComportamental {
   arquetipoDescricao: string;
 }
 
+export interface EventoProximo {
+  title: string;
+  event_type: string;
+  daysUntil: number;
+  recurrence_type: string | null;
+  reserve_amount: number | null;
+}
+
 export interface FinancialContext {
   periodo: { mes: number; ano: number };
   escopo: string;
@@ -234,6 +242,8 @@ export interface FinancialContext {
     prazo: string | null;
     tipo: string | null;
   }>;
+  // Sprint 10 T10.3
+  eventosProximos30d: EventoProximo[];
 }
 
 export async function findRelatedConversations(
@@ -395,10 +405,19 @@ export async function getFinancialContext(
     usarVersiculos 
       ? supabase.from("scripture_library").select("reference, text_acf, theme") 
       : Promise.resolve({ data: [] }),
+    // Sprint 10 T10.3
+    supabase.from("life_events").select("*").eq("user_id", userId).eq("active", true),
   ]);
 
   // Map raw data
-  const rawTransactions: TransactionRaw[] = (txResult.data || []).map((t: any) => ({
+  const [
+    txResult, budgetResult, recurringResult, loanResult,
+    installmentResult, amortResult, goalResult, contribResult,
+    alertResult, valuesResult, accountsResult, profileResult,
+    accountTxResult, prevAlertResult, historyTxResult, recentTxResult,
+    behavioralTagsResult, userValuesResult, scriptureResult,
+    lifeEventsResult
+  ] = results as any[];
     id: t.id,
     valor: Number(t.valor),
     tipo: t.tipo,
@@ -1032,6 +1051,39 @@ export async function getFinancialContext(
     tipo: null // Conforme plano: ZERO inferência
   }));
 
+  // --- Sprint 10 T10.3: Calendário de Vida Real ---
+  const eventosRaw = lifeEventsResult.data || [];
+  const eventosProximos30d: EventoProximo[] = eventosRaw.map((e: any) => {
+    const baseDate = new Date(e.event_date + 'T00:00:00');
+    let nextOccurrence = new Date(baseDate);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (e.recurrence_type === 'yearly') {
+      nextOccurrence.setFullYear(today.getFullYear());
+      if (nextOccurrence < today) nextOccurrence.setFullYear(today.getFullYear() + 1);
+    } else if (e.recurrence_type === 'monthly') {
+      nextOccurrence.setFullYear(today.getFullYear(), today.getMonth());
+      if (nextOccurrence < today) nextOccurrence.setMonth(today.getMonth() + 1);
+    } else if (e.recurrence_type === 'weekly') {
+      while (nextOccurrence < today) {
+        nextOccurrence.setDate(nextOccurrence.getDate() + 7);
+      }
+    }
+
+    const diffTime = nextOccurrence.getTime() - today.getTime();
+    const daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return {
+      title: e.title,
+      event_type: e.event_type,
+      daysUntil,
+      recurrence_type: e.recurrence_type,
+      reserve_amount: e.reserve_amount ? Number(e.reserve_amount) : null,
+    };
+  })
+  .filter((e: any) => e.daysUntil >= 0 && e.daysUntil <= 30)
+  .sort((a: any, b: any) => a.daysUntil - b.daysUntil);
+
   return {
     periodo: { mes, ano },
     escopo: scope,
@@ -1053,6 +1105,7 @@ export async function getFinancialContext(
     metasAtivas,
     valoresUsuario,
     versiculosRelevantes,
+    eventosProximos30d,
     reservaEmergencia,
     preferenciasUsuario: userPrefs,
     userAiPreferences: aiPrefs ?? null,
