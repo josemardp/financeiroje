@@ -506,7 +506,6 @@ async function streamAndCache(
       });
     }
   })();
-  })();
 
   return new Response(readable, {
     headers: {
