@@ -332,7 +332,8 @@ export async function getFinancialContext(
     installmentResult, amortResult, goalResult, contribResult,
     alertResult, valuesResult, accountsResult, profileResult,
     accountTxResult, prevAlertResult, historyTxResult, recentTxResult,
-    behavioralTagsResult, userValuesResult, scriptureResult
+    behavioralTagsResult, userValuesResult, scriptureResult,
+    lifeEventsResult
   ] = await Promise.all([
     (() => {
       let q = supabase.from("transactions")
@@ -410,14 +411,7 @@ export async function getFinancialContext(
   ]);
 
   // Map raw data
-  const [
-    txResult, budgetResult, recurringResult, loanResult,
-    installmentResult, amortResult, goalResult, contribResult,
-    alertResult, valuesResult, accountsResult, profileResult,
-    accountTxResult, prevAlertResult, historyTxResult, recentTxResult,
-    behavioralTagsResult, userValuesResult, scriptureResult,
-    lifeEventsResult
-  ] = results as any[];
+  const rawTransactions: TransactionRaw[] = (txResult.data || []).map((t: any) => ({
     id: t.id,
     valor: Number(t.valor),
     tipo: t.tipo,
