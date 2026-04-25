@@ -52,15 +52,12 @@ Impedimentos:
 ### 2026-04-24 (Sprint 10)
 
 - T10.3 — Calendário de Vida Real concluída
-- Migration `20260515000001_life_events.sql` aplicada manualmente no Supabase
-- Tabela `public.life_events` criada com suporte a `recurrence_type` (yearly, monthly, weekly)
-- RLS habilitado e indexação para buscas futuras (`event_date`) validada
-- `contextCollector.ts` atualizado:
-  - Carregamento de eventos ativos e cálculo determinístico da próxima ocorrência em TypeScript
-  - Horizon de 30 dias para injeção no contexto
-- `systemPrompt.ts` atualizado:
-  - Novo bloco `📅 PRÓXIMOS 30 DIAS — EVENTOS E COMPROMISSOS`
-  - Diretrizes de planejamento, antecipação de liquidez e impacto em caixa livre real
+  - [x] Migration `20260515000001_life_events.sql` criada, aplicada manualmente no Supabase e validada.
+  - [x] Tabela `public.life_events` criada com suporte a `recurrence_type` (yearly, monthly, weekly).
+  - [x] `contextCollector.ts` atualizado com query e lógica de cálculo para `eventosProximos30d`.
+  - [x] `systemPrompt.ts` atualizado com o bloco `📅 PRÓXIMOS 30 DIAS — EVENTOS E COMPROMISSOS`.
+  - [x] Erro de duplicidade no `contextCollector.ts` corrigido cirurgicamente.
+  - [x] Build validado com sucesso via `npm run build`.
 
 ### 2026-04-23 (Sprint 10)
 
