@@ -428,8 +428,8 @@ async function streamAndCache(
     let textToCache = accumulated;
     let coachInsight: { type: string; key: string; content: string; relevance: number } | null = null;
 
-    // Tenta formato novo INSIGHT_COACH_JSON (brace-matching — suporta JSON multilinha)
-    const jsonExtract = extractInsightJson(accumulated);
+    // 1. Extrair INSIGHT (Novo ou Legado) e limpar textToCache
+    const jsonExtract = extractInsightJson(textToCache);
     if (jsonExtract) {
       try {
         const parsed = JSON.parse(jsonExtract.json);
@@ -441,23 +441,50 @@ async function streamAndCache(
             relevance: Math.max(1, Math.min(10, Number(parsed.relevance) || 5)),
           };
         }
-      } catch { /* JSON malformado — ignora, sem fallback para evitar ruído */ }
+      } catch { /* ignorar erro de parse */ }
       textToCache = jsonExtract.cleaned;
     } else {
-      // Fallback: formato legado INSIGHT_COACH (compat até 2026-05-10)
-      const legacyMatch = accumulated.match(/\nINSIGHT_COACH:\s*(.+?)(?:\n|$)/);
+      const legacyMatch = textToCache.match(/\nINSIGHT_COACH:\s*(.+?)(?:\n|$)/);
       if (legacyMatch) {
         const content = legacyMatch[1].trim().slice(0, 200);
-        coachInsight = {
-          type: "observation",
-          key: `legacy_${djb2(content).slice(0, 20)}`,
-          content,
-          relevance: 6,
-        };
-        textToCache = accumulated.replace(/\nINSIGHT_COACH:\s*.+?(?:\n|$)/, "").trim();
+        coachInsight = { type: "observation", key: `legacy_${djb2(content).slice(0, 20)}`, content, relevance: 6 };
+        textToCache = textToCache.replace(/\nINSIGHT_COACH:\s*.+?(?:\n|$)/, "").trim();
       }
     }
 
+    // 2. Extrair RECOMMENDATION e limpar textToCache
+    const recExtract = extractRecommendationJson(textToCache);
+    if (recExtract) {
+      textToCache = recExtract.cleaned;
+      try {
+        const rec = JSON.parse(recExtract.json);
+        if (typeof rec.type === "string" && VALID_RECOMMENDATION_TYPES.has(rec.type) && typeof rec.summary === "string") {
+          await supabase.from("decision_outcomes").insert({
+            user_id: userId, scope: scope as any, recommendation_type: rec.type,
+            recommendation_summary: String(rec.summary).slice(0, 500),
+            recommendation_payload: rec.payload || {}, context_snapshot: contextSnapshot ?? {},
+          }).then(({ error }) => { if (error) console.warn("decision_outcomes insert failed:", error.message); });
+        }
+      } catch { /* ignorar */ }
+    }
+
+    // 3. Extrair META_REFLECTION e limpar textToCache
+    const metaExtract = extractMetaReflectionJson(textToCache);
+    if (metaExtract) {
+      textToCache = metaExtract.cleaned;
+      try {
+        const meta = JSON.parse(metaExtract.json);
+        if (meta.observation_type && meta.observation) {
+          await supabase.from("ai_self_observations").insert({
+            user_id: userId, observation_type: meta.observation_type,
+            observation: meta.observation, message_id: meta.message_id || null,
+            related_pattern_id: meta.related_pattern_id || null, related_memory_id: meta.related_memory_id || null,
+          }).then(({ error }) => { if (error) console.warn("ai_self_observations insert failed:", error.message); });
+        }
+      } catch { /* ignorar */ }
+    }
+
+    // 4. Salvar Cache (somente texto 100% limpo)
     if (!skipCache && textToCache.length > 20) {
       const ttl = ttlMinutes(intent);
       await supabase.from("ai_response_cache").upsert({
@@ -469,89 +496,16 @@ async function streamAndCache(
       });
     }
 
+    // 5. Persistir Insight
     if (coachInsight) {
-      const ttlMap: Record<string, number | null> = {
-        observation:     60,
-        concern:         30,
-        preference:      null,
-        goal_context:    180,
-        value_alignment: null,
-      };
-      const ttlDays = ttlMap[coachInsight.type] ?? 60;
-
+      const ttlMap: Record<string, number | null> = { observation: 60, concern: 30, preference: null, goal_context: 180, value_alignment: null };
       await supabase.rpc("upsert_coach_memory", {
-        p_user_id:     userId,
-        p_scope:       scope,
-        p_memory_type: coachInsight.type,
-        p_pattern_key: coachInsight.key,
-        p_content:     coachInsight.content,
-        p_relevance:   coachInsight.relevance,
-        p_ttl_days:    ttlDays,
-      }).then(({ error }) => {
-        if (error) console.warn("Coach memory upsert failed:", error.message);
-        else console.log(`Coach memory upserted: type=${coachInsight!.type} key=${coachInsight!.key}`);
+        p_user_id: userId, p_scope: scope, p_memory_type: coachInsight.type,
+        p_pattern_key: coachInsight.key, p_content: coachInsight.content,
+        p_relevance: coachInsight.relevance, p_ttl_days: ttlMap[coachInsight.type] ?? 60,
       });
     }
-
-    // ── Sprint 5 T5.2 — extrair e persistir RECOMMENDATION_JSON ────────────
-    // Extrai de `accumulated` (texto original) para evitar conflito com outros extratores.
-    // Remove o marcador de `textToCache` separadamente para não expô-lo ao usuário.
-    const recExtract = extractRecommendationJson(accumulated);
-    if (recExtract) {
-      textToCache = extractRecommendationJson(textToCache)?.cleaned ?? textToCache;
-      try {
-        const rec = JSON.parse(recExtract.json);
-        if (
-          typeof rec.type === "string" && VALID_RECOMMENDATION_TYPES.has(rec.type) &&
-          typeof rec.summary === "string" && rec.summary.length > 0 &&
-          rec.payload !== undefined && typeof rec.payload === "object" &&
-          JSON.stringify(rec.payload).length < 5000
-        ) {
-          await supabase.from("decision_outcomes").insert({
-            user_id:                userId,
-            scope:                  scope as "private" | "family" | "business",
-            recommendation_type:    rec.type,
-            recommendation_summary: String(rec.summary).slice(0, 500),
-            recommendation_payload: rec.payload,
-            context_snapshot:       contextSnapshot ?? {},
-            // message_id: null — referência opcional; sem ID de turno rastreável neste fluxo
-          }).then(({ error }) => {
-            if (error) console.warn("decision_outcomes insert failed:", error.message);
-            else console.log(`decision_outcomes inserted: type=${rec.type}`);
-          });
-        } else {
-          console.warn("RECOMMENDATION_JSON ignorado: tipo inválido ou campos obrigatórios ausentes");
-        }
-      } catch {
-        console.warn("RECOMMENDATION_JSON malformado — ignorado");
-      }
-    }
-    // ── fim T5.2 ────────────────────────────────────────────────────────────
-
-    // ── Sprint 8 T8.3 — extrair e persistir META_REFLECTION_JSON ───────────
-    const metaExtract = extractMetaReflectionJson(accumulated);
-    if (metaExtract) {
-      textToCache = extractMetaReflectionJson(textToCache)?.cleaned ?? textToCache;
-      try {
-        const meta = JSON.parse(metaExtract.json);
-        if (meta.observation_type && meta.observation) {
-          await supabase.from("ai_self_observations").insert({
-            user_id:            userId,
-            observation_type:   meta.observation_type,
-            observation:        meta.observation,
-            message_id:         meta.message_id || null,
-            related_pattern_id: meta.related_pattern_id || null,
-            related_memory_id:  meta.related_memory_id || null,
-          }).then(({ error }) => {
-            if (error) console.warn("ai_self_observations insert failed:", error.message);
-            else console.log(`ai_self_observations inserted: type=${meta.observation_type}`);
-          });
-        }
-      } catch {
-        console.warn("META_REFLECTION_JSON malformado — ignorado");
-      }
-    }
-    // ── fim T8.3 ────────────────────────────────────────────────────────────
+  })();
   })();
 
   return new Response(readable, {

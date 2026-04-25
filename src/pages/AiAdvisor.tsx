@@ -349,19 +349,37 @@ export default function AiAdvisor() {
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               assistantText += content;
-              const blocks = parseAiResponse(assistantText).blocks;
+
+              // Limpeza agressiva de marcadores durante o streaming (T10.7)
+              const markers = [
+                "\nINSIGHT_COACH_JSON:",
+                "\nRECOMMENDATION_JSON:",
+                "\nMETA_REFLECTION_JSON:",
+                "\nINSIGHT_COACH:"
+              ];
+              
+              let displayText = assistantText;
+              for (const m of markers) {
+                const idx = displayText.indexOf(m);
+                if (idx !== -1) {
+                  displayText = displayText.slice(0, idx);
+                  break; 
+                }
+              }
+
+              const blocks = parseAiResponse(displayText).blocks;
               setMessages(prev => {
                 const last = prev[prev.length - 1];
                 if (last?.role === "assistant" && last.id === assistantId) {
                   return prev.map((m, i) => i === prev.length - 1
-                    ? { ...m, content: assistantText, blocks, contextUsedIds }
+                    ? { ...m, content: displayText, blocks, contextUsedIds }
                     : m
                   );
                 }
                 return [...prev, {
                   id: assistantId,
                   role: "assistant",
-                  content: assistantText,
+                  content: displayText,
                   blocks,
                   timestamp: new Date().toISOString(),
                   contextUsedIds,
@@ -375,17 +393,27 @@ export default function AiAdvisor() {
         }
       }
 
-      // Strip RECOMMENDATION_JSON marker do texto exibido (T5.3)
-      const recMarkerIdx = assistantText.indexOf("\nRECOMMENDATION_JSON:");
-      const hasRecommendation = recMarkerIdx !== -1;
-      if (hasRecommendation) {
-        assistantText = assistantText.slice(0, recMarkerIdx).trim();
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId
-            ? { ...m, content: assistantText, blocks: parseAiResponse(assistantText).blocks }
-            : m
-        ));
-      }
+      // Limpeza final e robusta de marcadores (T10.7)
+      const markers = [
+        "\nINSIGHT_COACH_JSON:",
+        "\nRECOMMENDATION_JSON:",
+        "\nMETA_REFLECTION_JSON:",
+        "\nINSIGHT_COACH:"
+      ];
+
+      let finalCleanedText = assistantText;
+      markers.forEach(m => {
+        const idx = finalCleanedText.indexOf(m);
+        if (idx !== -1) finalCleanedText = finalCleanedText.slice(0, idx);
+      });
+      
+      assistantText = finalCleanedText.trim();
+      
+      setMessages(prev => prev.map(m =>
+        m.id === assistantId
+          ? { ...m, content: assistantText, blocks: parseAiResponse(assistantText).blocks }
+          : m
+      ));
 
       let finalMessageId = assistantId;
       if (convId && assistantText) {
