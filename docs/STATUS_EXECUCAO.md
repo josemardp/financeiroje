@@ -281,6 +281,19 @@ Sprint 8 oficialmente encerrado com 100% dos critérios técnicos validados.
 - [x] T10.3 — Injeção de compromissos fixos e recorrências no prompt
 - [x] T10.4 — Biblioteca ACF (Versículos literais)
 - [x] T10.5 — Correção da lacuna silenciosa (userAiPreferences centralizado)
+- [x] T10.7 — Validação final Sprint 10 concluída
+  - 5 cenários reais testados no Advisor
+  - Metas, calendário, valores, preferências e regra de silêncio bíblico validados
+  - Correções aplicadas durante a validação:
+    - userAiPreferences not defined
+    - basePrompt usado antes da declaração
+    - vazamento de INSIGHT_COACH_JSON
+    - erro hasRecommendation is not defined
+    - erro de sintaxe na edge function ai-advisor
+  - Build OK
+  - Edge function ai-advisor deployada
+  - Frontend sincronizado na main
+  - Sprint 10 encerrado
 - [x] Validação final do Sprint 10 (Build OK, Deploy OK)
 
 ---
