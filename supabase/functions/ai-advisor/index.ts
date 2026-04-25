@@ -751,6 +751,8 @@ serve(async (req) => {
       ...(values       ?? []).map((v: any) => v.id as string),
     ].filter(Boolean);
 
+    const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
+
     // Evitar duplicação se o prompt já vier com as preferências do frontend (T10.5)
     const hasPrefsInPrompt = basePrompt.includes("PREFERÊNCIAS DECLARADAS DO USUÁRIO") || 
                              basePrompt.includes("preferencias_usuario:");

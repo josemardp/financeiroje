@@ -18,6 +18,7 @@ export const SECURITY_GUARDRAIL = `
 export function buildSystemPrompt(context: FinancialContext): string {
   const {
     resumoConfirmado,
+    userAiPreferences,
     pendencias,
     qualidadeDados,
     reservaEmergencia,
