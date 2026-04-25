@@ -51,6 +51,11 @@ Impedimentos:
 
 ### 2026-04-25 (Sprint 10)
 
+- T10.5 — Correção da lacuna silenciosa concluída
+  - userAiPreferences centralizado no systemPrompt.ts
+  - userPrefsSection incorporado ao buildSystemPrompt
+  - ai-advisor mantém fallback temporário para compatibilidade
+
 - T10.4 — Biblioteca ACF concluída
   - Migration 20260515000002_scripture_library_v2.sql criada e aplicada
   - Estrutura evoluída: book, chapter, verse, themes[]
