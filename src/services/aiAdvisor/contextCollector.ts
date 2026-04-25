@@ -404,7 +404,7 @@ export async function getFinancialContext(
     // Sprint 10 T10.2
     supabase.from("user_values_profile").select("value_key, description, priority_level").eq("user_id", userId).order("priority_level", { ascending: false }),
     usarVersiculos 
-      ? supabase.from("scripture_library").select("reference, text_acf, theme") 
+      ? supabase.from("scripture_library").select("book, chapter, verse, text_acf, themes") 
       : Promise.resolve({ data: [] }),
     // Sprint 10 T10.3
     supabase.from("life_events").select("*").eq("user_id", userId).eq("active", true),
@@ -1016,17 +1016,32 @@ export async function getFinancialContext(
   const questionLower = currentQuestion?.toLowerCase() || "";
   const allScriptures = (scriptureResult.data || []) as any[];
   
-  // 1. Match por tema (includes simples - determinístico)
-  let selected = allScriptures.filter(s => questionLower.includes(s.theme.toLowerCase()));
-  
-  // 2. Fallback determinístico (preencher com os primeiros registros até limite de 3)
-  if (selected.length < 3) {
-    const remaining = allScriptures.filter(s => !selected.find(sel => sel.reference === s.reference));
-    selected = [...selected, ...remaining.slice(0, 3 - selected.length)];
-  }
+  // 1. Detecção controlada de temas
+  const keywordsMapping: Record<string, string[]> = {
+    'dízimo': ['dizimo', 'primicias'],
+    'doação': ['generosidade'],
+    'ajudar': ['generosidade', 'justica'],
+    'dívida': ['divida', 'alerta'],
+    'parcela': ['divida', 'planejamento'],
+    'planejar': ['planejamento', 'sabedoria'],
+    'comprar': ['planejamento', 'reserva'],
+    'trabalho': ['trabalho', 'diligencia'],
+    'difícil': ['provisao', 'confianca'],
+    'medo': ['provisao', 'confianca', 'paz']
+  };
+
+  const activeThemes = Object.entries(keywordsMapping)
+    .filter(([key]) => questionLower.includes(key))
+    .flatMap(([_, themes]) => themes);
+
+  // 2. Seleção estritamente baseada em temas detectados
+  // Se não houver match, retorna vazio (Zero Alucinação/Aleatoriedade)
+  const selected = (usarVersiculos && activeThemes.length > 0)
+    ? allScriptures.filter(s => s.themes.some((t: string) => activeThemes.includes(t)))
+    : [];
 
   const versiculosRelevantes = selected.slice(0, 3).map(s => ({
-    reference: s.reference,
+    reference: `${s.book} ${s.chapter}:${s.verse}`,
     text: s.text_acf
   }));
 
