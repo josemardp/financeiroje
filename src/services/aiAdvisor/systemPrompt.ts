@@ -94,6 +94,23 @@ ${context.eventosProximos30d.slice(0, 5).map(e =>
 `
     : "";
 
+  const userPrefsSection = userAiPreferences
+    ? `
+👤 PREFERÊNCIAS DECLARADAS DO USUÁRIO:
+- tom: ${userAiPreferences.tom_voz}
+- detalhamento: ${userAiPreferences.nivel_detalhamento}
+- alertas: ${userAiPreferences.frequencia_alertas}
+${userAiPreferences.contexto_identidade ? `- identidade: ${userAiPreferences.contexto_identidade}` : ""}
+${userAiPreferences.valores_pessoais?.length ? `- valores: ${userAiPreferences.valores_pessoais.join(", ")}` : ""}
+${userAiPreferences.compromissos_fixos?.length
+  ? `- compromissos: ${userAiPreferences.compromissos_fixos.map(c => `${c.descricao}${c.dia ? ` dia ${c.dia}` : ""}${c.valor ? ` R$ ${c.valor}` : ""}`).join("; ")}`
+  : ""}
+${userAiPreferences.usar_versiculos_acf ? `- usar versículos ACF quando pertinente` : ""}
+${userAiPreferences.prioridade_default ? `- prioridade default: ${userAiPreferences.prioridade_default}` : ""}
+${userAiPreferences.tratar_parcelamentos ? `- tratar parcelamentos: ${userAiPreferences.tratar_parcelamentos}` : ""}
+`
+    : "";
+
   const dataQualityWarning = qualidadeDados.impactoNaPrecisao === "alto"
     ? `⚠️ AVISO: Há ${pendencias.count} transações pendentes. A precisão desta análise é LIMITADA.`
     : qualidadeDados.impactoNaPrecisao === "medio"

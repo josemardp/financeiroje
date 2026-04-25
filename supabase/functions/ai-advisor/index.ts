@@ -751,7 +751,11 @@ serve(async (req) => {
       ...(values       ?? []).map((v: any) => v.id as string),
     ].filter(Boolean);
 
-    const userPrefsSection = userPrefs
+    // Evitar duplicação se o prompt já vier com as preferências do frontend (T10.5)
+    const hasPrefsInPrompt = basePrompt.includes("PREFERÊNCIAS DECLARADAS DO USUÁRIO") || 
+                             basePrompt.includes("preferencias_usuario:");
+
+    const userPrefsSection = (userPrefs && !hasPrefsInPrompt)
       ? (() => {
           const lines: string[] = [];
           lines.push(`- tom: ${userPrefs.tom_voz}`);
