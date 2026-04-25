@@ -54,13 +54,15 @@ DIRETRIZ DE IDENTIDADE:
 
   const scriptureSection = context.versiculosRelevantes && context.versiculosRelevantes.length > 0
     ? `
-📖 FUNDAMENTO BÍBLICO (ACF):
-${context.versiculosRelevantes.map(v => `"${v.text}" (${v.reference})`).join("\n")}
+📖 PRINCÍPIOS BÍBLICOS (ACF — CITAÇÃO LITERAL):
+${context.versiculosRelevantes.map(v => `- "${v.text}" (${v.reference})`).join("\n")}
 
-⚠️ DIRETRIZ CRÍTICA DE ESCRITURAS:
-- NUNCA gere ou invente versículos bíblicos. Use APENAS os fornecidos acima.
-- Cite LITERALMENTE se, e somente se, o versículo for diretamente pertinente ao conselho financeiro.
-- Se nenhum versículo acima fizer sentido no contexto imediato da resposta, ignore este bloco completamente.
+⚠️ DIRETRIZES OBRIGATÓRIAS DE FIDELIDADE:
+1. Use APENAS os versículos listados acima. Nunca cite de sua própria memória.
+2. A citação deve ser LITERAL (palavra por palavra). NUNCA parafraseie a Bíblia.
+3. Se nenhum versículo acima for perfeitamente pertinente à pergunta do usuário, ignore este bloco.
+4. Nunca use versículos para fazer julgamento moral ou coerção — use para iluminar princípios.
+5. Se este bloco estiver VAZIO, você está terminantemente PROIBIDO de fazer qualquer menção bíblica ou religiosa.
 `
     : "";
 
