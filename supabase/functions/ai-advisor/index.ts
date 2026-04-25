@@ -778,7 +778,6 @@ serve(async (req) => {
         })()
       : "";
 
-    const basePrompt = frontendSystemPrompt || SYSTEM_PROMPT_FALLBACK;
     let systemContent = basePrompt + variantPromptSection + userPrefsSection + coachMemoriesSection;
 
     // T5.5 — validação: bloco de aderência histórica presente no prompt?
