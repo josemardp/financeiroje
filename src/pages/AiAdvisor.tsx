@@ -401,6 +401,9 @@ export default function AiAdvisor() {
         "\nINSIGHT_COACH:"
       ];
 
+      // Detectar se havia recomendação antes da limpeza para T5.3
+      const hasRecommendation = assistantText.includes("\nRECOMMENDATION_JSON:");
+
       let finalCleanedText = assistantText;
       markers.forEach(m => {
         const idx = finalCleanedText.indexOf(m);
