@@ -49,6 +49,15 @@ Impedimentos:
 
 ## Últimas tarefas concluídas
 
+### 2026-04-25 (Sprint 10)
+
+- T10.4 — Biblioteca ACF concluída
+  - Migration 20260515000002_scripture_library_v2.sql criada e aplicada
+  - Estrutura evoluída: book, chapter, verse, themes[]
+  - 43 versículos ACF inseridos (seed validada)
+  - contextCollector atualizado com seleção por temas (sem aleatoriedade)
+  - systemPrompt atualizado com regra de silêncio bíblico
+
 ### 2026-04-24 (Sprint 10)
 
 - T10.3 — Calendário de Vida Real concluída
