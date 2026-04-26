@@ -49,6 +49,16 @@ Impedimentos:
 
 ## Últimas tarefas concluídas
 
+### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
+
+- T1.1 — Infraestrutura base de observabilidade concluída
+  - Migration `20260515000003_system_health_infrastructure.sql` criada
+  - Migration aplicada manualmente no Supabase
+  - Tabelas `system_health_logs` e `system_health_thresholds` validadas
+  - Índices de consulta criados e validados
+  - Trigger `update_system_health_thresholds_updated_at` validado
+  - Registro de teste removido após validação
+
 ### 2026-04-25 (Sprint 10)
 
 - T10.5 — Correção da lacuna silenciosa concluída
