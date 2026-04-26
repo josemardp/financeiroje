@@ -51,6 +51,14 @@ Impedimentos:
 
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
+- T1.2 — Biblioteca compartilhada de telemetria concluída
+  - Biblioteca compartilhada criada em `supabase/functions/_shared/telemetry.ts`
+  - `recordHealth` e `withTelemetry` implementados
+  - Tipos alinhados 1:1 aos CHECKs da tabela `system_health_logs`
+  - Fail-safe: falha de telemetria não derruba a execução principal
+  - Suporte a `duration_ms`, `tokens_used`, `metadata` e `message` (truncado em 1000 chars)
+  - Preparado para instrumentação de crons e edge functions
+
 - T1.1 — Infraestrutura base de observabilidade concluída
   - Migration `20260515000003_system_health_infrastructure.sql` criada
   - Migration aplicada manualmente no Supabase
