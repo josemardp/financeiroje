@@ -51,6 +51,16 @@ Impedimentos:
 
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
+- T1.3 — Integração inicial da telemetria na Edge Function learn-patterns concluída
+  - Bundle inline aplicado manualmente no Supabase para compatibilidade com painel web
+  - Execução incremental validada com HTTP 200
+  - Registro criado em system_health_logs
+  - component_type=edge_function
+  - component_name=learn-patterns:incremental
+  - status=success
+  - duration_ms preenchido
+  - metadata com user_id validado
+
 - T1.2 — Biblioteca compartilhada de telemetria concluída
   - Biblioteca compartilhada criada em `supabase/functions/_shared/telemetry.ts`
   - `recordHealth` e `withTelemetry` implementados
