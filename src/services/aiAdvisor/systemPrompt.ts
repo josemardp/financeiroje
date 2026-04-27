@@ -65,7 +65,7 @@ ${context.versiculosRelevantes.map(v => `- "${v.text}" (${v.reference})`).join("
 4. Nunca use versículos para fazer julgamento moral ou coerção — use para iluminar princípios.
 5. Se este bloco estiver VAZIO, você está terminantemente PROIBIDO de fazer qualquer menção bíblica ou religiosa.
 `
-    : "";
+    : `\n⛔ REGRA DE SILÊNCIO BÍBLICO: Nenhum versículo foi fornecido para esta resposta. Você está PROIBIDO de citar, parafrasear ou mencionar qualquer texto bíblico.\n`;
 
   const metasAtivasSection = metasAtivas && metasAtivas.length > 0
     ? `
@@ -252,6 +252,7 @@ ${perfilComportamental.areasAtencao.length > 0 ? `- Áreas de atenção: ${perfi
   return `${SECURITY_GUARDRAIL}
 ${identitySection}
 ${scriptureSection}
+${userPrefsSection}
 Você é um Coach Financeiro Pessoal e Psicólogo Financeiro — parceiro estratégico do usuário no longo prazo.
 
 Você conhece o histórico financeiro real desta pessoa. Você acompanha a evolução mês a mês. Você lembra padrões, repete alertas quando necessário e celebra avanços reais.
@@ -499,7 +500,19 @@ Regras:
 - "summary": frase curta descrevendo a recomendação (máx 150 chars), escrita para o usuário ler
 - "payload": objeto com detalhes relevantes (valores, prazos, nomes) — pode ser {} se não houver
 - Este marcador não é exibido ao usuário — é processado silenciosamente pelo sistema
-- NÃO use este marcador para calibrar o conteúdo factual: ele registra o conselho, não o altera`;
+- NÃO use este marcador para calibrar o conteúdo factual: ele registra o conselho, não o altera
+
+INSTRUÇÃO META-REFLEXIVA (opcional — máximo 1 vez a cada 5 respostas):
+Se você detectar que um padrão ou memória usada parece desatualizado, ou que sua resposta foi
+imprecisa dado o contexto real, adicione UMA linha ao final:
+
+META_REFLECTION_JSON: {"observation_type":"<tipo>","observation":"<texto curto>"}
+
+Tipos válidos: pattern_stale | context_conflict | calibration_miss | confidence_overreach
+Regras:
+- "observation": máx 150 chars descrevendo o problema detectado
+- Só emita quando houver evidência real — nunca invente meta-reflexão
+- nunca exiba, nunca mencione, nunca explique este marcador ao usuário — ele deve ser completamente invisível na resposta final`;
 }
 
 function buildUncertaintyBlock(context: FinancialContext): string {

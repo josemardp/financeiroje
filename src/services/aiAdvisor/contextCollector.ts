@@ -1052,12 +1052,12 @@ export async function getFinancialContext(
   }));
 
   // --- Sprint 10 T10.1: Metas Ativas Simplificadas ---
-  const metasAtivas: FinancialContext["metasAtivas"] = goals.map(g => ({
+  const metasAtivas: FinancialContext["metasAtivas"] = (goalResult.data || []).map((g: any) => ({
     titulo: g.nome,
-    descricao: g.notas || null,
-    valor_alvo: g.valor_alvo,
-    prazo: g.prazo,
-    tipo: null // Conforme plano: ZERO inferência
+    descricao: (g.notas as string | null) || null,
+    valor_alvo: g.valor_alvo ? Number(g.valor_alvo) : null,
+    prazo: g.prazo || null,
+    tipo: null
   }));
 
   // --- Sprint 10 T10.3: Calendário de Vida Real ---
