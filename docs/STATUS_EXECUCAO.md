@@ -1,9 +1,9 @@
 # STATUS_EXECUCAO — FinanceiroJe
 
-## Fase 2 — EM EXECUÇÃO (2026-04-23)
+## Fase 2 — EM EXECUÇÃO (2026-04-26)
 
-Sprint atual: Sprint 10 — Alinhamento de Identidade e Valores
-Situação: Sprint 9 encerrado com 95% de aproveitamento técnico. Pendência de telemetria histórica (T9.5) registrada.
+Sprint atual: Plano A.1 — Observabilidade e SRE (em andamento)
+Situação: Sprint 10 encerrado com 100% de aderência ao plano complementar. Validação final executada e aprovada em 2026-04-26.
 
 Impedimentos:
 - SLA de embeddings (D8-A): aguarda ciclo orgânico para ignorar backlog histórico.
@@ -48,6 +48,24 @@ Impedimentos:
 ---
 
 ## Últimas tarefas concluídas
+
+### 2026-04-26 (Sprint 10 — Encerramento)
+
+- Sprint 10 finalizado com 100% de aderência ao plano complementar
+- Identidade operacional implementada:
+  - Metas ativas integradas ao system prompt (`metasAtivasSection` + diretrizes de uso)
+  - Calendário de vida real impactando decisões (eventos pré-comprometidos reduzem caixa livre)
+  - Biblioteca ACF com controle determinístico e silêncio bíblico
+- Correções críticas aplicadas (validação final):
+  - Regra de silêncio bíblico incondicional — ativa sempre que não há versículos, sem depender de preferência do usuário
+  - `META_REFLECTION_JSON` funcional — instrução adicionada ao system prompt; extrator e gravação em `ai_self_observations` já existiam no edge function
+  - `userPrefsSection` centralizado no `systemPrompt.ts` — builder é agora a única fonte de verdade; guard do edge function evita duplicação
+  - `metasAtivas` corrigido — usa `goalResult.data` diretamente em vez de `GoalRaw[]` (campo `notas` inacessível no tipo mapeado)
+- Validação final executada:
+  - Sem regressões em parsers (`INSIGHT_COACH_JSON`, `RECOMMENDATION_JSON`, `META_REFLECTION_JSON`)
+  - Sem duplicação de blocos no prompt
+  - Ordem de limpeza dos marcadores no edge function consistente com instrução no prompt
+  - Nenhum marcador visível ao usuário (todos removidos de `textToCache` antes de cache e retorno)
 
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
