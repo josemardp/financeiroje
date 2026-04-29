@@ -69,6 +69,13 @@ Impedimentos:
 
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
+- T1.6 — View `system_health_overview` criada no repositório
+  - Migration `20260515000004_create_system_health_overview.sql` criada
+  - View consolida uma linha por `component_name`
+  - Campos: `last_status`, `last_execution_at`, `last_duration_ms`, `error_count_24h`
+  - Commit enviado para `main`
+  - Pendente: aplicar migration no Supabase e validar consulta real da view
+
 - T1.5 — Telemetria na Edge Function ai-advisor concluída
   - Deploy via Supabase CLI realizado
   - Execução validada via app
