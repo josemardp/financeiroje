@@ -69,6 +69,13 @@ Impedimentos:
 
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
+- T1.7 — Leitura operacional da observabilidade concluída
+  - Página `/configuracoes/observabilidade` criada
+  - View `system_health_overview` consumida pelo frontend
+  - Dados reais exibidos: component_name, last_status, last_execution_at, last_duration_ms, error_count_24h
+  - Teste local validado com Supabase de produção via `.env.local`
+  - Commit da UI: `95f3464 Add system health observability page`
+
 - T1.6 — View `system_health_overview` criada no repositório
   - Migration `20260515000004_create_system_health_overview.sql` criada
   - View consolida uma linha por `component_name`
