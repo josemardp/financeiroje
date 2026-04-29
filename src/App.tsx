@@ -34,6 +34,7 @@ const Reports = lazy(() => import("./pages/Reports"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const AIMemory = lazy(() => import("./pages/settings/AIMemory"));
 const AIExperiments = lazy(() => import("./pages/settings/AIExperiments"));
+const SystemHealthOverview = lazy(() => import("./pages/settings/SystemHealthOverview"));
 const Challenges = lazy(() => import("./pages/Challenges"));
 
 const LazyFallback = () => (
@@ -91,6 +92,7 @@ function AppRoutes() {
         <Route path="/configuracoes" element={<Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>} />
         <Route path="/configuracoes/ia-memoria" element={<Suspense fallback={<LazyFallback />}><AIMemory /></Suspense>} />
         <Route path="/configuracoes/ia-experimentos" element={<Suspense fallback={<LazyFallback />}><AIExperiments /></Suspense>} />
+        <Route path="/configuracoes/observabilidade" element={<Suspense fallback={<LazyFallback />}><SystemHealthOverview /></Suspense>} />
         <Route path="/challenges" element={<Suspense fallback={<LazyFallback />}><Challenges /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />
