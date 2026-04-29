@@ -1,5 +1,37 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+
+type HealthStatus = "success" | "warning" | "error";
+
+interface RecordHealthInput {
+  component_type: "edge_function";
+  component_name: string;
+  status: HealthStatus;
+  duration_ms?: number | null;
+  tokens_used?: number | null;
+  metadata?: Record<string, unknown> | null;
+  message?: string | null;
+}
+
+async function recordHealth(serviceClient: SupabaseClient, input: RecordHealthInput): Promise<void> {
+  try {
+    const { error } = await serviceClient.from("system_health_logs").insert({
+      component_type: input.component_type,
+      component_name: input.component_name,
+      status: input.status,
+      duration_ms: input.duration_ms ?? null,
+      tokens_used: input.tokens_used ?? null,
+      metadata: input.metadata ?? {},
+      message: input.message ? input.message.substring(0, 1000) : null,
+    });
+
+    if (error) {
+      console.warn("[telemetry] insert error:", error.message);
+    }
+  } catch (err) {
+    console.warn("[telemetry] unexpected failure:", err);
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -541,6 +573,7 @@ serve(async (req) => {
   }
 
   try {
+    const telemetryStart = Date.now();
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -549,6 +582,11 @@ serve(async (req) => {
     }
 
     const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const telemetryClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
@@ -650,6 +688,21 @@ serve(async (req) => {
           .eq("cache_key", cacheKey)
           .then(() => {});
         console.log(`Cache HIT — key=${cacheKey} model=${selectedModel} intent=${intent}`);
+        await recordHealth(telemetryClient, {
+          component_type: "edge_function",
+          component_name: "ai-advisor:cache-hit",
+          status: "success",
+          duration_ms: Date.now() - telemetryStart,
+          tokens_used: null,
+          metadata: {
+            model: selectedModel,
+            intent,
+            scope,
+            streaming: true,
+            tokens_available: false,
+            cache_hit: true,
+          },
+        });
         return cachedSSEResponse(cached.response_text, promptVariantKeys);
       }
     }
@@ -776,21 +829,85 @@ serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 429) {
+        await recordHealth(telemetryClient, {
+          component_type: "edge_function",
+          component_name: "ai-advisor:gateway-error",
+          status: "error",
+          duration_ms: Date.now() - telemetryStart,
+          tokens_used: null,
+          metadata: {
+            model: selectedModel,
+            intent,
+            scope,
+            streaming: true,
+            tokens_available: false,
+            cache_hit: false,
+          },
+          message: "OpenRouter gateway returned 429",
+        });
         return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em instantes." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
+        await recordHealth(telemetryClient, {
+          component_type: "edge_function",
+          component_name: "ai-advisor:gateway-error",
+          status: "error",
+          duration_ms: Date.now() - telemetryStart,
+          tokens_used: null,
+          metadata: {
+            model: selectedModel,
+            intent,
+            scope,
+            streaming: true,
+            tokens_available: false,
+            cache_hit: false,
+          },
+          message: "OpenRouter gateway returned 402",
+        });
         return new Response(JSON.stringify({ error: "Créditos esgotados. Adicione créditos nas configurações." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
+      await recordHealth(telemetryClient, {
+        component_type: "edge_function",
+        component_name: "ai-advisor:gateway-error",
+        status: "error",
+        duration_ms: Date.now() - telemetryStart,
+        tokens_used: null,
+        metadata: {
+          model: selectedModel,
+          intent,
+          scope,
+          streaming: true,
+          tokens_available: false,
+          cache_hit: false,
+        },
+        message: `OpenRouter gateway returned ${response.status}: ${errorText}`,
+      });
       return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    await recordHealth(telemetryClient, {
+      component_type: "edge_function",
+      component_name: "ai-advisor:stream-started",
+      status: "success",
+      duration_ms: Date.now() - telemetryStart,
+      tokens_used: null,
+      metadata: {
+        model: selectedModel,
+        intent,
+        scope,
+        streaming: true,
+        tokens_available: false,
+        cache_hit: false,
+      },
+    });
 
     return streamAndCache(
       response,
