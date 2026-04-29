@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { withTelemetry } from "../_shared/telemetry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -250,33 +251,49 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    const [activeUsers, catalog] = await Promise.all([
-      fetchActiveUsers(supabase, since30d, 10),
-      fetchCatalog(supabase),
-    ]);
-
-    let usersEvaluated       = 0;
-    let achievementsUnlocked = 0;
-
-    for (const { user_id, scope } of activeUsers) {
-      for (const row of catalog) {
-        if (!row.criteria || typeof row.criteria.type !== "string") continue;
-
-        const result = await evaluate(supabase, user_id, scope, row.criteria);
-        if (result.unlocked && result.evidence) {
-          const inserted = await insertAchievement(supabase, user_id, row.id, result.evidence);
-          if (inserted) achievementsUnlocked++;
-        }
-      }
-      usersEvaluated++;
-    }
-
-    return new Response(
-      JSON.stringify({ ok: true, users_evaluated: usersEvaluated, achievements_unlocked: achievementsUnlocked }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    const telemetryClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    return await withTelemetry({
+      serviceClient: telemetryClient,
+      component_type: "edge_function",
+      component_name: "evaluate-achievements:batch",
+      metadata: {
+        since_days: 30,
+        min_events: 10,
+      },
+      fn: async () => {
+        const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        const [activeUsers, catalog] = await Promise.all([
+          fetchActiveUsers(supabase, since30d, 10),
+          fetchCatalog(supabase),
+        ]);
+
+        let usersEvaluated       = 0;
+        let achievementsUnlocked = 0;
+
+        for (const { user_id, scope } of activeUsers) {
+          for (const row of catalog) {
+            if (!row.criteria || typeof row.criteria.type !== "string") continue;
+
+            const result = await evaluate(supabase, user_id, scope, row.criteria);
+            if (result.unlocked && result.evidence) {
+              const inserted = await insertAchievement(supabase, user_id, row.id, result.evidence);
+              if (inserted) achievementsUnlocked++;
+            }
+          }
+          usersEvaluated++;
+        }
+
+        return new Response(
+          JSON.stringify({ ok: true, users_evaluated: usersEvaluated, achievements_unlocked: achievementsUnlocked }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      },
+    });
   } catch (e) {
     console.error("evaluate-achievements error:", e);
     return new Response(
