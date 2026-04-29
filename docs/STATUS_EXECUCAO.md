@@ -69,6 +69,14 @@ Impedimentos:
 
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
+- T1.4 — Telemetria na Edge Function evaluate-achievements concluída
+  - Deploy manual realizado no Supabase
+  - Execução validada com HTTP 200
+  - Registro criado em system_health_logs
+  - component_type=edge_function
+  - component_name=evaluate-achievements:batch
+  - status=success
+
 - T1.3 — Integração inicial da telemetria na Edge Function learn-patterns concluída
   - Bundle inline aplicado manualmente no Supabase para compatibilidade com painel web
   - Execução incremental validada com HTTP 200
