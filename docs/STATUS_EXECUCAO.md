@@ -69,6 +69,14 @@ Impedimentos:
 
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
+- T1.5 — Telemetria na Edge Function ai-advisor concluída
+  - Deploy via Supabase CLI realizado
+  - Execução validada via app
+  - Registro confirmado em system_health_logs
+  - component_name=ai-advisor:stream-started
+  - status=success
+  - duration_ms preenchido
+
 - T1.4 — Telemetria na Edge Function evaluate-achievements concluída
   - Deploy manual realizado no Supabase
   - Execução validada com HTTP 200
