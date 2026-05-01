@@ -69,6 +69,36 @@ Impedimentos:
 
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
+- T1.7 — Leitura operacional da observabilidade concluída
+  - Página `/configuracoes/observabilidade` criada
+  - View `system_health_overview` consumida pelo frontend
+  - Dados reais exibidos: component_name, last_status, last_execution_at, last_duration_ms, error_count_24h
+  - Teste local validado com Supabase de produção via `.env.local`
+  - Commit da UI: `95f3464 Add system health observability page`
+
+- T1.6 — View `system_health_overview` criada no repositório
+  - Migration `20260515000004_create_system_health_overview.sql` criada
+  - View consolida uma linha por `component_name`
+  - Campos: `last_status`, `last_execution_at`, `last_duration_ms`, `error_count_24h`
+  - Commit enviado para `main`
+  - Pendente: aplicar migration no Supabase e validar consulta real da view
+
+- T1.5 — Telemetria na Edge Function ai-advisor concluída
+  - Deploy via Supabase CLI realizado
+  - Execução validada via app
+  - Registro confirmado em system_health_logs
+  - component_name=ai-advisor:stream-started
+  - status=success
+  - duration_ms preenchido
+
+- T1.4 — Telemetria na Edge Function evaluate-achievements concluída
+  - Deploy manual realizado no Supabase
+  - Execução validada com HTTP 200
+  - Registro criado em system_health_logs
+  - component_type=edge_function
+  - component_name=evaluate-achievements:batch
+  - status=success
+
 - T1.3 — Integração inicial da telemetria na Edge Function learn-patterns concluída
   - Bundle inline aplicado manualmente no Supabase para compatibilidade com painel web
   - Execução incremental validada com HTTP 200

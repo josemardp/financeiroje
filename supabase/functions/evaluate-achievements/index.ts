@@ -1,6 +1,82 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
+type HealthComponentType = "cron" | "edge_function" | "db_index" | "embedding" | "external_api";
+type HealthStatus = "success" | "warning" | "error";
+
+interface RecordHealthInput {
+  component_type: HealthComponentType;
+  component_name: string;
+  status: HealthStatus;
+  duration_ms?: number | null;
+  tokens_used?: number | null;
+  metadata?: Record<string, unknown> | null;
+  message?: string | null;
+}
+
+async function recordHealth(serviceClient: SupabaseClient, input: RecordHealthInput): Promise<void> {
+  try {
+    const { error } = await serviceClient.from("system_health_logs").insert({
+      component_type: input.component_type,
+      component_name: input.component_name,
+      status: input.status,
+      duration_ms: input.duration_ms ?? null,
+      tokens_used: input.tokens_used ?? null,
+      metadata: input.metadata ?? {},
+      message: input.message ? input.message.substring(0, 1000) : null,
+    });
+
+    if (error) {
+      console.warn("[telemetry] insert error:", error.message);
+    }
+  } catch (err) {
+    console.warn("[telemetry] unexpected failure:", err);
+  }
+}
+
+interface WithTelemetryParams<T> {
+  serviceClient: SupabaseClient;
+  component_type: HealthComponentType;
+  component_name: string;
+  metadata?: Record<string, unknown>;
+  getTokensUsed?: (result: T) => number | null | undefined;
+  fn: () => Promise<T>;
+}
+
+async function withTelemetry<T>(params: WithTelemetryParams<T>): Promise<T> {
+  const start = Date.now();
+
+  try {
+    const result = await params.fn();
+    const duration = Date.now() - start;
+
+    await recordHealth(params.serviceClient, {
+      component_type: params.component_type,
+      component_name: params.component_name,
+      status: "success",
+      duration_ms: duration,
+      tokens_used: params.getTokensUsed?.(result) ?? null,
+      metadata: params.metadata ?? {},
+    });
+
+    return result;
+  } catch (err) {
+    const duration = Date.now() - start;
+
+    await recordHealth(params.serviceClient, {
+      component_type: params.component_type,
+      component_name: params.component_name,
+      status: "error",
+      duration_ms: duration,
+      tokens_used: null,
+      metadata: params.metadata ?? {},
+      message: (err instanceof Error ? err.message : String(err)).substring(0, 1000),
+    });
+
+    throw err;
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -250,33 +326,49 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    const [activeUsers, catalog] = await Promise.all([
-      fetchActiveUsers(supabase, since30d, 10),
-      fetchCatalog(supabase),
-    ]);
-
-    let usersEvaluated       = 0;
-    let achievementsUnlocked = 0;
-
-    for (const { user_id, scope } of activeUsers) {
-      for (const row of catalog) {
-        if (!row.criteria || typeof row.criteria.type !== "string") continue;
-
-        const result = await evaluate(supabase, user_id, scope, row.criteria);
-        if (result.unlocked && result.evidence) {
-          const inserted = await insertAchievement(supabase, user_id, row.id, result.evidence);
-          if (inserted) achievementsUnlocked++;
-        }
-      }
-      usersEvaluated++;
-    }
-
-    return new Response(
-      JSON.stringify({ ok: true, users_evaluated: usersEvaluated, achievements_unlocked: achievementsUnlocked }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    const telemetryClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    return await withTelemetry({
+      serviceClient: telemetryClient,
+      component_type: "edge_function",
+      component_name: "evaluate-achievements:batch",
+      metadata: {
+        since_days: 30,
+        min_events: 10,
+      },
+      fn: async () => {
+        const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        const [activeUsers, catalog] = await Promise.all([
+          fetchActiveUsers(supabase, since30d, 10),
+          fetchCatalog(supabase),
+        ]);
+
+        let usersEvaluated       = 0;
+        let achievementsUnlocked = 0;
+
+        for (const { user_id, scope } of activeUsers) {
+          for (const row of catalog) {
+            if (!row.criteria || typeof row.criteria.type !== "string") continue;
+
+            const result = await evaluate(supabase, user_id, scope, row.criteria);
+            if (result.unlocked && result.evidence) {
+              const inserted = await insertAchievement(supabase, user_id, row.id, result.evidence);
+              if (inserted) achievementsUnlocked++;
+            }
+          }
+          usersEvaluated++;
+        }
+
+        return new Response(
+          JSON.stringify({ ok: true, users_evaluated: usersEvaluated, achievements_unlocked: achievementsUnlocked }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      },
+    });
   } catch (e) {
     console.error("evaluate-achievements error:", e);
     return new Response(
