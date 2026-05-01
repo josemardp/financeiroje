@@ -121,7 +121,6 @@ Sprints:
 
 ## Regras de colaboração (OBRIGATÓRIAS em toda sessão)
 
-- **NÃO executar git** (commit, push, pull) — Josemar commita manualmente.
 - **NÃO executar `supabase db push` nem `supabase functions deploy`** — Josemar deploya manualmente.
 - **NÃO executar `npm run build`** sem pedido explícito — demora muito.
 - **ANTES de editar qualquer arquivo**: mostrar o plano/diff e aguardar validação.

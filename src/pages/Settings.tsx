@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Settings, Shield, Bell, User, Loader2, Brain } from "lucide-react";
+import { Settings, Shield, Bell, User, Loader2, Brain, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface FinancialPreferences {
@@ -158,6 +158,18 @@ export default function SettingsPage() {
         <CardContent>
           <Button variant="outline" onClick={() => navigate("/configuracoes/ia-memoria")}>
             Gerenciar memória da IA
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4" /> Observabilidade</CardTitle>
+          <CardDescription>Últimas execuções e erros registrados pela telemetria do sistema</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => navigate("/configuracoes/observabilidade")}>
+            Ver saúde do sistema
           </Button>
         </CardContent>
       </Card>
