@@ -464,21 +464,298 @@ Além dos 5 princípios originais, o complementar introduz 5 adicionais:
 
 ---
 
+## 🟢 PROMPTS PARA SPRINTS DO PAINEL EMPREENDEDOR (Esdra Cosméticos)
+
+> **Quando usar:** após conclusão dos Sprints 8-10 da PIL pessoal e após mínimo 30 dias de uso real do Manual 30 Dias HTML (`public/manual/index.html`). Estes prompts são para os 6 sprints do `PLANO_PAINEL_ESDRA.md` v2.0.
+>
+> **Pré-requisito comum:** anexar `PLANO_PAINEL_ESDRA.md` na conversa antes de colar o prompt.
+
+---
+
+### 🟢 PROMPT — SPRINT 1 (Painel Empreendedor: Estrutura Base + tela "Hoje")
+
+```
+Olá. Sou Josemar, Capitão PMESP, dono do FinanceiroJe. Português
+brasileiro, tom direto.
+
+CONTEXTO: Estou iniciando o PAINEL EMPREENDEDOR do FinanceiroJe — extensão modular
+voltada para gestão da Esdra Cosméticos (e-commerce de cosméticos da minha
+esposa). O plano técnico está anexado (PLANO_PAINEL_ESDRA.md v2.0).
+Estou no SPRINT 1 — primeiro sprint do plano, focado em estrutura base e
+tela "Hoje" com checklist diário.
+
+STATUS:
+- Sprints 1-7 do plano original e Sprints 8-10 do plano complementar
+  da PIL pessoal estão concluídos e estáveis em produção.
+- Manual 30 Dias HTML está em produção em public/manual/index.html
+  desde 02/05/2026 e tem sido usado diariamente.
+- Migrations manual_30_dias_progresso e manual_30_dias_decisoes estão
+  aplicadas no Supabase de produção.
+
+PASSOS OBRIGATÓRIOS ANTES DE QUALQUER CÓDIGO:
+
+1. Leia o plano anexado, ESPECIALMENTE A SEÇÃO "SPRINT 1" inteira
+2. Leia o CLAUDE.md na raiz
+3. Leia docs/STATUS_EXECUCAO.md para entender estado atual
+4. Explore:
+   - public/manual/index.html (HTML atual em produção — fonte de
+     inspiração visual para o módulo definitivo)
+   - src/services/aiAdvisor/ (padrões de organização de módulos)
+   - supabase/migrations/ (liste todas — identifique timestamps usados)
+   - Confirme as 5 tabelas esdra_* especificadas no plano não existem ainda
+5. Depois me responda:
+   A) Resumo em 3 linhas do objetivo do Sprint 1
+   B) Lista das sub-tarefas na ordem que você sugere executar:
+      - T1.1 — Criar migrations das 5 tabelas esdra_*
+      - T1.2 — Seed do Manual 30 Dias (script TypeScript)
+      - T1.3 — Componentes React da tela /painel-esdra/hoje
+   C) Riscos antecipados específicos deste Sprint
+   D) Onde você sugere começar (sub-tarefa atual)
+
+REGRAS:
+- Não rode nada, não crie nada, não altere nada antes da minha aprovação
+- Quando aprovar, faça uma sub-tarefa de cada vez
+- Migrations aplicadas MANUALMENTE via Supabase SQL Editor (NÃO use CLI)
+- Após cada sub-tarefa: pause, mostre o que fez, peça validação
+- Se encontrar algo divergente do plano (timestamp conflitante, schema
+  inesperado), pause e me consulte — não improvise
+
+TAREFA ATUAL NESTA SESSÃO: ___ (preencho ao iniciar)
+```
+
+---
+
+### 🟢 PROMPT — SPRINT 2 (Painel Empreendedor: tela "Métricas" + integração financeira)
+
+```
+Olá. Sou Josemar. Português brasileiro, tom direto.
+
+CONTEXTO: Estou no SPRINT 2 do Painel Empreendedor (Esdra Cosméticos).
+Plano anexado: PLANO_PAINEL_ESDRA.md v2.0.
+
+STATUS: Sprint 1 do Painel concluído (estrutura base + tela /hoje
+funcionando com persistência). Tabelas esdra_* todas criadas no
+Supabase. Manual 30 Dias HTML continua em uso paralelo.
+
+PASSOS OBRIGATÓRIOS:
+
+1. Leia PLANO_PAINEL_ESDRA.md SEÇÃO SPRINT 2 inteira
+2. Leia STATUS_EXECUCAO.md para confirmar Sprint 1 concluído
+3. Explore:
+   - src/modules/painel-esdra/ (Sprint 1 está aqui)
+   - Tabelas no Supabase: confirme esdra_kpis_semanais existe
+   - Módulo financeiro do FinanceiroJe (transações filtradas por escopo)
+4. Me responda:
+   A) Como você planeja construir a função SQL get_esdra_faturamento_semana?
+   B) Qual lib de chart vamos usar (recharts já presente?)
+   C) Estratégia de fechamento semanal (manual ou semi-automático?)
+
+Sub-tarefas:
+- T2.1 — Função SQL de agregação de faturamento por semana
+- T2.2 — Componente FechamentoSemanal
+- T2.3 — Dashboard de 7 KPIs com gráficos
+
+REGRAS PADRÃO: aprovação prévia, 1 sub-tarefa por vez, migrations manuais.
+
+TAREFA ATUAL NESTA SESSÃO: ___
+```
+
+---
+
+### 🟢 PROMPT — SPRINT 3 (Painel Empreendedor: tela "Decisões" + tela "Semana")
+
+```
+Olá. Sou Josemar. SPRINT 3 do Painel Empreendedor.
+Plano: PLANO_PAINEL_ESDRA.md v2.0 (seção SPRINT 3).
+
+STATUS: Sprints 1 e 2 do Painel concluídos. KPIs sendo registrados.
+
+PASSOS:
+1. Leia SEÇÃO SPRINT 3 do plano
+2. STATUS_EXECUCAO.md
+3. Explore esdra_decisoes (tabela existente, populada com seed do manual)
+
+Sub-tarefas:
+- T3.1 — Tela /painel-esdra/decisoes (lista + form de registro)
+- T3.2 — Modal/tela de revisão de decisão (acerto_percebido + aprendizado)
+- T3.3 — Tela /painel-esdra/semana (visão consolidada + reset semanal)
+
+REGRAS PADRÃO. Atenção especial: lifecycle completo das decisões
+(criação → revisão em 30d → registro de aprendizado).
+
+TAREFA ATUAL: ___
+```
+
+---
+
+### 🟢 PROMPT — SPRINT 4 (Painel Empreendedor: CRM + Estoque + Polish)
+
+```
+Olá. SPRINT 4 do Painel Empreendedor — fechamento do bloco operacional.
+Plano: PLANO_PAINEL_ESDRA.md v2.0 (seção SPRINT 4).
+
+STATUS: Sprints 1-3 do Painel concluídos.
+
+PASSOS:
+1. SEÇÃO SPRINT 4 do plano
+2. STATUS_EXECUCAO.md
+3. Explore esdra_clientes e esdra_estoque (criadas em Sprint 1, vazias)
+
+Sub-tarefas:
+- T4.1 — Importador de CSV (clientes + estoque) com preview
+- T4.2 — Tela /painel-esdra/clientes (CRM com filtros)
+- T4.3 — Tela /painel-esdra/estoque (com curva ABC e capital parado)
+- T4.4 — Polish: navegação, mobile, atalhos teclado, tema
+
+REGRAS PADRÃO. Sprint 4 fecha o bloco operacional. Após este sprint,
+ESPERAR mínimo 60 dias antes de iniciar Sprint 5 (PIL Esdra).
+
+TAREFA ATUAL: ___
+```
+
+---
+
+### 🔵 PROMPT — SPRINT 5 (Painel Empreendedor: Personal Intelligence Layer Esdra)
+
+```
+Olá. Sou Josemar. SPRINT 5 do Painel Empreendedor — primeiro sprint
+de inteligência para o negócio Esdra Cosméticos.
+
+ATENÇÃO CRÍTICA: este sprint só pode iniciar se:
+- Sprints 1-4 do Painel estão concluídos e estáveis
+- Painel Empreendedor está em uso real há ≥60 dias
+- Mínimo 8 decisões empreendedoras registradas
+- Mínimo 8 fechamentos semanais de KPIs
+- PIL pessoal (Sprints 8-10) estável há ≥30 dias
+
+CONFIRME COMIGO TODOS OS PRÉ-REQUISITOS ANTES DE QUALQUER CÓDIGO.
+Se algum não está atendido, PARE e me oriente a aguardar.
+
+CONTEXTO: Plano anexado (PLANO_PAINEL_ESDRA.md v2.0). Estou no
+SPRINT 5, focado em criar memória conversacional E observations
+específicas do negócio Esdra. Reuso massivo da infra da PIL pessoal —
+NÃO recriamos tabelas paralelas.
+
+PASSOS OBRIGATÓRIOS:
+
+1. Leia PLANO_PAINEL_ESDRA.md SEÇÃO SPRINT 5 inteira
+2. Leia PLANO_COMPLEMENTAR_INTELIGENCIA.md SEÇÃO 5 (Sprint 8) — entenda
+   como ai_messages_embeddings funciona hoje
+3. STATUS_EXECUCAO.md
+4. Explore:
+   - ai_messages, ai_messages_embeddings, ai_self_observations,
+     decision_outcomes, behavioral_tags
+   - Edge function embed-ai-messages
+   - find_related_conversations RPC
+
+5. Me responda:
+   A) Estratégia para adicionar business_scope sem quebrar PIL pessoal
+   B) Como evitar mistura de embeddings entre escopos no RAG
+   C) Plano de teste do cron embed-esdra-decisions
+
+Sub-tarefas:
+- T5.1 — Adaptar ai_messages para escopo Esdra (migration + RPC update)
+- T5.2 — Tabela esdra_business_observations + função upsert
+- T5.3 — Edge function embed-esdra-decisions + cron
+- T5.4 — Cron review-esdra-decisions + componente <EsdraDecisionReview/>
+
+REGRAS PADRÃO + cuidado redobrado com NÃO QUEBRAR a PIL pessoal.
+Cada migration tem que ter ROLLBACK comentado no script.
+
+TAREFA ATUAL: ___
+```
+
+---
+
+### 🔵 PROMPT — SPRINT 6 (Painel Empreendedor: AI Conselheiro Esdra Cosméticos)
+
+```
+Olá. Sou Josemar. SPRINT 6 do Painel Empreendedor — sprint final.
+Construindo o AI Conselheiro permanente do negócio.
+
+ATENÇÃO CRÍTICA:
+- Sprint 5 deve estar concluído e estável
+- esdra_business_observations populada com mínimo 5 observations
+- find_related_conversations filtrado por escopo funcionando
+- Cron embed-esdra-decisions rodando há ≥7 dias
+
+REGRA NÃO-NEGOCIÁVEL DESTE SPRINT: ZERO ALUCINAÇÃO NUMÉRICA.
+O Conselheiro DEVE citar fonte (mês, valor, ID da decisão) ao dar
+qualquer número. Se não há dado real, responde "não tenho registro
+disso" em vez de estimar. Isso é critério de aceite no Definition of
+Done — sem isso, o sprint não fecha.
+
+CONTEXTO: Plano anexado. SEÇÃO SPRINT 6.
+
+PASSOS OBRIGATÓRIOS:
+
+1. Leia SEÇÃO SPRINT 6 inteira
+2. Leia novamente o sistema atual:
+   - supabase/functions/ai-advisor/index.ts (referência de estrutura)
+   - src/services/aiAdvisor/systemPrompt.ts (padrão a espelhar)
+   - src/services/aiAdvisor/contextCollector.ts (mesmo)
+3. STATUS_EXECUCAO.md
+4. Explore:
+   - Modelo de Claude API atual (env CLAUDE_API_KEY?)
+   - Padrão de SSE streaming usado pelo ai-advisor
+
+5. Me responda:
+   A) Como você implementa "zero alucinação numérica" no system prompt?
+   B) Qual o limite de tokens do contexto montado?
+   C) Como a UI vai mostrar "fonte" em cada número citado?
+   D) Estratégia de teste adversarial (perguntar coisas inventadas pra
+      ver se o modelo declina ou aluciena)
+
+Sub-tarefas:
+- T6.1 — Edge function esdra-conselheiro
+- T6.2 — System prompt especializado com snapshot test
+- T6.3 — Context collector específico Esdra
+- T6.4 — Interface /painel-esdra/conselheiro com chat + feedback
+
+REGRAS PADRÃO + suite adversarial obrigatória antes de deploy.
+
+TAREFA ATUAL: ___
+```
+
+---
+
+
 ## 📋 Checklist rápido antes de abrir cada sessão
 
-Antes de colar um dos 3 prompts acima no Claude Code, confirme:
+Antes de colar qualquer um dos 9 prompts acima no Claude Code, confirme:
 
+**Para Sprints 8-10 (PIL pessoal):**
 - [ ] O arquivo `PLANO_COMPLEMENTAR_INTELIGENCIA.md` está anexado na conversa
 - [ ] O arquivo `STATUS_EXECUCAO.md` está acessível (no repo, via Claude Code)
 - [ ] O sprint anterior está registrado como concluído em `STATUS_EXECUCAO.md`
 - [ ] Você preencheu o campo "TAREFA ATUAL NESTA SESSÃO: ___"
-- [ ] O ambiente de staging Supabase está disponível (para Sprint 10 T10.5)
 - [ ] Git está limpo (sem alterações não commitadas de sessão anterior)
 - [ ] Você está com tempo de 1-3 horas para a sessão (sub-tarefa típica)
+
+**Para Sprints 1-6 do Painel Empreendedor:**
+- [ ] O arquivo `PLANO_PAINEL_ESDRA.md` está anexado na conversa
+- [ ] `STATUS_EXECUCAO.md` está acessível
+- [ ] Sprint anterior do Painel está concluído (exceto Sprint 1, claro)
+- [ ] **Para Sprint 1 do Painel:** ≥30 dias de uso real do Manual 30 Dias HTML
+- [ ] **Para Sprint 5 do Painel:** ≥60 dias de uso do Painel + ≥8 decisões registradas
+- [ ] **Para Sprint 6 do Painel:** Sprint 5 estável + observations populadas
+- [ ] Git limpo
+- [ ] Tempo reservado de 1-3 horas
 
 Se algum item não estiver pronto, resolva primeiro.
 
 ---
 
-**Última revisão deste arquivo:** Abril/2026 — v1.0, em conjunto com
-`PLANO_COMPLEMENTAR_INTELIGENCIA.md` v1.0.
+**Última revisão deste arquivo:** 02 de Maio de 2026 — v1.1, em conjunto com:
+- `PLANO_COMPLEMENTAR_INTELIGENCIA.md` v1.0 (Sprints 8-10 — concluídos)
+- `PLANO_PAINEL_ESDRA.md` v2.0 (Sprints 1-6 do Painel Empreendedor — aguardando execução)
+
+### Histórico de versões deste arquivo
+
+**v1.1 — 02/05/2026**
+- Adicionados 6 prompts para os Sprints 1-6 do Painel Empreendedor (Esdra Cosméticos)
+- Checklist expandido para os 9 sprints
+- Pré-requisitos específicos por sprint do Painel (especialmente atenção para Sprints 5 e 6)
+
+**v1.0 — Abril/2026**
+- Versão inicial com prompts dos Sprints 8, 9 e 10 (PIL pessoal — plano complementar)

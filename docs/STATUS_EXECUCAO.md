@@ -1,5 +1,35 @@
 # STATUS_EXECUCAO — FinanceiroJe
 
+## Marco — 2 de Maio de 2026: Sistema Operacional Esdra Cosméticos lançado
+
+**Resumo:** Antes de iniciar o Painel Empreendedor (H.1) propriamente dito, foi construído e deployado um **MVP descartável intencional** em forma de HTML standalone, para destravar a execução comercial sem aguardar 4 sprints de programação.
+
+**Entregas:**
+- ✅ Manual 30 Dias HTML interativo construído (62 KB, single-file, design editorial)
+- ✅ Auth Supabase via magic link funcionando (sem senha)
+- ✅ Migrations aplicadas no Supabase de produção:
+  - `manual_30_dias_progresso` (146 tarefas estruturadas dos 31 dias do manual)
+  - `manual_30_dias_decisoes` (4 decisões empreendedoras semanais)
+  - RLS habilitado nas duas tabelas
+  - Trigger `set_timestamp` nas duas tabelas
+- ✅ Deploy em `public/manual/index.html` no FinanceiroJe (URL: `https://financeiroje-w2wh.vercel.app/manual/`)
+- ✅ Sincronização entre dispositivos (casa + quartel) validada
+- ✅ Documentação técnica completa em `Rotina de trabalho/`:
+  - `MANUAL_30_DIAS_ESDRA.md` (trilho operacional fonte)
+  - `INSTALACAO.md` (guia de setup)
+  - `migration.sql` (DDL aplicado)
+  - `manual_30_dias_FINAL.html` (HTML source)
+- ✅ `PLANO_PAINEL_ESDRA.md` v2.0 commitado em `docs/`
+
+**Função estratégica:** estes ativos não são descartáveis no sentido pejorativo. As tabelas Supabase são **permanentes** e serão consumidas pelo Painel Empreendedor (H.1 Sprint 1) e pela PIL Esdra (H.2 Sprint 5). Os dados acumulados durante 30+ dias de uso real do HTML viram base de aprendizado do Conselheiro Esdra (H.2 Sprint 6).
+
+**Próximo Go/No-Go:** ao final de Maio/2026 (após 30 dias de uso real do Manual HTML), decidir:
+1. Iniciar H.1 Sprint 1 (Painel Empreendedor — estrutura base) em junho?
+2. Estender Manual HTML por mais 30 dias antes de migrar?
+3. Pivotar abordagem com base em aprendizados reais?
+
+---
+
 ## Fase 2 — EM EXECUÇÃO (2026-04-26)
 
 Sprint atual: Plano A.1 — Observabilidade e SRE (em andamento)
@@ -48,6 +78,38 @@ Impedimentos:
 ---
 
 ## Últimas tarefas concluídas
+
+### 2026-05-02 (Sistema Operacional Esdra Cosméticos — Marco)
+
+- HTML standalone do Manual 30 Dias construído e deployado em produção
+  - Caminho: `public/manual/index.html` (62 KB, single-file)
+  - URL pública: `https://financeiroje-w2wh.vercel.app/manual/`
+  - Auth: Supabase magic link via email
+  - Visual: design editorial "caderno de campo monástico" (Fraunces + IBM Plex Sans)
+  - 146 tarefas dos 31 dias do Manual estruturadas em JSON embutido
+  - 4 Decisões Empreendedoras (Semanas 1-4) com auto-save
+  - Persistência em tempo real com sincronização entre dispositivos
+- Migrations aplicadas manualmente via Supabase SQL Editor:
+  - `manual_30_dias_progresso` — checklist de 146 tarefas (user_id, day_num, operador, nivel, task_index, cumprido, observacao)
+  - `manual_30_dias_decisoes` — 4 decisões (semana, pergunta, decisao, criterio, aprendizado, acerto_percebido)
+  - RLS habilitado nas duas tabelas
+  - Trigger `set_timestamp` para `updated_at` automático
+- Plano técnico atualizado: `PLANO_PAINEL_ESDRA.md` evoluiu para v2.0
+  - 4 sprints originais mantidos (estrutura, métricas, decisões, CRM/estoque)
+  - 2 sprints novos adicionados:
+    - Sprint 5: Personal Intelligence Layer Esdra (extensão da PIL pessoal)
+    - Sprint 6: AI Conselheiro Esdra Cosméticos (interface de chat com RAG sobre dados do negócio)
+- `PLANOS_DE_EVOLUCAO.md` atualizado para v1.1
+  - Nova Categoria H — Esdra Cosméticos como Sistema (4 planos: H.1, H.2, H.3, H.4)
+  - Total de planos: 25 → 29
+  - Recomendação de sequência expandida para 6 fases
+  - Fase 0 (Validação operacional Esdra — 30 dias) adicionada
+- Commits:
+  - `6b356bf docs: adicionar plano do módulo Painel Empreendedor - Esdra Cosméticos`
+  - `7f8ede6 feat: adicionar Manual 30 Dias Esdra Cosmeticos`
+  - `cae1588 docs: adicionar manual 30 dias source`
+
+---
 
 ### 2026-04-26 (Sprint 10 — Encerramento)
 
