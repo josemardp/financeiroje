@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual 30 Dias — Esdra Cosméticos</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       PALETA — Caderno de Campo
+       ============================================================ */
+    :root {
+      --paper:        #f5efe4;
+      --paper-deep:   #ebe2d2;
+      --paper-shadow: #d9ccb5;
+      --ink:          #1f1c18;
+      --ink-soft:     #4a443a;
+      --ink-muted:    #7a715f;
+      --olive:        #4a5d3a;
+      --olive-deep:   #2f3d24;
+      --olive-soft:   #6d7e5b;
+      --rust:         #9a4d2c;
+      --rust-soft:    #c47451;
+      --gold:         #b08642;
+      --line:         #c9bea7;
+      --line-soft:    #ddd2bd;
+      --shadow-sm:    0 1px 2px rgba(31, 28, 24, 0.06);
+      --shadow-md:    0 4px 16px rgba(31, 28, 24, 0.08);
+      --shadow-lg:    0 12px 32px rgba(31, 28, 24, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 400;
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background-image:
+        radial-gradient(circle at 20% 10%, rgba(176, 134, 66, 0.04), transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(74, 93, 58, 0.04), transparent 40%);
+      background-attachment: fixed;
+    }
+
+    /* Texturas e ornamentos */
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    /* ============================================================
+       TIPOGRAFIA
+       ============================================================ */
+    h1, h2, h3, .display {
+      font-family: 'Fraunces', serif;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.05; }
+    h2 { font-size: clamp(1.4rem, 3vw, 2rem); line-height: 1.15; }
+    h3 { font-size: clamp(1.1rem, 2vw, 1.35rem); line-height: 1.25; }
+
+    .mono {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85em;
+      letter-spacing: 0.02em;
+    }
+
+    .epigraph {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-weight: 400;
+      color: var(--ink-soft);
+      font-size: 1.05rem;
+      line-height: 1.55;
+      max-width: 60ch;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--ink-muted);
+      font-weight: 500;
+    }
+
+    /* ============================================================
+       LOGIN SCREEN
+       ============================================================ */
+    #login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .login-card {
+      background: var(--paper-deep);
+      max-width: 480px;
+      width: 100%;
+      padding: 56px 48px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-lg);
+      position: relative;
+    }
+
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: 14px; left: 14px; right: 14px; bottom: 14px;
+      border: 1px solid var(--line-soft);
+      pointer-events: none;
+    }
+
+    .login-card h1 {
+      font-size: 2.4rem;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .login-subtitle {
+      color: var(--ink-soft);
+      font-style: italic;
+      font-family: 'Fraunces', serif;
+      margin-bottom: 36px;
+      font-size: 1rem;
+    }
+
+    .login-card .label { margin-bottom: 28px; display: block; }
+
+    input[type="email"], input[type="text"], textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.95rem;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="email"]:focus, input[type="text"]:focus, textarea:focus {
+      border-color: var(--olive);
+      box-shadow: 0 0 0 3px rgba(74, 93, 58, 0.12);
+    }
+
+    button.primary {
+      width: 100%;
+      margin-top: 16px;
+      padding: 14px 20px;
+      background: var(--olive-deep);
+      color: var(--paper);
+      border: none;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button.primary:hover { background: var(--olive); }
+    button.primary:active { transform: translateY(1px); }
+    button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .login-msg {
+      margin-top: 20px;
+      padding: 14px;
+      font-size: 0.9rem;
+      border-left: 3px solid var(--olive);
+      background: rgba(74, 93, 58, 0.08);
+      color: var(--ink-soft);
+    }
+
+    .login-msg.error {
+      border-left-color: var(--rust);
+      background: rgba(154, 77, 44, 0.08);
+    }
+
+    /* ============================================================
+       APP LAYOUT
+       ============================================================ */
+    #app-screen { display: none; }
+
+    .header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 28px;
+      margin-bottom: 36px;
+      position: relative;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .header-title h1 {
+      font-size: 1.8rem;
+      line-height: 1.1;
+    }
+
+    .header-title .subtitle {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      color: var(--ink-soft);
+      margin-top: 4px;
+      font-size: 1rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button.ghost {
+      background: transparent;
+      color: var(--ink-soft);
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button.ghost:hover {
+      background: var(--paper-deep);
+      color: var(--ink);
+      border-color: var(--ink-muted);
+    }
+
+    /* ============================================================
+       PROGRESSO GERAL
+       ============================================================ */
+    .progress-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .progress-card {
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+      padding: 18px 20px;
+      position: relative;
+    }
+
+    .progress-card .label { margin-bottom: 6px; }
+
+    .progress-card .value {
+      font-family: 'Fraunces', serif;
+      font-size: 1.8rem;
+      line-height: 1;
+      color: var(--ink);
+    }
+
+    .progress-card .sublabel {
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      margin-top: 4px;
+      font-style: italic;
+      font-family: 'Fraunces', serif;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--line-soft);
+      margin-top: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--olive);
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ============================================================
+       NAVEGAÇÃO ENTRE DIAS
+       ============================================================ */
+    .day-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+
+    .day-nav-info { flex: 1; min-width: 0; }
+
+    .day-nav-info .label { display: block; }
+
+    .day-nav-info h2 {
+      font-size: 1.4rem;
+      margin-top: 4px;
+      line-height: 1.1;
+    }
+
+    .day-nav-info .day-date {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      margin-top: 4px;
+    }
+
+    .nav-arrow {
+      width: 40px;
+      height: 40px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink-soft);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .nav-arrow:hover:not(:disabled) {
+      background: var(--olive-deep);
+      color: var(--paper);
+      border-color: var(--olive-deep);
+    }
+
+    .nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ============================================================
+       SELETOR DE DIAS (CALENDARIO)
+       ============================================================ */
+    .day-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 24px;
+      padding: 16px;
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+    }
+
+    .day-cell {
+      aspect-ratio: 1;
+      background: var(--paper);
+      border: 1px solid var(--line-soft);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--ink-soft);
+      transition: all 0.15s;
+      position: relative;
+      min-height: 36px;
+    }
+
+    .day-cell:hover {
+      border-color: var(--olive);
+      color: var(--ink);
+    }
+
+    .day-cell.active {
+      background: var(--olive-deep);
+      color: var(--paper);
+      border-color: var(--olive-deep);
+    }
+
+    .day-cell.rest {
+      background: var(--paper-shadow);
+      color: var(--ink-muted);
+      font-style: italic;
+    }
+
+    .day-cell.complete::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      width: 4px;
+      height: 4px;
+      background: var(--gold);
+      border-radius: 50%;
+    }
+
+    .day-cell.partial::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      width: 4px;
+      height: 4px;
+      background: var(--rust-soft);
+      border-radius: 50%;
+    }
+
+    /* ============================================================
+       BLOCO DO DIA
+       ============================================================ */
+    .day-block {
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .day-block-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .day-block-header .operator-name {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: 1.15rem;
+    }
+
+    .day-block-header .operator-meta {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--ink-muted);
+    }
+
+    .operator-progress {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--ink-muted);
+    }
+
+    .operator-progress .ratio {
+      color: var(--olive-deep);
+      font-weight: 600;
+    }
+
+    .level-section { padding: 20px 24px; }
+    .level-section + .level-section { border-top: 1px dashed var(--line-soft); }
+
+    .level-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .level-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      padding: 4px 10px;
+      border: 1px solid;
+    }
+
+    .level-badge.mv {
+      color: var(--olive-deep);
+      border-color: var(--olive-deep);
+      background: rgba(74, 93, 58, 0.08);
+    }
+
+    .level-badge.ideal {
+      color: var(--gold);
+      border-color: var(--gold);
+      background: rgba(176, 134, 66, 0.08);
+    }
+
+    .level-section h3 {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--ink-soft);
+    }
+
+    /* ============================================================
+       TASK ITEM
+       ============================================================ */
+    .task-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .task-item {
+      display: flex;
+      gap: 14px;
+      padding: 14px 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-radius: 2px;
+      align-items: flex-start;
+    }
+
+    .task-item:hover { background: rgba(31, 28, 24, 0.03); }
+
+    .task-checkbox {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border: 1.5px solid var(--ink-muted);
+      background: var(--paper);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+      margin-top: 2px;
+    }
+
+    .task-checkbox:hover { border-color: var(--olive); }
+
+    .task-item.done .task-checkbox {
+      background: var(--olive-deep);
+      border-color: var(--olive-deep);
+    }
+
+    .task-item.done .task-checkbox::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 2px;
+      width: 6px;
+      height: 12px;
+      border: solid var(--paper);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .task-text {
+      flex: 1;
+      font-size: 0.95rem;
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    .task-text code {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85em;
+      background: var(--paper-shadow);
+      padding: 1px 6px;
+      border-radius: 2px;
+      color: var(--olive-deep);
+    }
+
+    .task-item.done .task-text {
+      color: var(--ink-muted);
+      text-decoration: line-through;
+      text-decoration-color: var(--ink-muted);
+      text-decoration-thickness: 1px;
+    }
+
+    /* ============================================================
+       DESCANSO
+       ============================================================ */
+    .rest-day {
+      padding: 64px 32px;
+      text-align: center;
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+      margin-bottom: 24px;
+    }
+
+    .rest-day .symbol {
+      font-family: 'Fraunces', serif;
+      font-size: 4rem;
+      color: var(--olive);
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+
+    .rest-day h2 {
+      margin-bottom: 12px;
+      font-style: italic;
+    }
+
+    .rest-day p {
+      color: var(--ink-soft);
+      max-width: 50ch;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* ============================================================
+       DECISÃO DA SEMANA
+       ============================================================ */
+    .decision-block {
+      background: var(--paper);
+      border: 2px solid var(--olive-deep);
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .decision-block::before {
+      content: '';
+      position: absolute;
+      top: 6px; left: 6px; right: 6px; bottom: 6px;
+      border: 1px solid var(--olive-soft);
+      pointer-events: none;
+    }
+
+    .decision-block .label {
+      color: var(--olive-deep);
+      margin-bottom: 8px;
+    }
+
+    .decision-block h3 {
+      font-style: italic;
+      font-weight: 500;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+
+    .decision-block .field {
+      margin-bottom: 16px;
+    }
+
+    .decision-block .field-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--ink-muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .decision-block textarea {
+      min-height: 80px;
+      resize: vertical;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    .decision-block .saved-indicator {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--olive);
+      font-style: italic;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .decision-block .saved-indicator.show { opacity: 1; }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      text-align: center;
+      color: var(--ink-muted);
+      font-size: 0.8rem;
+      font-style: italic;
+      font-family: 'Fraunces', serif;
+    }
+
+    .footer .verse {
+      color: var(--olive-deep);
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+
+    /* ============================================================
+       LOADING
+       ============================================================ */
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: var(--paper);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-mark {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 1.2rem;
+      color: var(--ink-soft);
+      animation: fade 1.5s ease-in-out infinite;
+    }
+
+    @keyframes fade {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* ============================================================
+       SYNC STATUS
+       ============================================================ */
+    #sync-status {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 8px 14px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 50;
+    }
+
+    #sync-status.show {
+      opacity: 0.9;
+      transform: translateY(0);
+    }
+
+    #sync-status.error { background: var(--rust); }
+
+    /* ============================================================
+       RESPONSIVO
+       ============================================================ */
+    @media (max-width: 640px) {
+      .page { padding: 16px 12px 60px; }
+      .login-card { padding: 36px 24px; }
+      .day-nav { padding: 14px 16px; }
+      .day-block-header { padding: 16px 18px; }
+      .level-section { padding: 16px 18px; }
+      .progress-overview { grid-template-columns: 1fr 1fr; }
+      .header-top { flex-direction: column; align-items: stretch; }
+      .header-actions { justify-content: flex-end; }
+    }
+
+    /* ============================================================
+       UTILS
+       ============================================================ */
+    .hidden { display: none !important; }
+    .text-muted { color: var(--ink-muted); }
+    .text-soft { color: var(--ink-soft); }
+  </style>
+</head>
+<body>
+
+  <!-- ===========================================================
+       LOGIN SCREEN
+       =========================================================== -->
+  <div id="login-screen">
+    <div class="login-card">
+      <span class="label">Manual de 30 Dias</span>
+      <h1>Esdra Cosméticos</h1>
+      <p class="login-subtitle">Trilho operacional de Maio de 2026</p>
+
+      <form id="login-form">
+        <label class="label" for="email-input" style="margin-bottom: 8px; display: block;">Seu email</label>
+        <input
+          type="email"
+          id="email-input"
+          placeholder="josemar@exemplo.com"
+          required
+          autocomplete="email"
+        >
+        <button type="submit" class="primary" id="login-button">
+          Receber link de acesso
+        </button>
+      </form>
+
+      <div id="login-message" class="login-msg hidden"></div>
+
+      <p style="margin-top: 32px; font-size: 0.8rem; color: var(--ink-muted); text-align: center; line-height: 1.5;">
+        Você receberá um link mágico no email. Sem senha. Funciona em qualquer dispositivo.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===========================================================
+       APP SCREEN
+       =========================================================== -->
+  <div id="app-screen">
+    <div class="page">
+
+      <header class="header">
+        <div class="header-top">
+          <div class="header-title">
+            <span class="label">Manual de 30 Dias</span>
+            <h1>Esdra Cosméticos</h1>
+            <p class="subtitle">"Entrega tuas obras ao Senhor, e teus pensamentos serão estabelecidos."</p>
+          </div>
+          <div class="header-actions">
+            <button class="ghost" id="goto-today-btn">Hoje</button>
+            <button class="ghost" id="logout-btn">Sair</button>
+          </div>
+        </div>
+
+        <div class="progress-overview">
+          <div class="progress-card">
+            <span class="label">Mês</span>
+            <div class="value" id="month-progress">0%</div>
+            <div class="sublabel" id="month-sublabel">0 / 0 tarefas</div>
+            <div class="progress-bar"><div class="progress-bar-fill" id="month-bar" style="width:0%"></div></div>
+          </div>
+          <div class="progress-card">
+            <span class="label">Semana atual</span>
+            <div class="value" id="week-progress">0%</div>
+            <div class="sublabel" id="week-sublabel">Semana 1</div>
+            <div class="progress-bar"><div class="progress-bar-fill" id="week-bar" style="width:0%"></div></div>
+          </div>
+          <div class="progress-card">
+            <span class="label">Hoje · Mín. Viável</span>
+            <div class="value" id="mv-progress">0/0</div>
+            <div class="sublabel" id="mv-sublabel">tarefas essenciais</div>
+            <div class="progress-bar"><div class="progress-bar-fill" id="mv-bar" style="width:0%"></div></div>
+          </div>
+          <div class="progress-card">
+            <span class="label">Decisões registradas</span>
+            <div class="value" id="dec-progress">0/4</div>
+            <div class="sublabel" id="dec-sublabel">empreendedoras</div>
+            <div class="progress-bar"><div class="progress-bar-fill" id="dec-bar" style="width:0%"></div></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Calendário compacto -->
+      <div class="day-grid" id="day-grid"></div>
+
+      <!-- Navegação do dia -->
+      <div class="day-nav">
+        <button class="nav-arrow" id="prev-day-btn" title="Dia anterior">←</button>
+        <div class="day-nav-info">
+          <span class="label" id="current-day-label">Dia 1 · Semana 1</span>
+          <h2 id="current-day-title">Sexta-feira, 1 de maio</h2>
+          <div class="day-date" id="current-day-date">2026-05-01</div>
+        </div>
+        <button class="nav-arrow" id="next-day-btn" title="Próximo dia">→</button>
+      </div>
+
+      <!-- Conteúdo do dia (preenchido via JS) -->
+      <div id="day-content"></div>
+
+      <footer class="footer">
+        <div class="verse">Provérbios 16:3 · ACF</div>
+        <div>Manual instrumento · Família razão · Constância caminho</div>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ===========================================================
+       LOADING + SYNC
+       =========================================================== -->
+  <div id="loading">
+    <div class="loading-mark">carregando…</div>
+  </div>
+
+  <div id="sync-status">salvo</div>
+
+  <!-- ===========================================================
+       SUPABASE + LÓGICA
+       =========================================================== -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // ===========================================================
+    // CONFIG SUPABASE
+    // ===========================================================
+    // SUBSTITUA estes valores pelos do seu projeto Supabase do FinanceiroJe
+    // (Supabase Dashboard → Project Settings → API)
+    const SUPABASE_URL = 'https://hhedxktueawursnzqixg.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoZWR4a3R1ZWF3dXJzbnpxaXhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjI4NTEsImV4cCI6MjA5MDczODg1MX0.iuu7JERWiyKqHAE-Lvgfk1kWy0UK4QbMKvZGMqCNUYQ';
+
+    let sb = null;
+    if (SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20) {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    // ===========================================================
+    // DADOS — Manual 30 Dias (embutido)
+    // ===========================================================
+    const MANUAL_DATA = {"meta":{"title":"Manual 30 Dias - Esdra Cosméticos","start_date":"2026-05-01","total_days":31},"days":[{"day_num":1,"date":"2026-05-01","day_label":"Sexta-feira, 1 de maio","week_num":1,"is_rest":false,"josemar":{"minimo_viavel":["Criar planilha Google Sheets `ESDRA_OPERACAO_2026` com 4 abas: `Estoque`, `Clientes`, `Vendas_Semanais`, `Decisoes`.","Compartilhar acesso com Esdra (editor).","Configurar coluna de Decisões Semanais (Semana 1 a 4) com cabeçalhos: Data | Decisão | Critério | Resultado_30d."],"ideal":["Esboçar estrutura da aba `Estoque` com colunas: SKU, Marca, Produto, Custo_Unit, Preço_Venda, Qtd_Atual, Validade, Última_Venda, Dias_Parado, Margem_%, Curva_ABC.","Esboçar aba `Clientes` com colunas: Nome, Telefone, Cidade, Aniversário, Última_Compra, Ticket_Médio, Marca_Favorita, Categoria (VIP/Ativa/Inativa), Observações.","Criar pasta no Google Drive `Esdra_Cosmeticos_2026` e salvar a planilha lá."]},"esdra":{"minimo_viavel":["Atendimento normal das clientes do dia.","Listar mentalmente (ou em papel) as 10 clientes que mais compram. Anotar nome e telefone."],"ideal":["Começar a transferir a \"agenda mental\" para a aba `Clientes`. Meta hoje: 30 nomes preenchidos com pelo menos: nome, telefone, cidade, marca favorita."]},"decisao":null},{"day_num":2,"date":"2026-05-02","day_label":"Sábado, 2 de maio","week_num":1,"is_rest":false,"josemar":{"minimo_viavel":["Conferir se a planilha está acessível no celular dela.","Anotar dúvidas que surgiram no Dia 1 para resolver na segunda."],"ideal":[]},"esdra":{"minimo_viavel":["Atendimento de pedidos do dia.","Continuar lista de clientes na planilha. Meta: chegar a 50 nomes."],"ideal":["Identificar nas prateleiras/caixas os 10 produtos que ela lembra de não vender há mais de 3 meses. Anotar nome e quantidade em papel."]},"decisao":null},{"day_num":3,"date":"2026-05-03","day_label":"Domingo, 3 de maio","week_num":1,"is_rest":true,"josemar":null,"esdra":null,"decisao":null},{"day_num":4,"date":"2026-05-04","day_label":"Segunda-feira, 4 de maio","week_num":1,"is_rest":false,"josemar":{"minimo_viavel":["Revisar a aba `Clientes` que Esdra preencheu no fim de semana.","Categorizar mentalmente: quantas são VIP (compram 2x+/mês), Ativas (1x/mês), Inativas (90+ dias).","Marcar a coluna \"Categoria\" para cada uma."],"ideal":["Filtrar as Inativas e criar uma lista separada para campanha de reativação (Dia 11 — Quinta).","Identificar VIPs com aniversário em maio e junho — vamos usar isso em campanha futura."]},"esdra":{"minimo_viavel":["Atendimento normal.","Preencher mais 30 clientes na aba `Clientes`. Meta acumulada: 80 nomes."],"ideal":["Começar a auditoria de estoque junto com Josemar (se ele estiver em casa à noite).","Pegar 1 caixa/prateleira por vez e listar na aba `Estoque`. Meta de hoje: 30 SKUs cadastradas."]},"decisao":null},{"day_num":5,"date":"2026-05-05","day_label":"Terça-feira, 5 de maio","week_num":1,"is_rest":false,"josemar":{"minimo_viavel":["Trabalhar com Esdra no estoque. Foco: ajudá-la a calcular margem real de cada produto. Fórmula simples na planilha: `=(Preço_Venda - Custo_Unit) / Preço_Venda`.","Identificar os primeiros candidatos a \"liquidar\" — aqueles com margem alta (>30%) que estão parados há 60+ dias E aqueles próximos da validade."],"ideal":["Configurar fórmulas na planilha: • `Curva_ABC` automática baseada em volume de venda (deixa fórmula pronta, mesmo que dados ainda incompletos). • `Dias_Parado` automática: `=HOJE() - Última_Venda`.","Criar uma aba auxiliar `Dashboard` simples com 5 números: Total_Estoque_R$, Total_SKUs, SKUs_Parados_>120d, Margem_Média, Capital_Liquidável_R$."]},"esdra":{"minimo_viavel":["Atendimento normal.","Continuar cadastro de estoque. Meta acumulada: 80 SKUs."],"ideal":["Completar cadastro de clientes. Meta: 100 clientes ativas mapeadas."]},"decisao":null},{"day_num":6,"date":"2026-05-06","day_label":"Quarta-feira, 6 de maio","week_num":1,"is_rest":false,"josemar":{"minimo_viavel":["Configurar o GA4 do site (`G-NV2Q60QZR1`) para registrar eventos de: • Clique em produto • Clique em \"Comprar via WhatsApp\"","Criar 3 links UTM diferentes: para Instagram, para WhatsApp catálogo, para grupo de clientes VIP. Documentar na planilha."],"ideal":["Listar as 20 SKUs prioritárias para o site (alta margem + alta rotatividade + estoque saudável). Esta é a lista que será cadastrada no site nos próximos dias.","Se sobrar tempo: pequena melhoria visual no site (alguma seção que está incompleta)."]},"esdra":{"minimo_viavel":["Atendimento normal.","Tirar fotos das 10 primeiras SKUs prioritárias (luz natural, fundo neutro — pode ser uma toalha branca em cima da mesa). Salvar em pasta no Drive."],"ideal":["Tirar foto das outras 10 SKUs (totalizando 20).","Escrever pequena descrição (1 frase) para cada uma. Salvar em planilha auxiliar."]},"decisao":null},{"day_num":7,"date":"2026-05-07","day_label":"Quinta-feira, 7 de maio","week_num":1,"is_rest":false,"josemar":{"minimo_viavel":["Subir as 20 SKUs no site (catálogo). Foto + título + descrição + preço.","Configurar link direto \"Comprar pelo WhatsApp\" em cada produto (link com mensagem pré-definida: `https://wa.me/5518991063272?text=Olá Esdra, tenho interesse no [PRODUTO]`)."],"ideal":["Testar o fluxo completo: cliente entra no site → vê produto → clica WhatsApp → mensagem chega na Esdra. Validar que funciona.","Se houver tempo: começar a configurar a campanha de Reativação (Dia 11) — escrever rascunho da mensagem que Esdra vai enviar para clientes inativas."]},"esdra":{"minimo_viavel":["Atendimento normal.","Validar no celular dela que as 20 SKUs estão visíveis no site. Anotar erros (foto ruim, preço errado, etc.)."],"ideal":["Começar a \"espalhar o site\" entre as clientes ativas. Mensagem padrão (já com o link): \"Oi [nome]! Acabamos de subir nosso catálogo no site, dá uma olhada quando tiver um tempinho: esdracosmeticos.com.br. Qualquer coisa me chama aqui mesmo.\""]},"decisao":null},{"day_num":8,"date":"2026-05-08","day_label":"Sexta-feira, 8 de maio","week_num":2,"is_rest":false,"josemar":{"minimo_viavel":["Fechamento da Semana 1: preencher na aba `Vendas_Semanais` os 7 números da semana: 1. Faturamento_Total 2. Numero_Pedidos 3. Ticket_Medio (calc. automático) 4. Clientes_Ativas_Mês (acumulado) 5. Clientes_Reativadas_Mês 6. Capital_Liquidado_Estoque 7. Visitas_Site (do GA4)"],"ideal":["Escrever a Decisão da Semana 1 na aba `Decisoes`: • Decisão: % de estoque para liquidar • Critério: por quê • A revisar em 30 dias"]},"esdra":{"minimo_viavel":["Atendimento normal.","Lançar a Campanha de Liquidação (combinada com Josemar): mandar mensagem para 30 clientes ativas com 3 produtos selecionados em desconto (15–25%). Mensagem deve sair sexta à tarde para gerar venda no fim de semana."],"ideal":[]},"decisao":{"semana":1,"pergunta":"Dos R$ 50.000 em estoque, qual percentual vamos comprometer com a campanha de liquidação? Critério: preservar fluxo de caixa de 60 dias E liberar mínimo de R$ 15.000 em capital. Qual o número e por quê?"}},{"day_num":9,"date":"2026-05-09","day_label":"Sábado, 9 de maio","week_num":2,"is_rest":false,"josemar":{"minimo_viavel":["Conferir como a Campanha de Liquidação está performando. Quantos responderam? Quantos compraram?","Anotar aprendizados na planilha."],"ideal":[]},"esdra":{"minimo_viavel":["Atendimento ativo das respostas da campanha.","Entregas pontuais."],"ideal":[]},"decisao":null},{"day_num":10,"date":"2026-05-10","day_label":"Domingo, 10 de maio","week_num":2,"is_rest":true,"josemar":null,"esdra":null,"decisao":null},{"day_num":11,"date":"2026-05-11","day_label":"Segunda-feira, 11 de maio","week_num":2,"is_rest":false,"josemar":{"minimo_viavel":["Revisar resultado da Campanha de Liquidação do fim de semana. Quanto foi liquidado em R$? Margem?","Atualizar dashboard."],"ideal":["Preparar a Campanha de Reativação: lista de 30 inativas + mensagem personalizada por categoria.","Mensagem padrão (rascunho): \"Oi [nome], aqui é a Esdra. Faz um tempinho que a gente não conversa! Saudade de você. Tô passando para te avisar que cheguei com novidades [marca favorita dela] e tenho condições especiais essa semana só para clientes antigas. Posso te mostrar?\""]},"esdra":{"minimo_viavel":["Atendimento normal.","Enviar mensagens de reativação para 10 clientes inativas. Não mais que isso por dia (sobrecarga gera resposta automática \"não tenho tempo agora\")."],"ideal":["Foto de produto: começar a gravar 1 vídeo curto (60 segundos) por dia apresentando 1 produto. Pode ser no celular, formato vertical, sem edição. Salvar no Drive."]},"decisao":null},{"day_num":12,"date":"2026-05-12","day_label":"Terça-feira, 12 de maio","week_num":2,"is_rest":false,"josemar":{"minimo_viavel":["Acompanhar respostas da reativação. Quantas responderam? Quantas converteram?","Atualizar planilha de clientes (mover de \"Inativa\" para \"Ativa\" quem retornou)."],"ideal":["Configurar InfinitePay ou Mercado Pago no site (se ainda não está). Pix instantâneo + cartão.","Testar o fluxo de pagamento completo no site. Comprar um produto fictício de R$ 1, validar que funciona, estornar."]},"esdra":{"minimo_viavel":["Atendimento normal.","Mais 10 mensagens de reativação (cumulativo: 20)."],"ideal":["Gravar 1 vídeo curto novo.","Começar a postar no Instagram da Esdra Cosméticos: 1 reel + 1 post por dia."]},"decisao":null},{"day_num":13,"date":"2026-05-13","day_label":"Quarta-feira, 13 de maio","week_num":2,"is_rest":false,"josemar":{"minimo_viavel":["Revisar GA4: quantas visitas o site teve nos últimos 7 dias? Quantos cliques no botão WhatsApp? Anotar.","Documentar a primeira venda real pelo site (se já houve) na aba `Vendas_Semanais`."],"ideal":["Subir mais 10 SKUs no site (totalizando 30).","Reorganizar a homepage do site para destacar as 5 SKUs com maior margem."]},"esdra":{"minimo_viavel":["Atendimento.","Mais 10 reativações (cumulativo: 30 — encerra o ciclo de reativação desta rodada).","Continuar conteúdo diário no Instagram."],"ideal":[]},"decisao":null},{"day_num":14,"date":"2026-05-14","day_label":"Quinta-feira, 14 de maio","week_num":2,"is_rest":false,"josemar":{"minimo_viavel":["Aniversários da semana: identificar clientes VIP/ativas com aniversário nos próximos 7 dias.","Preparar mensagem personalizada de parabéns + brinde (pode ser amostra grátis no próximo pedido)."],"ideal":["Estudar 1h: Mercado Livre Vendedor (vídeo no YouTube oficial). Não para abrir conta agora — para entender o terreno antes da Fase 2."]},"esdra":{"minimo_viavel":["Atendimento.","Enviar mensagens de aniversário para a lista da semana.","Conteúdo diário."],"ideal":[]},"decisao":null},{"day_num":15,"date":"2026-05-15","day_label":"Sexta-feira, 15 de maio","week_num":3,"is_rest":false,"josemar":{"minimo_viavel":["Fechamento da Semana 2. Preencher os 7 KPIs.","Comparar com Semana 1: o que cresceu? O que estagnou?"],"ideal":["Decisão da Semana 2 (registrar): > \"As clientes reativadas voltaram com ticket médio menor que as VIPs. Vale insistir em reativação ou focar energia em fortalecer VIPs? Decida com base nos números reais da semana.\""]},"esdra":{"minimo_viavel":["Segunda Campanha de Liquidação (produtos diferentes da Semana 1): 3 SKUs em desconto, mensagem para 40 clientes ativas, foco em produtos parados há mais de 90 dias."],"ideal":[]},"decisao":{"semana":2,"pergunta":"As clientes reativadas voltaram com ticket médio menor que as VIPs. Vale insistir em reativação ou focar energia em fortalecer VIPs? Decida com base nos números reais da semana."}},{"day_num":16,"date":"2026-05-16","day_label":"Sábado, 16 de maio","week_num":3,"is_rest":false,"josemar":{"minimo_viavel":["Conferir resultados da campanha.","Anotar dúvidas."],"ideal":[]},"esdra":{"minimo_viavel":["Atendimento ativo.","Entregas."],"ideal":[]},"decisao":null},{"day_num":17,"date":"2026-05-17","day_label":"Domingo, 17 de maio","week_num":3,"is_rest":true,"josemar":null,"esdra":null,"decisao":null},{"day_num":18,"date":"2026-05-18","day_label":"Segunda-feira, 18 de maio","week_num":3,"is_rest":false,"josemar":{"minimo_viavel":["Decisão crítica: identificar 2–3 motoboys parceiros em Valparaíso/Guararapes (custo R$ 8–12 por entrega). Conversar com vizinhos, igreja, ou aplicativos locais.","Listar candidatos na planilha (nome, contato, área de cobertura, custo)."],"ideal":["Análise do tempo da Esdra: quantas horas por semana ela gasta entregando pessoalmente? Multiplicar por R$ 25/hora (valor justo do tempo dela). Comparar com o custo do motoboy. Diferença = ganho real do destrave."]},"esdra":{"minimo_viavel":["Atendimento normal.","Começar a delegar 30% das entregas (as mais distantes ou demoradas)."],"ideal":["Pesquisar identidade visual de embalagem: sacola kraft + adesivo da marca. Custo estimado: R$ 1–2 por pedido. Solicitar orçamento em 2 gráficas locais."]},"decisao":null},{"day_num":19,"date":"2026-05-19","day_label":"Terça-feira, 19 de maio","week_num":3,"is_rest":false,"josemar":{"minimo_viavel":["Configurar Google Meu Negócio para Esdra Cosméticos. Endereço (pode ser CEP residencial), foto da fachada virtual, descrição. Aparecer no Google Maps local é grátis e gera tráfego."],"ideal":["Configurar primeiros fluxos automatizados no WhatsApp Business — apenas para casos específicos: • Saudação fora do horário comercial • Aviso de pedido recebido • Manter o atendimento humano como diferencial — automação só para o que humano não precisa fazer."]},"esdra":{"minimo_viavel":["Atendimento.","Validar o motoboy escolhido com 2–3 entregas teste.","Conteúdo no Instagram."],"ideal":[]},"decisao":null},{"day_num":20,"date":"2026-05-20","day_label":"Quarta-feira, 20 de maio","week_num":3,"is_rest":false,"josemar":{"minimo_viavel":["Subir mais 10 SKUs no site (cumulativo: 40).","Adicionar seção \"Mais Vendidas\" e \"Promoção da Semana\" na homepage."],"ideal":["Configurar pixel da Meta no site (mesmo sem ainda fazer anúncio — começa a coletar audiência)."]},"esdra":{"minimo_viavel":["Atendimento.","Conteúdo.","Avaliação do motoboy: deu certo? Tempo de entrega? Cliente ficou satisfeita?"],"ideal":[]},"decisao":null},{"day_num":21,"date":"2026-05-21","day_label":"Quinta-feira, 21 de maio","week_num":3,"is_rest":false,"josemar":{"minimo_viavel":["Análise de margem por marca: filtrar a planilha de estoque por marca e calcular margem média de cada uma. Identificar as 3 marcas mais rentáveis e as 3 menos."],"ideal":["Estudar política de revenda de Boticário, Eudora e Natura (ler termos de distribuição, pesquisar grupos de revendedores no Facebook). Documentar restrições."]},"esdra":{"minimo_viavel":["Atendimento.","Conteúdo.","Programa de Indicação: começar a oferecer R$ 20 de crédito para cliente que indicar amiga que comprar. Mensagem padrão para divulgar."],"ideal":[]},"decisao":null},{"day_num":22,"date":"2026-05-22","day_label":"Sexta-feira, 22 de maio","week_num":4,"is_rest":false,"josemar":{"minimo_viavel":["Fechamento da Semana 3. 7 KPIs.","Comparativo: liquidação acumulada nos 22 dias vs meta de R$ 15k–20k. Quanto falta?"],"ideal":["Decisão da Semana 3 (registrar): > \"Avaliando as 3 marcas menos rentáveis: vale continuar revendendo ou descontinuar e usar capital em marcas mais rentáveis? Decida com base na margem REAL e na demanda das clientes.\""]},"esdra":{"minimo_viavel":["Terceira Campanha de Liquidação: focar especificamente nos produtos próximos da validade (se houver) e nos C de curva ABC."],"ideal":[]},"decisao":{"semana":3,"pergunta":"Avaliando as 3 marcas menos rentáveis: vale continuar revendendo ou descontinuar e usar capital em marcas mais rentáveis? Decida com base na margem REAL e na demanda das clientes."}},{"day_num":23,"date":"2026-05-23","day_label":"Sábado, 23 de maio","week_num":4,"is_rest":false,"josemar":{"minimo_viavel":["Acompanhamento da campanha."],"ideal":[]},"esdra":{"minimo_viavel":["Atendimento + entregas."],"ideal":[]},"decisao":null},{"day_num":24,"date":"2026-05-24","day_label":"Domingo, 24 de maio","week_num":4,"is_rest":true,"josemar":null,"esdra":null,"decisao":null},{"day_num":25,"date":"2026-05-25","day_label":"Segunda-feira, 25 de maio","week_num":4,"is_rest":false,"josemar":{"minimo_viavel":["Compilar dados das 3 semanas anteriores num único dashboard mensal.","Calcular: faturamento total do mês, margem média, capital liquidado, novas clientes, reativadas."],"ideal":["Comparar com o \"antes\" (R$ 10k/mês baseline). Crescimento real? Composição diferente?"]},"esdra":{"minimo_viavel":["Atendimento.","Conteúdo.","Continuar liquidação se ainda não atingiu meta de R$ 15k–20k."],"ideal":[]},"decisao":null},{"day_num":26,"date":"2026-05-26","day_label":"Terça-feira, 26 de maio","week_num":4,"is_rest":false,"josemar":{"minimo_viavel":["Auditoria do que NÃO funcionou: listar honestamente as 3 coisas do plano que falharam ou foram abandonadas. Não para se culpar — para ajustar próximo ciclo."],"ideal":["Auditoria do que funcionou: listar as 3 ações que mais geraram resultado (em vendas, em margem, ou em tempo liberado)."]},"esdra":{"minimo_viavel":["Atendimento.","Conteúdo.","Conversa estratégica com Josemar: o que ela sente que está pesado? O que está leve? O que quer mudar?"],"ideal":[]},"decisao":null},{"day_num":27,"date":"2026-05-27","day_label":"Quarta-feira, 27 de maio","week_num":4,"is_rest":false,"josemar":{"minimo_viavel":["Avaliação da contratação: com os números do mês, calcular se cabe contratar 1 pessoa part-time (R$ 800–1.200/mês). Justifica? Quando? Quem?"],"ideal":["Revisar o site: quantas SKUs estão lá? Funcionalidade está boa? Lista de melhorias para o próximo mês."]},"esdra":{"minimo_viavel":["Atendimento + Conteúdo."],"ideal":[]},"decisao":null},{"day_num":28,"date":"2026-05-28","day_label":"Quinta-feira, 28 de maio","week_num":4,"is_rest":false,"josemar":{"minimo_viavel":["Esboçar o Plano dos próximos 30 dias (junho 2026) com base no aprendizado.","3 prioridades, não mais."],"ideal":["Decidir: marketplaces no próximo ciclo? Tráfego pago? Contratação? Empréstimo? Cada decisão precisa de critério escrito."]},"esdra":{"minimo_viavel":["Atendimento + Conteúdo + última campanha do mês se necessário."],"ideal":[]},"decisao":null},{"day_num":29,"date":"2026-05-29","day_label":"Sexta-feira, 29 de maio","week_num":4,"is_rest":false,"josemar":{"minimo_viavel":["Fechamento da Semana 4 + Fechamento do Mês.","KPIs finais consolidados.","Decisão da Semana 4 (a mais importante): > \"Aonde alocar os próximos R$ 5.000 de investimento (capital liquidado): tráfego pago, marketplaces, contratação, ou aumento de estoque das marcas rentáveis? Decida e justifique.\""],"ideal":["Reunião de 1h com Esdra: revisar mês, celebrar conquistas, alinhar próximo ciclo."]},"esdra":{"minimo_viavel":["Atendimento.","Fechamento dela do mês."],"ideal":[]},"decisao":{"semana":4,"pergunta":"Aonde alocar os próximos R$ 5.000 de investimento (capital liquidado): tráfego pago, marketplaces, contratação, ou aumento de estoque das marcas rentáveis? Decida e justifique."}},{"day_num":30,"date":"2026-05-30","day_label":"Sábado, 30 de maio","week_num":4,"is_rest":false,"josemar":{"minimo_viavel":["Escrever um pequeno relatório mensal pessoal (no FinanceiroJe ou em um doc): \"O que aprendi sobre empreendedorismo neste mês.\"","Não é relatório de empresa. É registro do seu crescimento como empreendedor."],"ideal":["Decidir formalmente as 3 prioridades de junho. Escrever na planilha."]},"esdra":{"minimo_viavel":["Atendimento de manhã.","À tarde: descanso. Mês foi pesado."],"ideal":[]},"decisao":null},{"day_num":31,"date":"2026-05-31","day_label":"Domingo, 31 de maio","week_num":4,"is_rest":true,"josemar":null,"esdra":null,"decisao":null}]};
+
+    // ===========================================================
+    // ESTADO
+    // ===========================================================
+    let currentUser = null;
+    let currentDayNum = 1;
+    let progressMap = new Map(); // key: "day_num:operador:nivel:idx" → {cumprido, observacao}
+    let decisoesMap = new Map(); // key: semana → {decisao, criterio, ...}
+
+    // ===========================================================
+    // UTILS
+    // ===========================================================
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    function progKey(day, op, nivel, idx) {
+      return `${day}:${op}:${nivel}:${idx}`;
+    }
+
+    function todayDayNum() {
+      const today = new Date();
+      const start = new Date(MANUAL_DATA.meta.start_date + 'T00:00:00');
+      const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+      const dn = diffDays + 1;
+      if (dn < 1) return 1;
+      if (dn > MANUAL_DATA.meta.total_days) return MANUAL_DATA.meta.total_days;
+      return dn;
+    }
+
+    function showSync(msg, isError = false) {
+      const el = $('#sync-status');
+      el.textContent = msg;
+      el.classList.toggle('error', isError);
+      el.classList.add('show');
+      clearTimeout(showSync._t);
+      showSync._t = setTimeout(() => el.classList.remove('show'), 1800);
+    }
+
+    function showLoginMsg(msg, isError = false) {
+      const el = $('#login-message');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      el.classList.toggle('error', isError);
+    }
+
+    // ===========================================================
+    // LOGIN / AUTH
+    // ===========================================================
+    $('#login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = $('#email-input').value.trim();
+      if (!email) return;
+
+      if (!sb) {
+        showLoginMsg(
+          'Configuração Supabase não preenchida. Edite o arquivo HTML e cole sua SUPABASE_URL e SUPABASE_ANON_KEY no topo do <script>.',
+          true
+        );
+        return;
+      }
+
+      const btn = $('#login-button');
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+
+      const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.href }
+      });
+
+      btn.disabled = false;
+      btn.textContent = 'Receber link de acesso';
+
+      if (error) {
+        showLoginMsg(`Erro: ${error.message}`, true);
+      } else {
+        showLoginMsg(
+          `Link de acesso enviado para ${email}. Verifique sua caixa de entrada (e o spam) e clique no link.`,
+          false
+        );
+      }
+    });
+
+    $('#logout-btn').addEventListener('click', async () => {
+      if (!sb) return;
+      await sb.auth.signOut();
+      window.location.reload();
+    });
+
+    async function checkAuth() {
+      if (!sb) {
+        $('#loading').classList.add('hidden');
+        return;
+      }
+
+      const { data: { session } } = await sb.auth.getSession();
+
+      if (session) {
+        currentUser = session.user;
+        await loadProgress();
+        await loadDecisoes();
+        showApp();
+      } else {
+        $('#loading').classList.add('hidden');
+      }
+
+      // Listener para mudanças de auth (magic link callback)
+      sb.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          currentUser = session.user;
+          await loadProgress();
+          await loadDecisoes();
+          showApp();
+        }
+      });
+    }
+
+    // ===========================================================
+    // CARGA DE DADOS DO SUPABASE
+    // ===========================================================
+    async function loadProgress() {
+      if (!sb || !currentUser) return;
+      const { data, error } = await sb
+        .from('manual_30_dias_progresso')
+        .select('*')
+        .eq('user_id', currentUser.id);
+      if (error) {
+        console.error('loadProgress', error);
+        return;
+      }
+      progressMap.clear();
+      data.forEach(row => {
+        progressMap.set(
+          progKey(row.day_num, row.operador, row.nivel, row.task_index),
+          { cumprido: row.cumprido, observacao: row.observacao }
+        );
+      });
+    }
+
+    async function loadDecisoes() {
+      if (!sb || !currentUser) return;
+      const { data, error } = await sb
+        .from('manual_30_dias_decisoes')
+        .select('*')
+        .eq('user_id', currentUser.id);
+      if (error) {
+        console.error('loadDecisoes', error);
+        return;
+      }
+      decisoesMap.clear();
+      data.forEach(row => decisoesMap.set(row.semana, row));
+    }
+
+    // ===========================================================
+    // PERSISTÊNCIA DE TAREFA
+    // ===========================================================
+    async function toggleTask(dayNum, operador, nivel, taskIndex) {
+      const key = progKey(dayNum, operador, nivel, taskIndex);
+      const current = progressMap.get(key) || { cumprido: false };
+      const newDone = !current.cumprido;
+
+      // Otimistic UI
+      progressMap.set(key, { cumprido: newDone, observacao: current.observacao });
+      renderDay();
+      renderProgress();
+
+      if (!sb || !currentUser) {
+        showSync('offline (sem login)', true);
+        return;
+      }
+
+      const { error } = await sb
+        .from('manual_30_dias_progresso')
+        .upsert({
+          user_id: currentUser.id,
+          day_num: dayNum,
+          operador,
+          nivel,
+          task_index: taskIndex,
+          cumprido: newDone,
+          cumprido_em: newDone ? new Date().toISOString() : null,
+        }, { onConflict: 'user_id,day_num,operador,nivel,task_index' });
+
+      if (error) {
+        showSync('erro ao salvar', true);
+        // Reverte
+        progressMap.set(key, current);
+        renderDay();
+        renderProgress();
+      } else {
+        showSync(newDone ? '✓ cumprido' : 'pendente');
+      }
+    }
+
+    // ===========================================================
+    // PERSISTÊNCIA DE DECISÃO
+    // ===========================================================
+    let decisaoSaveTimer = null;
+    async function saveDecisao(semana, pergunta, field, value) {
+      const current = decisoesMap.get(semana) || { semana, pergunta };
+      current[field] = value;
+      decisoesMap.set(semana, current);
+
+      clearTimeout(decisaoSaveTimer);
+      decisaoSaveTimer = setTimeout(async () => {
+        if (!sb || !currentUser) return;
+
+        const payload = {
+          user_id: currentUser.id,
+          semana,
+          pergunta,
+          decisao: current.decisao || null,
+          criterio: current.criterio || null,
+          aprendizado: current.aprendizado || null,
+        };
+
+        const { error } = await sb
+          .from('manual_30_dias_decisoes')
+          .upsert(payload, { onConflict: 'user_id,semana' });
+
+        if (error) {
+          showSync('erro ao salvar', true);
+        } else {
+          showSync('✓ decisão salva');
+          // Indicator visual no bloco da decisão
+          const ind = document.querySelector(`[data-saved-ind="${semana}"]`);
+          if (ind) {
+            ind.classList.add('show');
+            setTimeout(() => ind.classList.remove('show'), 2000);
+          }
+          renderProgress();
+        }
+      }, 800);
+    }
+
+    // ===========================================================
+    // RENDER
+    // ===========================================================
+    function showApp() {
+      $('#login-screen').style.display = 'none';
+      $('#app-screen').style.display = 'block';
+      $('#loading').classList.add('hidden');
+
+      currentDayNum = todayDayNum();
+      renderDayGrid();
+      renderDay();
+      renderProgress();
+    }
+
+    function renderDayGrid() {
+      const grid = $('#day-grid');
+      grid.innerHTML = '';
+      // Cabeçalho com inicial dos dias da semana
+      // Como 1 de maio de 2026 é sexta, vamos ajustar:
+      // Dia 1 = sexta, Dia 2 = sábado, Dia 3 = domingo (descanso)
+      // 31 dias caberão em ~5 fileiras
+      MANUAL_DATA.days.forEach(d => {
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+        if (d.is_rest) cell.classList.add('rest');
+        if (d.day_num === currentDayNum) cell.classList.add('active');
+
+        // Calcular completude
+        const status = dayCompletionStatus(d);
+        if (status === 'complete') cell.classList.add('complete');
+        else if (status === 'partial') cell.classList.add('partial');
+
+        cell.textContent = d.day_num;
+        cell.title = d.day_label;
+        cell.addEventListener('click', () => {
+          currentDayNum = d.day_num;
+          renderDayGrid();
+          renderDay();
+          renderProgress();
+          window.scrollTo({ top: $('#day-content').offsetTop - 20, behavior: 'smooth' });
+        });
+        grid.appendChild(cell);
+      });
+    }
+
+    function dayCompletionStatus(d) {
+      if (d.is_rest) return null;
+      let total = 0, done = 0, mvTotal = 0, mvDone = 0;
+      ['josemar', 'esdra'].forEach(op => {
+        if (!d[op]) return;
+        ['minimo_viavel', 'ideal'].forEach(nivel => {
+          (d[op][nivel] || []).forEach((_, idx) => {
+            total++;
+            if (nivel === 'minimo_viavel') mvTotal++;
+            const k = progKey(d.day_num, op, nivel, idx);
+            if (progressMap.get(k)?.cumprido) {
+              done++;
+              if (nivel === 'minimo_viavel') mvDone++;
+            }
+          });
+        });
+      });
+      if (total === 0) return null;
+      if (mvTotal > 0 && mvDone === mvTotal) return 'complete';
+      if (done > 0) return 'partial';
+      return null;
+    }
+
+    function renderDay() {
+      const d = MANUAL_DATA.days[currentDayNum - 1];
+      if (!d) return;
+
+      // Header do dia
+      $('#current-day-label').textContent = `Dia ${d.day_num} · Semana ${d.week_num}`;
+      $('#current-day-title').textContent = d.day_label;
+      $('#current-day-date').textContent = d.date;
+
+      // Botões de navegação
+      $('#prev-day-btn').disabled = currentDayNum <= 1;
+      $('#next-day-btn').disabled = currentDayNum >= MANUAL_DATA.meta.total_days;
+
+      const content = $('#day-content');
+      content.innerHTML = '';
+
+      // Dia de descanso
+      if (d.is_rest) {
+        content.innerHTML = `
+          <div class="rest-day">
+            <div class="symbol">~</div>
+            <h2>Dia de descanso</h2>
+            <p>Fé, Melinda, Esdra, descanso. O negócio sobrevive. Você não, se quebrar.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Bloco Josemar
+      if (d.josemar) {
+        content.appendChild(buildOperatorBlock(d.day_num, 'josemar', 'Josemar', d.josemar));
+      }
+
+      // Bloco Esdra
+      if (d.esdra) {
+        content.appendChild(buildOperatorBlock(d.day_num, 'esdra', 'Esdra', d.esdra));
+      }
+
+      // Decisão da semana (se houver)
+      if (d.decisao) {
+        content.appendChild(buildDecisionBlock(d.decisao));
+      }
+    }
+
+    function buildOperatorBlock(dayNum, opKey, opName, opData) {
+      const block = document.createElement('div');
+      block.className = 'day-block';
+
+      const mvCount = (opData.minimo_viavel || []).length;
+      const idealCount = (opData.ideal || []).length;
+      const total = mvCount + idealCount;
+
+      // Calcular progresso
+      let done = 0;
+      ['minimo_viavel', 'ideal'].forEach(nivel => {
+        (opData[nivel] || []).forEach((_, idx) => {
+          if (progressMap.get(progKey(dayNum, opKey, nivel, idx))?.cumprido) done++;
+        });
+      });
+
+      // Header
+      const header = document.createElement('div');
+      header.className = 'day-block-header';
+      header.innerHTML = `
+        <div>
+          <div class="operator-name">${opName}</div>
+          <div class="operator-meta">${total} compromissos · ${mvCount} essenciais</div>
+        </div>
+        <div class="operator-progress">
+          <span class="ratio">${done}/${total}</span>
+        </div>
+      `;
+      block.appendChild(header);
+
+      // Mínimo Viável
+      if (mvCount > 0) {
+        block.appendChild(buildLevelSection(dayNum, opKey, 'minimo_viavel', 'Mínimo Viável', 'mv', opData.minimo_viavel));
+      }
+
+      // Ideal
+      if (idealCount > 0) {
+        block.appendChild(buildLevelSection(dayNum, opKey, 'ideal', 'Ideal', 'ideal', opData.ideal));
+      }
+
+      return block;
+    }
+
+    function buildLevelSection(dayNum, opKey, nivelKey, nivelLabel, badgeClass, tasks) {
+      const section = document.createElement('div');
+      section.className = 'level-section';
+      section.innerHTML = `
+        <div class="level-header">
+          <span class="level-badge ${badgeClass}">${nivelLabel}</span>
+        </div>
+      `;
+
+      const list = document.createElement('ul');
+      list.className = 'task-list';
+
+      tasks.forEach((task, idx) => {
+        const key = progKey(dayNum, opKey, nivelKey, idx);
+        const done = progressMap.get(key)?.cumprido || false;
+
+        const li = document.createElement('li');
+        li.className = 'task-item' + (done ? ' done' : '');
+        li.innerHTML = `
+          <div class="task-checkbox" role="checkbox" aria-checked="${done}"></div>
+          <div class="task-text">${formatTaskText(task)}</div>
+        `;
+        li.addEventListener('click', () => toggleTask(dayNum, opKey, nivelKey, idx));
+        list.appendChild(li);
+      });
+
+      section.appendChild(list);
+      return section;
+    }
+
+    function formatTaskText(text) {
+      // Converte `code` em <code>
+      return text.replace(/`([^`]+)`/g, '<code>$1</code>');
+    }
+
+    function buildDecisionBlock(decisao) {
+      const semana = decisao.semana;
+      const saved = decisoesMap.get(semana) || {};
+
+      const block = document.createElement('div');
+      block.className = 'decision-block';
+      block.innerHTML = `
+        <span class="label">Decisão da Semana ${semana}</span>
+        <h3>${decisao.pergunta}</h3>
+
+        <div class="field">
+          <span class="field-label">Sua decisão</span>
+          <textarea data-decisao-field="decisao" data-semana="${semana}" placeholder="Escreva sua decisão aqui...">${saved.decisao || ''}</textarea>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Critério (por que decidi assim)</span>
+          <textarea data-decisao-field="criterio" data-semana="${semana}" placeholder="Qual o raciocínio por trás dessa escolha?">${saved.criterio || ''}</textarea>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Aprendizado (preencher depois, ao revisar em 30 dias)</span>
+          <textarea data-decisao-field="aprendizado" data-semana="${semana}" placeholder="O que essa decisão me ensinou?">${saved.aprendizado || ''}</textarea>
+        </div>
+
+        <span class="saved-indicator" data-saved-ind="${semana}">salvo automaticamente</span>
+      `;
+
+      // Listeners
+      block.querySelectorAll('textarea[data-decisao-field]').forEach(ta => {
+        ta.addEventListener('input', (e) => {
+          const field = e.target.dataset.decisaoField;
+          const sem = parseInt(e.target.dataset.semana);
+          saveDecisao(sem, decisao.pergunta, field, e.target.value);
+        });
+      });
+
+      return block;
+    }
+
+    function renderProgress() {
+      // Mês total
+      let monthTotal = 0, monthDone = 0;
+      let weekTotal = 0, weekDone = 0;
+      let mvTotal = 0, mvDone = 0;
+      const currentWeek = MANUAL_DATA.days[currentDayNum - 1]?.week_num || 1;
+      const currentDay = MANUAL_DATA.days[currentDayNum - 1];
+
+      MANUAL_DATA.days.forEach(d => {
+        if (d.is_rest) return;
+        ['josemar', 'esdra'].forEach(op => {
+          if (!d[op]) return;
+          ['minimo_viavel', 'ideal'].forEach(nivel => {
+            (d[op][nivel] || []).forEach((_, idx) => {
+              monthTotal++;
+              const isDone = progressMap.get(progKey(d.day_num, op, nivel, idx))?.cumprido;
+              if (isDone) monthDone++;
+
+              if (d.week_num === currentWeek) {
+                weekTotal++;
+                if (isDone) weekDone++;
+              }
+
+              if (d.day_num === currentDayNum && nivel === 'minimo_viavel') {
+                mvTotal++;
+                if (isDone) mvDone++;
+              }
+            });
+          });
+        });
+      });
+
+      const monthPct = monthTotal ? Math.round((monthDone / monthTotal) * 100) : 0;
+      const weekPct = weekTotal ? Math.round((weekDone / weekTotal) * 100) : 0;
+      const mvPct = mvTotal ? Math.round((mvDone / mvTotal) * 100) : 0;
+
+      $('#month-progress').textContent = monthPct + '%';
+      $('#month-sublabel').textContent = `${monthDone} / ${monthTotal} compromissos`;
+      $('#month-bar').style.width = monthPct + '%';
+
+      $('#week-progress').textContent = weekPct + '%';
+      $('#week-sublabel').textContent = `Semana ${currentWeek}`;
+      $('#week-bar').style.width = weekPct + '%';
+
+      $('#mv-progress').textContent = `${mvDone}/${mvTotal}`;
+      $('#mv-bar').style.width = mvPct + '%';
+      if (currentDay?.is_rest) {
+        $('#mv-progress').textContent = '—';
+        $('#mv-sublabel').textContent = 'descanso';
+      } else {
+        $('#mv-sublabel').textContent = 'tarefas essenciais';
+      }
+
+      // Decisões
+      let decCount = 0;
+      decisoesMap.forEach(d => {
+        if (d.decisao && d.decisao.trim()) decCount++;
+      });
+      const decPct = (decCount / 4) * 100;
+      $('#dec-progress').textContent = `${decCount}/4`;
+      $('#dec-bar').style.width = decPct + '%';
+
+      // Atualizar grid
+      renderDayGrid();
+    }
+
+    // ===========================================================
+    // EVENT LISTENERS
+    // ===========================================================
+    $('#prev-day-btn').addEventListener('click', () => {
+      if (currentDayNum > 1) {
+        currentDayNum--;
+        renderDayGrid();
+        renderDay();
+        renderProgress();
+      }
+    });
+
+    $('#next-day-btn').addEventListener('click', () => {
+      if (currentDayNum < MANUAL_DATA.meta.total_days) {
+        currentDayNum++;
+        renderDayGrid();
+        renderDay();
+        renderProgress();
+      }
+    });
+
+    $('#goto-today-btn').addEventListener('click', () => {
+      currentDayNum = todayDayNum();
+      renderDayGrid();
+      renderDay();
+      renderProgress();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') return;
+      if ($('#app-screen').style.display === 'none') return;
+
+      if (e.key === 'ArrowLeft') $('#prev-day-btn').click();
+      if (e.key === 'ArrowRight') $('#next-day-btn').click();
+      if (e.key === 't' || e.key === 'T') $('#goto-today-btn').click();
+    });
+
+    // ===========================================================
+    // INIT
+    // ===========================================================
+    checkAuth();
+  </script>
+</body>
+</html>
