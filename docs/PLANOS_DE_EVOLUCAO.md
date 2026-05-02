@@ -1,12 +1,13 @@
 # 🗺️ Planos de Evolução — FinanceiroJe
 
-> **Objetivo deste documento:** servir como backlog estratégico do projeto além da camada de inteligência pessoal. Lista os 22 planos de evolução identificados em auditoria de Abril/2026, organizados por categoria, com descrição sucinta, prioridade, esforço estimado e pré-requisitos.
+> **Objetivo deste documento:** servir como backlog estratégico do projeto além da camada de inteligência pessoal. Lista os 22 planos de evolução identificados em auditoria de Abril/2026 + 4 planos da nova **Categoria H — Esdra Cosméticos como Sistema** adicionada em Maio/2026, organizados por categoria, com descrição sucinta, prioridade, esforço estimado e pré-requisitos.
 >
 > **Autor:** sessão Claude com Josemar — Abril/2026
-> **Versão:** 1.0
+> **Versão:** 1.1
 > **Status:** backlog aprovado, aguardando elaboração individual
 > **Relação com outros documentos:**
 > - Complemento estratégico ao `PLANO_INTELIGENCIA_PESSOAL.md` (v1.3) e `PLANO_COMPLEMENTAR_INTELIGENCIA.md` (v1.0)
+> - **Categoria H** referencia o `PLANO_PAINEL_ESDRA.md` (v2.0) para detalhamento técnico
 > - Ordem de execução sugerida: primeiro completar Sprints 8-10 do plano complementar; depois iniciar os planos prioritários listados aqui.
 
 ---
@@ -22,9 +23,10 @@
 7. [Categoria E — Uso profissional (Esdra Cosméticos e PMESP)](#7-categoria-e--uso-profissional-esdra-cosméticos-e-pmesp)
 8. [Categoria F — Colaboração familiar](#8-categoria-f--colaboração-familiar)
 9. [Categoria G — Inteligência deferida](#9-categoria-g--inteligência-deferida)
-10. [Matriz consolidada de priorização](#10-matriz-consolidada-de-priorização)
-11. [Recomendação de sequência](#11-recomendação-de-sequência)
-12. [Histórico de versões](#12-histórico-de-versões)
+10. [Categoria H — Esdra Cosméticos como Sistema](#10-categoria-h--esdra-cosméticos-como-sistema)
+11. [Matriz consolidada de priorização](#11-matriz-consolidada-de-priorização)
+12. [Recomendação de sequência](#12-recomendação-de-sequência)
+13. [Histórico de versões](#13-histórico-de-versões)
 
 ---
 
@@ -58,16 +60,25 @@ FinanceiroJe — Ecossistema de Planos
 │
 ├── 🧠 Eixo Inteligência Pessoal
 │   ├── PLANO_INTELIGENCIA_PESSOAL.md (v1.3)         ✅ Sprints 1-7 concluídos
-│   └── PLANO_COMPLEMENTAR_INTELIGENCIA.md (v1.0)    📋 Sprints 8-10 a implementar
+│   └── PLANO_COMPLEMENTAR_INTELIGENCIA.md (v1.0)    ✅ Sprints 8-10 concluídos (Abr/2026)
 │
-└── 🏗️ Eixo Evolução do Projeto (este documento)    📋 22 planos em 7 categorias
+├── 🛍️ Eixo Esdra Cosméticos como Sistema
+│   ├── public/manual/index.html                      ✅ Em produção (02/Mai/2026)
+│   ├── manual_30_dias_progresso (tabela)             ✅ Migration aplicada
+│   ├── manual_30_dias_decisoes (tabela)              ✅ Migration aplicada
+│   └── PLANO_PAINEL_ESDRA.md (v2.0)                  📋 6 sprints aguardando execução
+│       ├── Sprints 1-4: sistema operacional
+│       └── Sprints 5-6: PIL Esdra + AI Conselheiro
+│
+└── 🏗️ Eixo Evolução do Projeto (este documento)    📋 22 + 4 planos em 8 categorias
     ├── A. Plataforma e operação (4 planos)
     ├── B. Segurança e conformidade (3 planos)
     ├── C. Qualidade de código (4 planos)
     ├── D. Produto e usuário (5 planos)
     ├── E. Uso profissional (3 planos)
     ├── F. Colaboração familiar (3 planos)
-    └── G. Inteligência deferida (3 planos — vindos do plano complementar)
+    ├── G. Inteligência deferida (3 planos — vindos do plano complementar)
+    └── H. Esdra Cosméticos como Sistema (4 planos — adicionada Mai/2026)
 ```
 
 ---
@@ -274,15 +285,15 @@ FinanceiroJe — Ecossistema de Planos
 
 ## 7. Categoria E — Uso profissional (Esdra Cosméticos e PMESP)
 
-### E.1 — Integração Esdra Cosméticos ↔ FinanceiroJe 🔴
+### E.1 — Integração Esdra Cosméticos ↔ FinanceiroJe (financeiro) 🔴
 
-**Descrição:** O escopo `business` existe mas é subutilizado. Plano para: (1) sincronização de vendas do e-commerce (esdracosmeticos.com.br) com transações — cada pedido vira `income` automático; (2) cálculo de margem por produto (custo - preço - frete - impostos); (3) DRE mensal simplificado para MEI; (4) preparação de documentos para declaração anual MEI/SIMPLES; (5) indicadores-chave do negócio (ticket médio, frequência de compra, produtos campeões).
+**Descrição:** Especificamente sobre a **camada financeira** da integração — diferente dos planos da Categoria H que cobrem o sistema de gestão completo. Plano para: (1) sincronização de vendas do e-commerce (esdracosmeticos.com.br) com transações — cada pedido vira `income` automático no escopo `business`; (2) cálculo de margem por produto via cruzamento com `esdra_estoque` (criada em Sprint 4 do `PLANO_PAINEL_ESDRA.md`); (3) DRE mensal simplificado para MEI; (4) preparação de documentos para declaração anual MEI/SIMPLES; (5) indicadores-chave do negócio (ticket médio, frequência de compra, produtos campeões).
 
-**Motivação:** Transforma o FinanceiroJe em ferramenta real de gestão para o negócio da Esdra — realiza o propósito colaborativo do projeto.
+**Motivação:** Realiza a integração financeira-fiscal do sistema Esdra Cosméticos. Os aspectos operacionais (compromissos, decisões, KPIs, CRM, conselheiro IA) ficam na Categoria H.
 
-**Esforço:** Grande (10-14 dias)
-**Pré-requisitos:** Acesso técnico ao e-commerce da Esdra (API de pedidos ou export CSV regular)
-**Prioridade de execução:** Alta estratégica — é o que diferencia o FinanceiroJe de qualquer app genérico de finanças
+**Esforço:** Médio (6-8 dias) — reduzido em relação à v1.0 porque agora há infra preparada na Categoria H
+**Pré-requisitos:** **H.1 (Painel Empreendedor) Sprint 4 concluído** (ou seja, tabelas `esdra_estoque` existindo); acesso técnico ao e-commerce da Esdra (API de pedidos ou export CSV regular)
+**Prioridade de execução:** Após Categoria H — Sprint 4
 
 ---
 
@@ -388,7 +399,63 @@ FinanceiroJe — Ecossistema de Planos
 
 ---
 
-## 10. Matriz consolidada de priorização
+## 10. Categoria H — Esdra Cosméticos como Sistema
+
+*Adicionada em Maio/2026 após elaboração do `PLANO_PAINEL_ESDRA.md` v2.0. Esta categoria consolida o eixo "Esdra Cosméticos como Sistema" — diferente da Categoria E (que trata de aspectos financeiros-fiscais), aqui estão os planos operacionais, de inteligência específica do negócio e evoluções do consultor IA.*
+
+*Os planos H.1 e H.2 estão totalmente detalhados no documento `PLANO_PAINEL_ESDRA.md` (v2.0). Esta seção apenas referencia. Os planos H.3 e H.4 são evoluções pós-Sprint 6 que ainda não têm documento dedicado — quando forem priorizados, ganham elaboração própria.*
+
+### H.1 — Painel Empreendedor Operacional (Sprints 1-4) 🔴
+
+**Descrição:** Sistema operacional completo dentro do FinanceiroJe para a gestão diária da Esdra Cosméticos. Inclui: tela "Hoje" (compromissos do dia com checkbox), tela "Semana" (visão consolidada), tela "Métricas" (7 KPIs com gráficos), tela "Decisões" (registro e revisão de decisões empreendedoras), CRM mínimo (clientes), módulo de estoque (curva ABC, capital parado). Persiste no Supabase, integrado ao módulo financeiro existente.
+
+**Motivação:** Migrar o trilho operacional da fase HTML standalone (`public/manual/index.html`) para sistema definitivo dentro do FinanceiroJe, com integração nativa aos dados financeiros e preparação para os planos H.2-H.4.
+
+**Esforço:** Grande (8-11 sessões de Claude Code Desktop ao longo de ~2 meses)
+**Pré-requisitos:** Mínimo 30 dias de uso do Manual 30 Dias HTML antes de iniciar
+**Prioridade de execução:** Alta — primeira frente da Categoria H, base para tudo o que vem depois
+**Documentação completa:** `PLANO_PAINEL_ESDRA.md` (v2.0) — Sprints 1-4
+
+---
+
+### H.2 — Personal Intelligence Layer Esdra + AI Conselheiro (Sprints 5-6) 🔴
+
+**Descrição:** Extensão da PIL pessoal (já em produção) para que o sistema também aprenda e raciocine sobre o negócio Esdra Cosméticos. Sprint 5 cria infra: embeddings de decisões, observations específicas do negócio, reuso de `ai_messages_embeddings` com escopo. Sprint 6 cria o **AI Conselheiro Esdra Cosméticos** — interface de chat dedicada onde o LLM tem system prompt especializado, RAG sobre dados reais, citação obrigatória de fonte, zero alucinação numérica.
+
+**Motivação:** Transforma o Painel Empreendedor de "sistema operacional" em "consultor estratégico permanente" com memória do negócio. É a realização do desejo de "ter um consultor de IA permanente que conhece minha história, não inventa, e acompanha a evolução do negócio".
+
+**Esforço:** Grande (6-8 sessões de Claude Code ao longo de ~1.5 meses)
+**Pré-requisitos:** H.1 completo + mínimo 60 dias de dados reais no Painel + PIL pessoal Sprints 8-10 estáveis há ≥30 dias
+**Prioridade de execução:** Alta estratégica — segundo bloco da Categoria H, a partir de agosto/2026
+**Documentação completa:** `PLANO_PAINEL_ESDRA.md` (v2.0) — Sprints 5-6
+
+---
+
+### H.3 — Conselheiro Proativo + Modo Voz 🟡
+
+**Descrição:** Evolução do AI Conselheiro Esdra (H.2 / Sprint 6) com 2 capacidades adicionais: (1) **Conselheiro Proativo** — cron semanal que gera 1 insight não solicitado por semana, aproveitando infra do `weekly_digests` da PIL pessoal (ex: "notei que sua margem de Truss caiu 8% no último mês — quer conversar sobre isso?"). UX deliberadamente passiva — aparece como card opcional, sem notificação push. (2) **Modo Voz** — integração com Web Speech API (Web Speech Recognition + SpeechSynthesis) para conversar com o Conselheiro de viva voz no carro entre quartel e casa. PWA com permissão de microfone.
+
+**Motivação:** Conselheiro reativo é útil, mas Conselheiro proativo gera insights que o usuário não saberia perguntar. Modo voz aproveita o tempo de deslocamento de Josemar (PMESP em Guararapes) que hoje é improdutivo.
+
+**Esforço:** Médio (5-7 dias)
+**Pré-requisitos:** H.2 (Sprint 6) concluído e Conselheiro em uso real há ≥60 dias
+**Prioridade de execução:** Q4/2026 ou Q1/2027 — depende de validação real de H.2
+
+---
+
+### H.4 — Multi-marca / Multi-negócio 🟢
+
+**Descrição:** Se Esdra Cosméticos evoluir para 2+ negócios paralelos (ex: e-commerce + atacado, ou Esdra Cosméticos + outra linha), o sistema precisa suportar sub-escopos dentro do escopo "esdra". Plano para: (1) campo `business_unit` em todas as tabelas `esdra_*`; (2) seletor de unidade no Painel; (3) Conselheiro IA capaz de comparar unidades ("qual unidade tem melhor margem?"); (4) consolidação financeira opcional ou separada; (5) métricas por unidade + agregadas.
+
+**Motivação:** Antecipa cenário de crescimento real (não hipotético) em que o negócio se diversifica. Construir antes da necessidade gera dívida; depois da necessidade gera caos. Manter como plano dormente, ativar se cenário materializar.
+
+**Esforço:** Grande (10-12 dias)
+**Pré-requisitos:** H.2 estável + sinal real de diversificação do negócio (não construir especulativamente)
+**Prioridade de execução:** Sob demanda — só executar se Esdra abrir segunda unidade de negócio
+
+---
+
+## 11. Matriz consolidada de priorização
 
 | # | Plano | Categoria | Prioridade | Esforço | Pré-requisitos |
 |---|---|---|---|---|---|
@@ -397,7 +464,9 @@ FinanceiroJe — Ecossistema de Planos
 | B.1 | Auditoria LGPD | Segurança | 🔴 | Médio | — |
 | B.2 | Hardening de Segurança | Segurança | 🔴 | Médio | — |
 | D.1 | Onboarding Estruturado | Produto | 🔴 | Grande | D.2 |
-| E.1 | Integração Esdra Cosméticos | Business | 🔴 | Grande | Acesso técnico |
+| **H.1** | **Painel Empreendedor (Sprints 1-4)** | **Esdra Sistema** | 🔴 | **Grande** | **30d uso Manual** |
+| **H.2** | **PIL Esdra + AI Conselheiro (Sprints 5-6)** | **Esdra Sistema** | 🔴 | **Grande** | **H.1 + 60d dados** |
+| E.1 | Integração Esdra Cosméticos (financeiro) | Business | 🔴 | Médio | H.1 Sprint 4 |
 | A.3 | CI/CD e Deploy Seguro | Plataforma | 🟡 | Médio | Staging |
 | A.4 | Gestão de Custos | Plataforma | 🟡 | Pequeno | — |
 | C.1 | Cobertura de Testes | Qualidade | 🟡 | Grande | — |
@@ -406,6 +475,7 @@ FinanceiroJe — Ecossistema de Planos
 | D.3 | Mobilidade (PWA) | Produto | 🟡 | Médio | — |
 | E.2 | Fluxo de Caixa Business | Business | 🟡 | Médio | E.1 |
 | F.1 | Multi-usuário Family | Família | 🟡 | Grande | Validação Esdra |
+| **H.3** | **Conselheiro Proativo + Voz** | **Esdra Sistema** | 🟡 | Médio | H.2 + 60d uso |
 | B.3 | Pentest Interno | Segurança | 🟢 | Pequeno | B.2 + Sprint 8 |
 | C.3 | Eliminação de Débito Silencioso | Qualidade | 🟢 | Contínuo | — |
 | C.4 | Documentação Viva | Qualidade | 🟢 | Médio | — |
@@ -414,55 +484,90 @@ FinanceiroJe — Ecossistema de Planos
 | E.3 | Separação Fiscal PF/MEI | Business | 🟢 | Pequeno | E.1 |
 | F.2 | Educação Melinda | Família | 🟢 | Médio | Melinda 8+ anos |
 | F.3 | Conselheiro Espiritual Família | Família | 🟢 | Médio | Sprint 10 + F.1 |
+| **H.4** | **Multi-marca / Multi-negócio** | **Esdra Sistema** | 🟢 | Grande | Sinal real |
 | G.1 | Causal Tracking | Inteligência deferida | 🟢 | Médio | 90d de dados |
 | G.2 | Drift Detection | Inteligência deferida | 🟢 | Médio | A.1 |
 | G.3 | Laboratório Experimental | Inteligência deferida | 🟢 | Grande | G.2 |
 
-**Total:** 22 planos principais + 3 deferidos = 25 entradas de backlog.
+**Total:** 22 planos originais + 4 da Categoria H + 3 deferidos = **29 entradas de backlog**.
 
 ---
 
-## 11. Recomendação de sequência
+## 12. Recomendação de sequência
 
-### Fase 1 — Fundação operacional (Q2/2026, ~6-8 semanas)
+### Fase 0 — Validação operacional Esdra (Maio/2026, 30 dias) ✅ Em curso
 
-Ordem sugerida após conclusão dos Sprints 8-10 do plano complementar:
+Antes mesmo de iniciar Sprint 1 do Painel Empreendedor:
 
-1. **A.1 — Observabilidade e SRE** — Fundação para todo o resto. Sem isso, os outros planos voam às cegas.
+1. **Manual 30 Dias HTML** — em produção em `public/manual/index.html` desde 02/05/2026
+2. **Acumular dados reais** — Josemar usa diariamente; Esdra executa em paralelo
+3. **Decisão Go/No-Go ao final dos 30 dias** — vale prosseguir para Painel? Ajustar abordagem? Pivotar?
+
+### Fase 1 — Fundação operacional FinanceiroJe (Q2/2026, ~6-8 semanas)
+
+Após Sprints 8-10 do plano complementar (já concluídos em Abril/2026):
+
+1. **A.1 — Observabilidade e SRE** — Em execução. Fundação para todo o resto.
 2. **B.1 — Auditoria LGPD** — Não é opcional. Paralela a A.1.
 3. **B.2 — Hardening de Segurança** — Fechar portas abertas antes de crescer.
 4. **A.2 — Backup e DR** — Proteção contra perda catastrófica.
 
-### Fase 2 — Destravar valor do negócio (Q2-Q3/2026, ~8-12 semanas)
+### Fase 2 — Esdra Cosméticos Operacional (Junho-Julho/2026, ~6-8 semanas)
 
-5. **D.2 — Importação de Dados Externos** — Multiplica o volume de dados para todas as camadas de inteligência.
-6. **E.1 — Integração Esdra Cosméticos** — Realiza o propósito familiar/colaborativo do projeto.
-7. **D.1 — Onboarding Estruturado** — Destrava adoção pela Esdra e futuros usuários.
-8. **A.3 — CI/CD** — Reduz risco de deploys manuais à medida que o projeto cresce em uso.
+5. **H.1 — Painel Empreendedor (Sprints 1-4)** — Sistema operacional completo. Inicia após mínimo 30 dias de uso do Manual HTML.
+6. **D.2 — Importação de Dados Externos** — Multiplica o volume de dados para todas as camadas de inteligência (paralelo a H.1 se houver banda).
 
-### Fase 3 — Maturidade técnica (Q3-Q4/2026, ~10-14 semanas)
+### Fase 3 — Inteligência Esdra + Crescimento (Agosto-Setembro/2026, ~8 semanas)
 
-9. **C.1 — Cobertura de Testes** — Contínuo, iniciado como hábito.
-10. **A.4 — Gestão de Custos** — Importante quando o volume de chamadas crescer.
-11. **E.2 — Fluxo de Caixa Business** — Aprofundamento do uso profissional.
-12. **D.3 — PWA** — Mobilidade para captura via celular.
-13. **F.1 — Multi-usuário Family** — Colaboração ativa entre Josemar e Esdra.
+7. **H.2 — PIL Esdra + AI Conselheiro (Sprints 5-6)** — Realiza o desejo de "consultor permanente do negócio". Inicia após 60 dias de dados no Painel.
+8. **E.1 — Integração Esdra Cosméticos (financeiro)** — Aproveita infra do H.1 Sprint 4. DRE, margem, fiscal.
+9. **D.1 — Onboarding Estruturado** — Destrava adoção pela Esdra e futuros usuários.
+10. **A.3 — CI/CD** — Reduz risco de deploys manuais à medida que o projeto cresce em uso.
 
-### Fase 4 — Polimento e diferenciação (Q4/2026 em diante)
+### Fase 4 — Maturidade técnica (Q4/2026, ~10-14 semanas)
 
-14. **C.2 — Refatoração Arquitetural** — Depois que a cobertura de testes permitir.
-15. **F.3 — Conselheiro Espiritual Família** — O diferencial único.
-16. **E.3, D.4, C.4, B.3** — Polimento.
-17. **G.1, G.2, G.3** — Inteligência deferida conforme dados acumulam.
+11. **C.1 — Cobertura de Testes** — Contínuo, iniciado como hábito.
+12. **A.4 — Gestão de Custos** — Importante quando o volume de chamadas crescer.
+13. **E.2 — Fluxo de Caixa Business** — Aprofundamento do uso profissional.
+14. **D.3 — PWA** — Mobilidade para captura via celular.
+15. **F.1 — Multi-usuário Family** — Colaboração ativa entre Josemar e Esdra.
+16. **H.3 — Conselheiro Proativo + Voz** — Evolução natural do AI Conselheiro depois de 60 dias de uso real.
 
-### Fase 5 — Futuro (2027+)
+### Fase 5 — Polimento e diferenciação (Q1-Q2/2027)
 
-18. **F.2 — Educação Melinda** — Quando a idade permitir.
-19. **D.5 — Internacionalização** — Se surgir necessidade real.
+17. **C.2 — Refatoração Arquitetural** — Depois que a cobertura de testes permitir.
+18. **F.3 — Conselheiro Espiritual Família** — O diferencial único.
+19. **E.3, D.4, C.4, B.3** — Polimento.
+20. **G.1, G.2, G.3** — Inteligência deferida conforme dados acumulam.
+
+### Fase 6 — Futuro (2027+)
+
+21. **F.2 — Educação Melinda** — Quando a idade permitir.
+22. **D.5 — Internacionalização** — Se surgir necessidade real.
+23. **H.4 — Multi-marca / Multi-negócio** — Apenas se sinal real de diversificação aparecer.
 
 ---
 
-## 12. Histórico de versões
+## 13. Histórico de versões
+
+### v1.1 — 02 de Maio de 2026
+
+**Adições:**
+- Nova **Categoria H — Esdra Cosméticos como Sistema** (4 planos: H.1, H.2, H.3, H.4)
+- Marco registrado: Manual 30 Dias HTML em produção (`public/manual/index.html`); migrations `manual_30_dias_progresso` e `manual_30_dias_decisoes` aplicadas no Supabase em 02/05/2026
+- Referência ao novo documento `PLANO_PAINEL_ESDRA.md` (v2.0) com elaboração técnica completa de H.1 e H.2 (6 sprints)
+- Fase 0 (Validação operacional Esdra — 30 dias) adicionada à recomendação de sequência
+- Fase 2 expandida para incluir H.1 (Painel Empreendedor)
+- Fase 3 expandida para incluir H.2 (PIL Esdra + AI Conselheiro)
+- Fase 4 inclui H.3 (Conselheiro Proativo + Voz)
+- Fase 6 inclui H.4 (Multi-marca, sob demanda)
+
+**Modificações:**
+- E.1 (Integração Esdra Cosméticos) reescopado para "camada financeira-fiscal" apenas, com pré-requisito alterado para "H.1 Sprint 4 concluído"
+- Esforço de E.1 reduzido de Grande (10-14d) para Médio (6-8d) — aproveita infra de H.1
+- Marca de "Sprints 8-10 concluídos" no mapa do ecossistema (validado em 26/04/2026)
+
+**Total de planos:** subiu de 25 (22 + 3 deferidos) para **29 (22 + 4 H + 3 deferidos)**.
 
 ### v1.0 — 19 de Abril de 2026
 
@@ -474,4 +579,4 @@ Versão inicial. Baseada em auditoria do `PLANO_INTELIGENCIA_PESSOAL.md` (v1.3),
 - Matriz consolidada de priorização
 - Recomendação de sequência em 5 fases
 
-**Próxima revisão:** após conclusão do Sprint 10 do plano complementar, quando a primeira fase desta lista começar a ser executada.
+**Próxima revisão:** após conclusão de H.1 Sprint 1 (~junho/2026), ou após primeiro Go/No-Go da Fase 0.

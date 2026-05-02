@@ -3,8 +3,8 @@
 > **Objetivo:** dar continuidade à camada de inteligência pessoal construída nos Sprints 1-7, endereçando lacunas estratégicas identificadas em auditoria pós-implementação — memória conversacional profunda, defesa contra prompt injection, IA proativa (sem invasão), observabilidade da evolução do sistema, e alinhamento explícito com metas, calendário de vida e valores cristãos do usuário.
 >
 > **Autor do diagnóstico:** sessão Claude com Josemar — Abril/2026
-> **Versão:** 1.0 (complemento à v1.3 do plano original)
-> **Status:** aprovado para implementação
+> **Versão:** 1.1 (complemento à v1.3 do plano original) — pequenos ajustes de cross-reference em Mai/2026
+> **Status:** ✅ Sprints 8-10 concluídos em 26/04/2026
 > **Pré-requisito:** Sprints 1-7 do plano original concluídos e estáveis em produção
 
 ---
@@ -1163,12 +1163,37 @@ A partir desse ponto, a evolução do projeto **não deve continuar acumulando m
 - **Produto e usuário** — onboarding, importação de dados externos, mobilidade, acessibilidade
 - **Uso profissional** — integração Esdra Cosméticos, fluxo de caixa business, separação fiscal
 - **Colaboração familiar** — multi-usuário real, educação financeira Melinda, conselheiro espiritual-financeiro familiar
+- **🆕 Esdra Cosméticos como Sistema** — Painel Empreendedor + AI Conselheiro Esdra (Categoria H, adicionada Mai/2026)
 
-👉 **Consulte o arquivo [`PLANOS_DE_EVOLUCAO.md`](./PLANOS_DE_EVOLUCAO.md)** para o sumário completo dos 22 planos de evolução fora do escopo de inteligência, organizados por prioridade, categoria e estimativa de esforço. Esse documento funciona como backlog estratégico do projeto para 2026-2027.
+👉 **Consulte o arquivo [`PLANOS_DE_EVOLUCAO.md`](./PLANOS_DE_EVOLUCAO.md)** para o sumário completo dos planos de evolução fora do escopo de inteligência, organizados por prioridade, categoria e estimativa de esforço. Esse documento funciona como backlog estratégico do projeto para 2026-2027.
+
+### Reuso da PIL pessoal pela PIL Esdra (Categoria H)
+
+Um dos maiores valores deste plano complementar é que a infraestrutura criada nos Sprints 8-10 — `ai_messages_embeddings` (RAG), `ai_self_observations` (meta-reflexão), `prompt_variants` (A/B testing), `weekly_digests` (voz proativa), biblioteca ACF — se torna **fundação reutilizável** para a Personal Intelligence Layer Esdra Cosméticos, especificada nos Sprints 5-6 do `PLANO_PAINEL_ESDRA.md` v2.0.
+
+Isso significa que construir o **AI Conselheiro Esdra Cosméticos** (Sprint 6 do Painel Empreendedor) não exige reconstruir nada — apenas estender com:
+- Adicionar `business_scope` em `ai_messages` para isolar conversas pessoais vs negócio
+- Criar `esdra_business_observations` (tabela específica de aprendizados sobre o negócio)
+- Criar edge function `esdra-conselheiro` com system prompt especializado
+- Adaptar `find_related_conversations` para filtrar por escopo
+
+A economia de esforço é enorme — sem este plano complementar, a PIL Esdra exigiria 4-6 sprints adicionais. Com ele, são apenas 2 (Sprints 5-6 do Painel).
 
 ---
 
 ## 14. Histórico de versões
+
+### v1.1 — 02 de Maio de 2026
+
+**Mudanças (apenas ajustes de cross-reference, sem alterar implementação):**
+- Atualizada seção 13 (Próxima etapa) para mencionar Categoria H — Esdra Cosméticos como Sistema, adicionada ao `PLANOS_DE_EVOLUCAO.md` (v1.1)
+- Adicionada subseção "Reuso da PIL pessoal pela PIL Esdra" explicando como a infra dos Sprints 8-10 vira fundação para os Sprints 5-6 do `PLANO_PAINEL_ESDRA.md` (v2.0)
+- Marcado: Sprints 8-10 concluídos em 26/04/2026 com 100% de aderência (vide `STATUS_EXECUCAO.md`)
+
+**O que NÃO mudou:**
+- Especificação técnica dos Sprints 8, 9 e 10 (todos já implementados)
+- Decisões arquiteturais
+- Critérios de sucesso
 
 ### v1.0 — 19 de Abril de 2026
 

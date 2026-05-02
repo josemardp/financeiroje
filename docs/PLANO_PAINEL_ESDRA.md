@@ -1,11 +1,15 @@
 # PLANO TÉCNICO — PAINEL EMPREENDEDOR (MÓDULO ESDRA COSMÉTICOS)
 
-**Versão:** 1.0
+**Versão:** 2.0
 **Projeto:** FinanceiroJe (extensão modular)
 **Stack:** React + TypeScript + Vite + Supabase + Vercel
 **Repo:** `josemardp/financeiroje`
 **Data início:** Maio 2026
-**Padrão:** seguir convenções do `PLANO_INTELIGENCIA_PESSOAL.md` v1.3
+**Padrão:** seguir convenções do `PLANO_INTELIGENCIA_PESSOAL.md` v1.3 e `PLANO_COMPLEMENTAR_INTELIGENCIA.md` v1.0
+
+**Mudança v2.0 (02/05/2026):** expansão de 4 para 6 sprints. Acrescentados Sprint 5 (Personal Intelligence Layer Esdra) e Sprint 6 (AI Conselheiro Esdra Cosméticos). Esses sprints transformam o Painel Empreendedor de "sistema operacional" em "consultor estratégico permanente com memória do negócio", aproveitando massivamente a PIL pessoal (Sprints 8-10 do plano complementar) já em produção.
+
+**Marco anterior à v2.0 (02/05/2026):** Manual 30 Dias HTML criado e deployado em `public/manual/index.html`. Migrations `manual_30_dias_progresso` e `manual_30_dias_decisoes` aplicadas no Supabase. Sistema operacional para Josemar começou. Estes ativos são reaproveitados pelas Sprints 1-6 deste plano.
 
 ---
 
@@ -205,8 +209,12 @@ CREATE POLICY "Users access own estoque"
 | 2 | Tela "Métricas" + integração financeira | 2 | Sprint 1 concluído |
 | 3 | Tela "Decisões" + tela "Semana" | 2 | Sprint 2 concluído |
 | 4 | CRM mínimo + estoque + polish | 2–3 | Sprint 3 concluído |
+| 5 | **Personal Intelligence Layer Esdra** | 3–4 | Sprint 4 + 60 dias de dados reais acumulados |
+| 6 | **AI Conselheiro Esdra Cosméticos** | 3–4 | Sprint 5 concluído + PIL pessoal Sprints 8-10 estáveis |
 
-**Tempo total estimado:** 8 a 11 sessões. Distribuídas em 30 dias = ritmo confortável de 2 sessões/semana.
+**Tempo total estimado:** 14 a 20 sessões. Distribuídas em 4-5 meses = ritmo confortável de 1-2 sessões/semana.
+
+**Sprints 1-4** = sistema operacional. **Sprints 5-6** = sistema consultor estratégico permanente com memória do negócio.
 
 ---
 
@@ -460,19 +468,34 @@ src/
 │       │   ├── PainelMetricas.tsx
 │       │   ├── PainelDecisoes.tsx
 │       │   ├── PainelClientes.tsx
-│       │   └── PainelEstoque.tsx
+│       │   ├── PainelEstoque.tsx
+│       │   └── EsdraConselheiro.tsx       # 🆕 Sprint 6
 │       ├── hooks/
 │       │   ├── useCompromissos.ts
 │       │   ├── useKPIs.ts
 │       │   ├── useDecisoes.ts
 │       │   ├── useClientes.ts
-│       │   └── useEstoque.ts
+│       │   ├── useEstoque.ts
+│       │   └── useEsdraConselheiro.ts     # 🆕 Sprint 6
 │       ├── lib/
 │       │   ├── progressoSemana.ts
 │       │   ├── classificacaoABC.ts
 │       │   └── importadorCSV.ts
 │       └── types.ts
+├── services/
+│   └── esdraConselheiro/                  # 🆕 Sprint 6
+│       ├── systemPrompt.ts
+│       ├── contextCollector.ts
+│       └── __tests__/
 └── ...
+
+supabase/
+├── migrations/
+│   ├── 20260801000001_extend_ai_messages_for_esdra.sql       # 🆕 Sprint 5
+│   └── 20260801000002_esdra_business_observations.sql        # 🆕 Sprint 5
+└── functions/
+    ├── embed-esdra-decisions/             # 🆕 Sprint 5
+    └── esdra-conselheiro/                 # 🆕 Sprint 6
 ```
 
 ### Padrão de commits
@@ -489,17 +512,195 @@ fix(painel-esdra): corrigir off-by-one em data de revisão
 
 ---
 
-## INTEGRAÇÃO FUTURA COM PERSONAL INTELLIGENCE LAYER
+## SPRINT 5 — Personal Intelligence Layer Esdra
 
-Pós-Sprint 4, quando a Sprint 2 da Personal Intelligence Layer estiver completa, planejar:
+**Objetivo:** estender a Personal Intelligence Layer pessoal (Sprints 1-7 + 8-10 do plano original) para que ela também aprenda sobre o negócio Esdra Cosméticos, criando memória conversacional, observations específicas e padrões de decisão empreendedora. **Reusa massivamente a infra existente**, não reinventa nada.
 
-1. **AI Advisor analisa decisões passadas:** o LLM lê `esdra_decisoes` e identifica padrões ("você tende a errar decisões de alocação de capital quando o critério é 'intuição'").
+**Pré-requisito crítico:** ao iniciar Sprint 5, o sistema operacional (Sprints 1-4) deve ter acumulado **mínimo 60 dias** de uso real. Sem dados, não há o que aprender. Iniciar Sprint 5 antes disso é construir motor sem combustível.
 
-2. **AI Advisor sugere decisão da semana:** baseado em KPIs da semana anterior + estoque + comportamento de clientes, sugere uma decisão crítica para você ponderar.
+### Princípio diretor
 
-3. **AI Advisor faz pergunta de retro:** durante reset semanal, faz 2–3 perguntas reflexivas ("essa semana você cumpriu 60% — o que mudou na sua rotina?").
+A PIL pessoal já tem: `ai_messages_embeddings` (Sprint 8), `ai_self_observations` (Sprint 8), `decision_outcomes` (Sprint 5 original), `behavioral_tags` (Sprint 6 original), `weekly_digests` (Sprint 9), `prompt_variants` (Sprint 9). **Não vamos criar tabelas paralelas** — vamos adicionar dimensão de escopo (`scope: 'esdra'`) onde fizer sentido, e criar tabelas novas apenas para o que é específico do negócio.
 
-Isso é Sprint 5+ — fora do escopo dos primeiros 30 dias.
+### Tarefas
+
+#### T5.1 — Adaptar `ai_messages_embeddings` para escopo Esdra (1 sessão)
+
+**Entregáveis:**
+- Migration `20260801000001_extend_ai_messages_for_esdra.sql` adicionando coluna `business_scope` (text, default 'pessoal', valores: 'pessoal' | 'esdra' | 'family' | 'mei') na tabela `ai_messages` (se ainda não existe).
+- Backfill: marcar mensagens existentes como `business_scope = 'pessoal'`.
+- Atualizar `find_related_conversations` (RPC já existente) para aceitar parâmetro de filtro de escopo.
+
+**Validação:**
+- Inserir mensagem teste com `business_scope = 'esdra'`, busca filtrada retorna apenas Esdra.
+
+#### T5.2 — Tabela de observations específicas Esdra (1 sessão)
+
+**Entregáveis:**
+- Migration `20260801000002_esdra_business_observations.sql` criando tabela `esdra_business_observations`:
+  - id, user_id
+  - observation_type (text): 'pattern_marca', 'pattern_cliente', 'pattern_sazonalidade', 'risk_estoque', 'oportunidade'
+  - content (text): texto livre da observação
+  - confidence (numeric 0-1)
+  - source_data (jsonb): IDs de transações, decisões ou KPIs que originaram a observação
+  - reinforcement_count (int default 1)
+  - last_reinforced_at (timestamptz)
+  - superseded_by (uuid, nullable)
+  - created_at, updated_at
+- RLS habilitado. Função `upsert_esdra_observation()` similar ao `upsert_coach_memory()`.
+
+**Validação:**
+- Inserir 3 observações teste de tipos diferentes, validar que são recuperáveis com filtros.
+
+#### T5.3 — Embeddings das Decisões Empreendedoras (1 sessão)
+
+**Entregáveis:**
+- Edge function `embed-esdra-decisions` que pega decisões da `manual_30_dias_decisoes` (e futuramente `esdra_decisoes`) e gera embeddings.
+- Cron diário `embed-esdra-decisions-nightly` (`0 5 * * *`) que processa decisões novas.
+- RPC `find_related_decisions(user_id, query_embedding, limit)` retornando decisões similares.
+
+**Validação:**
+- Após cron rodar com 4+ decisões registradas, query semântica "marcas de baixa margem" retorna decisão da Semana 3 sobre marcas a descontinuar.
+
+#### T5.4 — Análise de outcome de decisões (1 sessão)
+
+**Entregáveis:**
+- Cron `review-esdra-decisions` (`0 6 * * 0` — domingo) que:
+  - Identifica decisões registradas há 30+ dias sem `acerto_percebido` definido
+  - Cria entrada em `decision_outcomes` (tabela existente da PIL pessoal) com escopo Esdra
+  - Notifica via `weekly_digests` que há decisões aguardando revisão
+- Componente `<EsdraDecisionReview />` que aparece no Painel quando há decisões para revisar, com prompt do contexto original + dados financeiros do período pós-decisão.
+
+**Validação:**
+- Decisão registrada em junho aparece para revisão em julho com resumo de dados pós-decisão.
+
+### Definition of Done — Sprint 5
+
+- [ ] Migrations aplicadas
+- [ ] Embeddings de decisões funcionando (cron + RPC)
+- [ ] `esdra_business_observations` operacional com função upsert
+- [ ] `find_related_conversations` filtra por escopo
+- [ ] Cron de revisão de decisões funcionando
+- [ ] 9+ unit tests cobrindo lógica nova
+- [ ] Deploy em produção
+- [ ] Smoke test: gerar 1 observation manualmente, recuperar via query
+
+---
+
+## SPRINT 6 — AI Conselheiro Esdra Cosméticos
+
+**Objetivo:** construir interface de chat dedicada dentro do Painel Empreendedor, onde Josemar conversa com um Claude especializado em Esdra Cosméticos. Esse Claude:
+- Tem system prompt customizado focado em consultoria estratégica de e-commerce de cosméticos
+- Recebe contexto dinâmico via RAG (busca em `esdra_business_observations`, decisões, KPIs, transações)
+- Cita números reais com referência à fonte (auditável)
+- Recusa responder com base em achismo quando não há dado real
+
+**Pré-requisito crítico:** Sprint 5 concluído. Sem PIL Esdra populada, o Conselheiro não tem o que consultar.
+
+### Princípio não-negociável
+
+**Zero alucinação numérica.** O system prompt instrui o modelo a **sempre** citar a fonte (mês, valor, ID da decisão) quando der número. Se não há dado, responder "não tenho registro disso" em vez de estimar.
+
+### Tarefas
+
+#### T6.1 — Edge function `esdra-conselheiro` (1 sessão)
+
+**Entregáveis:**
+- Edge function `supabase/functions/esdra-conselheiro/index.ts`.
+- Estrutura espelha `ai-advisor` mas com system prompt e contexto distintos.
+- Recebe: `{ message: string, conversation_id: uuid }`.
+- Pipeline:
+  1. Carrega histórico da conversa (últimas 10 mensagens da `ai_messages` filtrado por `business_scope = 'esdra'`)
+  2. Embedding da pergunta
+  3. RAG: busca top-5 em `find_related_conversations` (escopo esdra), top-3 em `find_related_decisions`, top-5 em `esdra_business_observations`
+  4. Query SQL contextual (KPIs últimos 30 dias, top 3 marcas por margem, decisões pendentes de revisão)
+  5. Monta system prompt com `buildEsdraContextBlock()`
+  6. Chama Claude API (modelo configurável via env, default `claude-opus-4-7`)
+  7. Stream da resposta com SSE
+  8. Persiste em `ai_messages` com `business_scope = 'esdra'`
+- Suporte a `META_REFLECTION_JSON` (mesma infra do Sprint 8 da PIL pessoal).
+
+**Validação:**
+- Pergunta "qual minha pior decisão dos últimos 60 dias?" — resposta cita decisão real com data e ID.
+- Pergunta "qual o futuro do Bitcoin?" — resposta declina ("fora de escopo deste consultor").
+
+#### T6.2 — System prompt especializado (1 sessão)
+
+**Entregáveis:**
+- Arquivo `src/services/esdraConselheiro/systemPrompt.ts` exportando `buildEsdraSystemPrompt(context)`.
+- Identidade: "Você é o Conselheiro Esdra Cosméticos, consultor estratégico sênior de e-commerce de cosméticos de pequeno porte..."
+- Princípios não-negociáveis no prompt:
+  - Sempre citar fonte ao dar número
+  - Recusar achismo
+  - Usar ACF apenas quando relevante e citado pelo usuário
+  - Tom calibrado para INFJ
+  - Foco em decisões com critério escrito
+- Bloco de contexto dinâmico (montado pelo `contextCollector`)
+- Diretrizes de defesa contra prompt injection (mesmo padrão do Sprint 8).
+
+**Validação:**
+- Snapshot test do prompt com contexto fixo gera output estável.
+
+#### T6.3 — Context collector específico Esdra (1 sessão)
+
+**Entregáveis:**
+- `src/services/esdraConselheiro/contextCollector.ts` exportando `collectEsdraContext(userId, query)`.
+- Coleta:
+  - Posicionamento da marca (constante: curadoria + atendimento consultivo)
+  - KPIs últimos 30 dias (de `esdra_kpis_semanais`)
+  - Top 5 marcas por margem (de `esdra_estoque`)
+  - Decisões registradas (últimas 10, de `esdra_decisoes`)
+  - Conversas relacionadas (top 5 via RAG)
+  - Observations relevantes (top 5 via RAG)
+  - Eventos próximos (Black Friday, Dia das Mães — sazonalidade)
+  - Manual 30 Dias progresso (% MV cumprido último mês)
+- Retorna objeto estruturado consumido pelo `buildEsdraSystemPrompt`.
+
+**Validação:**
+- Unit tests cobrindo casos: contexto vazio, contexto completo, query irrelevante.
+
+#### T6.4 — Interface de chat no Painel Empreendedor (1 sessão)
+
+**Entregáveis:**
+- Rota `/painel-esdra/conselheiro`.
+- Componente `<EsdraConselheiro />` com:
+  - Lista de conversas anteriores (sidebar)
+  - Área de chat com streaming
+  - Input com botão de envio
+  - Botão "Nova conversa"
+  - Botão "👍/👎" em cada resposta (alimenta `apply_response_feedback` adaptado para escopo esdra)
+  - Modal "Por que essa resposta?" mostrando contexto usado (mesma UX do `WhyThisAnswerModal` do Sprint 4)
+- Atalho de teclado `c` abre conselheiro de qualquer tela do Painel.
+- Mobile responsivo.
+
+**Validação:**
+- Teste end-to-end: nova conversa, pergunta "vale cortar Marca X?", resposta com dado real, feedback 👍, persistência.
+
+### Definition of Done — Sprint 6
+
+- [ ] Edge function `esdra-conselheiro` deployada e estável
+- [ ] System prompt especializado com snapshot test
+- [ ] Context collector com unit tests
+- [ ] Interface `/painel-esdra/conselheiro` operacional
+- [ ] Stream funcionando (SSE)
+- [ ] Feedback 👍/👎 persistindo
+- [ ] Mobile testado
+- [ ] Deploy em produção
+- [ ] Smoke test: 5 perguntas de naturezas diferentes, todas com resposta apropriada
+
+---
+
+## CONTINUIDADE PÓS-SPRINT 6
+
+Após Sprint 6, o Conselheiro Esdra é sistema permanente em uso. Próximos passos naturais (não são sprints fixos — são evoluções por demanda):
+
+1. **Modo voz** (futuro): integração com Web Speech API para falar com o Conselheiro de viva voz no carro entre quartel e casa.
+
+2. **Conselheiro proativo** (futuro): cron semanal que gera 1 insight não solicitado por semana ("notei que sua margem de Truss caiu 8% no último mês — quer conversar sobre isso?"). Aproveita infra do `weekly_digests`.
+
+3. **Multi-marca/multi-negócio** (longo prazo): se Esdra Cosméticos virar 2+ negócios (e-commerce + atacado, por exemplo), o Conselheiro evolui para suportar sub-escopos.
+
+Estas evoluções vivem no `PLANOS_DE_EVOLUCAO.md` (Categoria H), não neste plano.
 
 ---
 
@@ -512,8 +713,14 @@ Isso é Sprint 5+ — fora do escopo dos primeiros 30 dias.
 | Esdra não usa o sistema | Alta | Baixo | Sistema é primariamente para Josemar; Esdra usa via Josemar |
 | Programar virar fuga do operacional | **Alta** | **Alto** | **Limite rígido: 1 sessão Claude Code por semana até Sprint 4** |
 | FinanceiroJe ainda em Sprint 1 da PIL | Média | Médio | Construir como módulo independente; integração PIL é Sprint 5+ |
+| Sprint 5 iniciado antes de 60d de dados | Alta | Alto | **Bloqueio explícito**: Sprint 5 só inicia após validação manual de volume mínimo de dados acumulados |
+| Conselheiro Esdra alucinar números (Sprint 6) | Média | **Crítico** | System prompt rigoroso + zero-hallucination + RAG obrigatório + monitoramento de respostas via `meta_reflection` |
+| Custo de API do Conselheiro estourar | Média | Médio | Limite de 50 mensagens/dia inicialmente; cache agressivo de respostas; fallback para modelos mais baratos para perguntas simples |
+| Conselheiro virar dependência emocional | Baixa | Alto | UX deliberadamente passiva — Conselheiro responde, não busca atenção; sem notificações; uso opcional |
 
-**Risco mais importante destacado:** o limite de **1 sessão de Claude Code por semana** para o Painel Esdra. Sua disposição natural é programar mais — mas as primeiras 4 semanas são de **execução comercial**, não técnica. O módulo serve à execução, não substitui ela.
+**Risco mais importante destacado:** o limite de **1 sessão de Claude Code por semana** para o Painel Esdra durante Sprints 1-4. Sua disposição natural é programar mais — mas as primeiras 4 semanas são de **execução comercial**, não técnica. O módulo serve à execução, não substitui ela.
+
+**Para Sprints 5-6:** mesma regra inversa — só comece **depois** de ter dados reais validando que o Painel é útil. Construir consultor IA antes de ter o que ele consultar é overengineering puro.
 
 ---
 
@@ -525,29 +732,62 @@ Em 30 dias (1º a 30 de maio de 2026):
 - ✅ 4 KPIs semanais fechados no sistema
 - ✅ 4 decisões registradas
 
-Em 60 dias:
+Em 60 dias (até 30 de junho de 2026):
 - ✅ Sprints 3 e 4 concluídos
 - ✅ CRM e estoque migrados da planilha
 - ✅ Primeiras 2 decisões revisadas com aprendizado registrado
+- ✅ Decisão tomada: prosseguir para Sprint 5 ou consolidar mais 30 dias?
 
-Em 90 dias:
-- ✅ Sistema completo e em uso contínuo
-- ✅ Integração inicial com Personal Intelligence Layer
-- ✅ Decisão sobre próxima fase: marketplaces, contratação, tráfego pago — todas já com dado real do sistema
+Em 90 dias (até 30 de julho de 2026):
+- ✅ **Se decidiu prosseguir:** Sprint 5 iniciado, PIL Esdra em construção
+- ✅ **Se decidiu consolidar:** Painel maduro em uso contínuo, dados acumulando
+- ✅ Decisão sobre próxima fase do negócio: marketplaces, contratação, tráfego pago — todas já com dado real do sistema
+
+Em 120-150 dias (agosto-setembro 2026):
+- ✅ Sprint 5 (PIL Esdra) concluído
+- ✅ Sprint 6 (AI Conselheiro Esdra) iniciado ou concluído
+- ✅ Conselheiro respondendo perguntas estratégicas com dados reais
+- ✅ Mínimo 5 conversas com Conselheiro com feedback registrado
+
+Em 180 dias (até final de outubro 2026):
+- ✅ Sistema completo (Sprints 1-6) em produção e maduro
+- ✅ Decisões empreendedoras tomadas com apoio do Conselheiro
+- ✅ PIL Esdra com observations consolidadas (mínimo 30 observations únicas)
+- ✅ Histórico auditável de decisões + outcomes
 
 ---
 
 ## CHECKLIST PRÉ-SPRINT 1
 
 Antes de abrir o Claude Code Desktop para começar:
-- [ ] Manual 30 Dias lido e aceito
-- [ ] Planilha Google Sheets criada (`ESDRA_OPERACAO_2026`)
+- [x] Manual 30 Dias lido e aceito
+- [x] HTML do Manual em produção (`public/manual/index.html`)
+- [x] Tabelas `manual_30_dias_progresso` e `manual_30_dias_decisoes` criadas no Supabase
 - [ ] FinanceiroJe rodando localmente sem erros
 - [ ] Branch nova criada: `feat/painel-esdra-sprint-1`
 - [ ] Reservar 2h ininterruptas para a primeira sessão (T1.1)
+- [ ] Mínimo 30 dias de uso real do Manual antes de abrir Sprint 1 do Painel
+
+## CHECKLIST PRÉ-SPRINT 5 (PIL Esdra)
+
+Antes de iniciar Sprint 5:
+- [ ] Sprints 1-4 do Painel concluídos e estáveis em produção
+- [ ] Mínimo 60 dias de uso real do Painel
+- [ ] Mínimo 8 decisões empreendedoras registradas
+- [ ] Mínimo 8 fechamentos semanais de KPIs
+- [ ] PIL pessoal (Sprints 8-10 do plano original) estáveis em produção há ≥30 dias
+
+## CHECKLIST PRÉ-SPRINT 6 (AI Conselheiro Esdra)
+
+Antes de iniciar Sprint 6:
+- [ ] Sprint 5 concluído com observations populadas
+- [ ] Decisão consciente: vale o custo de API mensal do Conselheiro (~R$ 30-80)
+- [ ] Critério de sucesso definido: o que torna o Conselheiro útil vs descartar?
+- [ ] Comprometimento de uso real (mínimo 1 conversa estratégica/semana após deploy)
 
 ---
 
-*Plano técnico versão 1.0 — Construído para Josemar de Paula.*
-*Para execução em paralelo ao Manual 30 Dias.*
+*Plano técnico versão 2.0 — Construído para Josemar de Paula.*
+*v1.0 (30/04/2026): 4 sprints (estrutura → CRM/estoque)*
+*v2.0 (02/05/2026): expansão para 6 sprints (acrescentado PIL Esdra + AI Conselheiro Esdra)*
 *Próxima revisão: junho de 2026 (após Sprint 1 + 2 concluídas).*
