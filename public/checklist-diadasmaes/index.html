@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checklist Dia das Mães — Esdra Cosméticos</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --paper:        #f5efe4;
+      --paper-deep:   #ebe2d2;
+      --paper-shadow: #d9ccb5;
+      --ink:          #1f1c18;
+      --ink-soft:     #4a443a;
+      --ink-muted:    #7a715f;
+      --olive:        #4a5d3a;
+      --olive-deep:   #2f3d24;
+      --olive-soft:   #6d7e5b;
+      --rust:         #9a4d2c;
+      --rust-soft:    #c47451;
+      --gold:         #b08642;
+      --rose:         #b5456e;
+      --rose-soft:    #d4789a;
+      --rose-bg:      rgba(181, 69, 110, 0.06);
+      --line:         #c9bea7;
+      --line-soft:    #ddd2bd;
+      --shadow-sm:    0 1px 2px rgba(31, 28, 24, 0.06);
+      --shadow-md:    0 4px 16px rgba(31, 28, 24, 0.08);
+      --shadow-lg:    0 12px 32px rgba(31, 28, 24, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 400;
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-image:
+        radial-gradient(circle at 20% 10%, rgba(181, 69, 110, 0.04), transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(176, 134, 66, 0.04), transparent 40%);
+      background-attachment: fixed;
+    }
+
+    .page {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px 16px 80px;
+    }
+
+    h1, h2, h3 {
+      font-family: 'Fraunces', serif;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); line-height: 1.1; }
+    h2 { font-size: clamp(1.2rem, 3vw, 1.6rem); line-height: 1.2; }
+    h3 { font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.3; }
+
+    .mono {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8em;
+      letter-spacing: 0.02em;
+    }
+
+    .label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--ink-muted);
+      font-weight: 500;
+    }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    .header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 24px;
+      margin-bottom: 28px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .header-title .subtitle {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      color: var(--ink-soft);
+      margin-top: 4px;
+      font-size: 0.95rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button.ghost {
+      background: transparent;
+      color: var(--ink-soft);
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button.ghost:hover {
+      background: var(--paper-deep);
+      border-color: var(--ink-muted);
+    }
+
+    /* ============================================================
+       PROGRESS
+       ============================================================ */
+    .progress-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .progress-card {
+      background: var(--paper-deep);
+      border: 1px solid var(--line-soft);
+      padding: 16px;
+    }
+
+    .progress-card .value {
+      font-family: 'Fraunces', serif;
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin: 4px 0;
+    }
+
+    .progress-card .sublabel {
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      margin-bottom: 8px;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--line-soft);
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--rose);
+      transition: width 0.5s ease;
+    }
+
+    /* ============================================================
+       RESEARCH BANNER
+       ============================================================ */
+    .research-banner {
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      position: relative;
+    }
+
+    .research-banner::before {
+      content: '';
+      position: absolute;
+      top: 8px; left: 8px; right: 8px; bottom: 8px;
+      border: 1px solid var(--line-soft);
+      pointer-events: none;
+    }
+
+    .research-banner h3 {
+      margin-bottom: 12px;
+      color: var(--rose);
+    }
+
+    .research-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .research-item {
+      padding: 10px 14px;
+      background: var(--paper);
+      border-left: 3px solid var(--rose-soft);
+    }
+
+    .research-item .ri-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink-muted);
+      margin-bottom: 2px;
+    }
+
+    .research-item .ri-value {
+      font-family: 'Fraunces', serif;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .research-item .ri-detail {
+      font-size: 0.78rem;
+      color: var(--ink-soft);
+      margin-top: 2px;
+    }
+
+    /* ============================================================
+       DAY BLOCKS
+       ============================================================ */
+    .day-block {
+      margin-bottom: 24px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .day-block.today {
+      border-color: var(--rose);
+      box-shadow: 0 0 0 2px rgba(181, 69, 110, 0.15);
+    }
+
+    .day-block.past .day-header {
+      opacity: 0.6;
+    }
+
+    .day-block.completed .day-header {
+      background: rgba(74, 93, 58, 0.08);
+    }
+
+    .day-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .day-header:hover {
+      background: var(--paper-deep);
+    }
+
+    .day-header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .day-emoji {
+      font-size: 1.6rem;
+      flex-shrink: 0;
+    }
+
+    .day-info h2 {
+      font-size: 1.1rem;
+      line-height: 1.2;
+    }
+
+    .day-info .day-date {
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+    }
+
+    .day-info .day-theme {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 0.85rem;
+      color: var(--rose);
+      margin-top: 2px;
+    }
+
+    .day-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .day-counter {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      background: var(--paper-deep);
+      padding: 4px 10px;
+      border: 1px solid var(--line-soft);
+    }
+
+    .day-counter.all-done {
+      background: rgba(74, 93, 58, 0.12);
+      color: var(--olive-deep);
+      border-color: var(--olive-soft);
+    }
+
+    .chevron {
+      font-size: 1rem;
+      color: var(--ink-muted);
+      transition: transform 0.3s;
+    }
+
+    .day-block.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .day-body {
+      display: none;
+      border-top: 1px solid var(--line-soft);
+      padding: 0;
+    }
+
+    .day-block.open .day-body {
+      display: block;
+    }
+
+    /* ============================================================
+       TASK ITEMS
+       ============================================================ */
+    .task-item {
+      display: flex;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--line-soft);
+      transition: background 0.2s;
+      align-items: flex-start;
+    }
+
+    .task-item:last-child {
+      border-bottom: none;
+    }
+
+    .task-item:hover {
+      background: rgba(181, 69, 110, 0.03);
+    }
+
+    .task-item.done {
+      background: rgba(74, 93, 58, 0.04);
+    }
+
+    .task-item.done .task-text {
+      text-decoration: line-through;
+      color: var(--ink-muted);
+    }
+
+    .task-item.done .task-details {
+      opacity: 0.6;
+    }
+
+    .task-checkbox {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--line);
+      background: var(--paper);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      margin-top: 2px;
+    }
+
+    .task-checkbox:hover {
+      border-color: var(--rose);
+    }
+
+    .task-checkbox.checked {
+      background: var(--olive);
+      border-color: var(--olive);
+    }
+
+    .task-checkbox.checked::after {
+      content: '\2713';
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .task-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-time {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--rose);
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .task-text {
+      font-size: 0.92rem;
+      line-height: 1.5;
+      transition: all 0.2s;
+    }
+
+    .task-details {
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: var(--ink-soft);
+      line-height: 1.5;
+      transition: opacity 0.2s;
+    }
+
+    .task-details .product-name {
+      font-weight: 600;
+      color: var(--rose);
+    }
+
+    .task-details .product-price {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 500;
+    }
+
+    .task-tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 2px 8px;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    .tag-engajamento { background: rgba(181, 69, 110, 0.1); color: var(--rose); }
+    .tag-bastidores { background: rgba(176, 134, 66, 0.12); color: var(--gold); }
+    .tag-oferta { background: rgba(74, 93, 58, 0.1); color: var(--olive-deep); }
+    .tag-urgencia { background: rgba(154, 77, 44, 0.1); color: var(--rust); }
+    .tag-cta { background: rgba(31, 28, 24, 0.08); color: var(--ink-soft); }
+    .tag-homenagem { background: rgba(181, 69, 110, 0.15); color: var(--rose); }
+    .tag-facilidade { background: rgba(74, 93, 58, 0.08); color: var(--olive-soft); }
+
+    .copy-btn {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-family: 'IBM Plex Mono', monospace;
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+      color: var(--ink-soft);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: var(--paper-shadow);
+    }
+
+    .copy-btn.copied {
+      background: rgba(74, 93, 58, 0.12);
+      border-color: var(--olive-soft);
+      color: var(--olive-deep);
+    }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+    }
+
+    .footer .sources {
+      margin-top: 12px;
+      font-size: 0.72rem;
+      line-height: 1.8;
+    }
+
+    /* ============================================================
+       SYNC STATUS
+       ============================================================ */
+    #sync-status {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 8px 14px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 50;
+    }
+
+    #sync-status.show {
+      opacity: 0.9;
+      transform: translateY(0);
+    }
+
+    #sync-status.error { background: var(--rust); }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 640px) {
+      .page { padding: 12px 10px 60px; }
+      .day-header { padding: 12px 14px; }
+      .task-item { padding: 12px 14px; }
+      .progress-overview { grid-template-columns: 1fr 1fr; }
+      .research-grid { grid-template-columns: 1fr; }
+      .header-top { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-top">
+        <div class="header-title">
+          <span class="label">Campanha Dia das Maes 2026</span>
+          <h1>Esdra Cosmeticos</h1>
+          <p class="subtitle">Agenda de postagens — Status do WhatsApp</p>
+        </div>
+        <div class="header-actions">
+          <button class="ghost" id="goto-today-btn">Ir para Hoje</button>
+          <button class="ghost" id="expand-all-btn">Abrir Todos</button>
+        </div>
+      </div>
+
+      <div class="progress-overview">
+        <div class="progress-card">
+          <span class="label">Progresso Geral</span>
+          <div class="value" id="total-progress">0%</div>
+          <div class="sublabel" id="total-sublabel">0 / 0 tarefas</div>
+          <div class="progress-bar"><div class="progress-bar-fill" id="total-bar" style="width:0%"></div></div>
+        </div>
+        <div class="progress-card">
+          <span class="label">Hoje</span>
+          <div class="value" id="today-progress">0/0</div>
+          <div class="sublabel" id="today-sublabel">tarefas do dia</div>
+          <div class="progress-bar"><div class="progress-bar-fill" id="today-bar" style="width:0%"></div></div>
+        </div>
+        <div class="progress-card">
+          <span class="label">Dias Restantes</span>
+          <div class="value" id="days-left">8</div>
+          <div class="sublabel">ate o Dia das Maes</div>
+          <div class="progress-bar"><div class="progress-bar-fill" id="days-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- RESEARCH BANNER -->
+    <div class="research-banner">
+      <h3>Fundamentacao da Estrategia</h3>
+      <div class="research-grid">
+        <div class="research-item">
+          <div class="ri-label">Frequencia Ideal</div>
+          <div class="ri-value">3-4 posts/dia</div>
+          <div class="ri-detail">Maximo 5 em dias-chave. Acima disso causa silenciamento.</div>
+        </div>
+        <div class="research-item">
+          <div class="ri-label">Regra de Conteudo</div>
+          <div class="ri-value">80% valor / 20% oferta</div>
+          <div class="ri-detail">4 posts de bastidores/dicas para cada 1 oferta direta.</div>
+        </div>
+        <div class="research-item">
+          <div class="ri-label">Horarios Pico</div>
+          <div class="ri-value">9h, 12h30, 18h</div>
+          <div class="ri-detail">Fins de semana: 10h-13h. Noite: 19h-21h.</div>
+        </div>
+        <div class="research-item">
+          <div class="ri-label">Maior Engajamento</div>
+          <div class="ri-value">Enquetes + Bastidores</div>
+          <div class="ri-detail">Fotos reais convertem mais que estudio. Enquetes forcam o algoritmo.</div>
+        </div>
+        <div class="research-item">
+          <div class="ri-label">Evitar Rejeicao</div>
+          <div class="ri-value">Nao lotear ofertas</div>
+          <div class="ri-detail">Excesso de posts e so ofertas = silenciamento garantido.</div>
+        </div>
+        <div class="research-item">
+          <div class="ri-label">Fontes</div>
+          <div class="ri-value">6 fontes</div>
+          <div class="ri-detail">mLabs, SocialHub, Whato CRM, Base Pronta, Sprout Social, Reportei.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAYS CONTAINER -->
+    <div id="days-container"></div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <div>Catalogo completo: <a href="https://catalogo-esdra.netlify.app/" target="_blank" style="color:var(--rose);">catalogo-esdra.netlify.app</a></div>
+      <div class="sources">
+        Fontes da pesquisa: mLabs (abr/2025) | SocialHub Pro (mar/2026) | Whato CRM (mar/2026) | Base Pronta (mar/2026) | Sprout Social (2026) | Reportei (2026)
+      </div>
+    </div>
+
+  </div>
+
+  <div id="sync-status">salvo</div>
+
+  <!-- SUPABASE -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // ===========================================================
+    // CONFIG
+    // ===========================================================
+    const SUPABASE_URL = 'https://hhedxktueawursnzqixg.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoZWR4a3R1ZWF3dXJzbnpxaXhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjI4NTEsImV4cCI6MjA5MDczODg1MX0.iuu7JERWiyKqHAE-Lvgfk1kWy0UK4QbMKvZGMqCNUYQ';
+    const TABLE = 'checklist_esdra';
+
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ===========================================================
+    // AGENDA DATA
+    // ===========================================================
+    const AGENDA = [
+      {
+        id: 'dom-03',
+        date: '2026-05-03',
+        dayLabel: 'Domingo, 03/05',
+        emoji: '\u{1F389}',
+        theme: 'Contagem Regressiva e Desejo',
+        tasks: [
+          {
+            id: 'dm-d1-t1',
+            time: '11h00',
+            tag: 'engajamento',
+            tagLabel: 'Enquete',
+            text: 'Postar ENQUETE no status',
+            details: 'Texto: "Falta exatamente 1 semana para o Dia das M\u00e3es! Como est\u00e1 a situa\u00e7\u00e3o por a\u00ed?" Op\u00e7\u00f5es: "J\u00e1 comprei o presente!" / "Socorro, ainda n\u00e3o comprei!"',
+            copyText: 'Falta exatamente 1 semana para o Dia das M\u00e3es! Como est\u00e1 a situa\u00e7\u00e3o por a\u00ed?'
+          },
+          {
+            id: 'dm-d1-t2',
+            time: '13h00',
+            tag: 'bastidores',
+            tagLabel: 'Bastidores',
+            text: 'Foto/v\u00eddeo dos bastidores (sacolas/cestas prontas)',
+            details: 'Texto: "Aqui na Esdra j\u00e1 estamos a todo vapor preparando os presentes mais lindos para as m\u00e3es de voc\u00eas!"',
+            copyText: 'Aqui na Esdra j\u00e1 estamos a todo vapor preparando os presentes mais lindos para as m\u00e3es de voc\u00eas! \u{1F970}'
+          },
+          {
+            id: 'dm-d1-t3',
+            time: '18h00',
+            tag: 'oferta',
+            tagLabel: 'Oferta Leve',
+            text: 'Apresentar produto acess\u00edvel',
+            details: 'Produto: <span class="product-name">Mimo Claudia Leite Jequiti</span> \u2014 <span class="product-price">R$ 39,90</span>. Texto: "Op\u00e7\u00f5es lindas que cabem no bolso! Temos mimos a partir de R$ 39,90. E o melhor: tudo a PRONTA ENTREGA! Responda este status para garantir o seu."',
+            copyText: 'Op\u00e7\u00f5es lindas que cabem no bolso! Temos mimos a partir de R$ 39,90. E o melhor: tudo a PRONTA ENTREGA! Responda este status para garantir o seu. \u{1F381}'
+          }
+        ]
+      },
+      {
+        id: 'seg-04',
+        date: '2026-05-04',
+        dayLabel: 'Segunda-feira, 04/05',
+        emoji: '\u{1F48E}',
+        theme: 'Solu\u00e7\u00f5es Pr\u00e1ticas por Perfil',
+        tasks: [
+          {
+            id: 'dm-d2-t1',
+            time: '09h00',
+            tag: 'bastidores',
+            tagLabel: 'Dica/Valor',
+            text: 'Texto com fundo colorido sobre perfis de m\u00e3es',
+            details: 'Texto: "Sabia que o perfume que sua m\u00e3e usa diz muito sobre a personalidade dela? Hoje vou mostrar op\u00e7\u00f5es para cada estilo de m\u00e3e!"',
+            copyText: 'Sabia que o perfume que sua m\u00e3e usa diz muito sobre a personalidade dela? Hoje vou mostrar op\u00e7\u00f5es para cada estilo de m\u00e3e! \u{1F490}'
+          },
+          {
+            id: 'dm-d2-t2',
+            time: '12h30',
+            tag: 'oferta',
+            tagLabel: 'Oferta (M\u00e3e Cl\u00e1ssica)',
+            text: 'Apresentar kit para m\u00e3e cl\u00e1ssica/sofisticada',
+            details: 'Produto: <span class="product-name">Kit Presente Floratta Red Botic\u00e1rio</span> (3 itens: col\u00f4nia + creme + sabonete) \u2014 <span class="product-price">R$ 239,90</span>. Texto: "Para as m\u00e3es cl\u00e1ssicas e sofisticadas: Kit Floratta Red com 3 itens. O queridinho delas!"',
+            copyText: 'Para as m\u00e3es cl\u00e1ssicas e sofisticadas: Kit Floratta Red com 3 itens. O queridinho delas! \u2764\uFE0F\nR$ 239,90 \u2014 Pronta entrega!\nMe chama aqui que eu te ajudo a escolher.'
+          },
+          {
+            id: 'dm-d2-t3',
+            time: '18h30',
+            tag: 'facilidade',
+            tagLabel: 'Facilidade',
+            text: 'Destacar benef\u00edcios: frete gr\u00e1tis + parcelamento',
+            details: 'Texto: "T\u00e1 sem tempo de ir na loja? Compras acima de R$ 199 t\u00eam FRETE GR\u00c1TIS e voc\u00ea parcela em at\u00e9 3x sem juros. Me chama aqui que eu te ajudo a escolher!"',
+            copyText: 'T\u00e1 sem tempo de ir na loja? Compras acima de R$ 199 t\u00eam FRETE GR\u00c1TIS e voc\u00ea parcela em at\u00e9 3x sem juros. Me chama aqui que eu te ajudo a escolher! \u{1F69A}\u{1F4B3}'
+          }
+        ]
+      },
+      {
+        id: 'ter-05',
+        date: '2026-05-05',
+        dayLabel: 'Ter\u00e7a-feira, 05/05',
+        emoji: '\u{1F33F}',
+        theme: 'Skincare e Autocuidado',
+        tasks: [
+          {
+            id: 'dm-d3-t1',
+            time: '09h30',
+            tag: 'bastidores',
+            tagLabel: 'Bastidores',
+            text: 'V\u00eddeo mostrando textura de hidratante',
+            details: 'Mostre a textura de um hidratante (ex: Cuide-se Bem Deleite). Texto: "Aquele cheirinho de conforto que toda m\u00e3e merece depois de um dia longo..."',
+            copyText: 'Aquele cheirinho de conforto que toda m\u00e3e merece depois de um dia longo... \u{1F60C}'
+          },
+          {
+            id: 'dm-d3-t2',
+            time: '13h00',
+            tag: 'oferta',
+            tagLabel: 'Oferta (M\u00e3e Vaidosa)',
+            text: 'Kit de autocuidado completo',
+            details: 'Produto: <span class="product-name">Kit Tododia Rom\u00e3 e Am\u00eandoas Glaceadas Natura</span> \u2014 <span class="product-price">R$ 114,90</span>. Texto: "O momento de autocuidado perfeito! Kit Natura Tododia por R$ 114,90. J\u00e1 imaginou a alegria dela recebendo esse presente?"',
+            copyText: 'O momento de autocuidado perfeito! Kit Natura Tododia por R$ 114,90.\nJ\u00e1 imaginou a alegria dela recebendo esse presente? \u{1F49C}\nMe chama para garantir o seu!'
+          },
+          {
+            id: 'dm-d3-t3',
+            time: '19h00',
+            tag: 'engajamento',
+            tagLabel: 'Prova Social',
+            text: 'Print de cliente elogiando (com nome borrado)',
+            details: 'Texto: "Nada nos deixa mais felizes do que saber que estamos ajudando a criar momentos especiais!"',
+            copyText: 'Nada nos deixa mais felizes do que saber que estamos ajudando a criar momentos especiais! \u{1F970}'
+          }
+        ]
+      },
+      {
+        id: 'qua-06',
+        date: '2026-05-06',
+        dayLabel: 'Quarta-feira, 06/05',
+        emoji: '\u{1F381}',
+        theme: 'Destaques Especiais (Cestas e Kits Premium)',
+        tasks: [
+          {
+            id: 'dm-d4-t1',
+            time: '10h00',
+            tag: 'engajamento',
+            tagLabel: 'Enquete',
+            text: 'Enquete sobre prefer\u00eancia das m\u00e3es',
+            details: 'Texto: "O que sua m\u00e3e prefere ganhar?" Op\u00e7\u00f5es: "Perfume marcante" / "Hidratantes cheirosos"',
+            copyText: 'O que sua m\u00e3e prefere ganhar?'
+          },
+          {
+            id: 'dm-d4-t2',
+            time: '12h30',
+            tag: 'oferta',
+            tagLabel: 'Oferta Premium',
+            text: 'Apresentar caixa presente com embalagem diferenciada',
+            details: 'Produto: <span class="product-name">Caixa Presente Lily Botic\u00e1rio</span> (splash + sabonete + x\u00edcara + bombons) \u2014 De R$ 194,90 por <span class="product-price">R$ 139,90</span>. Texto: "Aten\u00e7\u00e3o a esse luxo! Caixa Lily com x\u00edcara e bombons. Temos poucas unidades!"',
+            copyText: 'Aten\u00e7\u00e3o a esse luxo! \u2728\nCaixa Presente Lily: splash + sabonete + x\u00edcara + bombons Ferrero/Ouro Branco.\nDe R$ 194,90 por R$ 139,90!\nPoucas unidades. Me chama para garantir!'
+          },
+          {
+            id: 'dm-d4-t3',
+            time: '18h00',
+            tag: 'urgencia',
+            tagLabel: 'Urg\u00eancia Leve',
+            text: 'Lembrete de que o Dia das M\u00e3es \u00e9 domingo',
+            details: 'Texto: "O Dia das M\u00e3es j\u00e1 \u00e9 neste domingo! N\u00e3o deixe para sexta-feira, os melhores kits est\u00e3o acabando r\u00e1pido. Pe\u00e7a o cat\u00e1logo completo respondendo este status."',
+            copyText: 'O Dia das M\u00e3es j\u00e1 \u00e9 neste domingo! \u23F0\nN\u00e3o deixe para sexta-feira, os melhores kits est\u00e3o acabando r\u00e1pido.\nResponda este status e eu te envio o cat\u00e1logo completo!'
+          }
+        ]
+      },
+      {
+        id: 'qui-07',
+        date: '2026-05-07',
+        dayLabel: 'Quinta-feira, 07/05',
+        emoji: '\u{1F525}',
+        theme: 'Acelerando a Urg\u00eancia',
+        tasks: [
+          {
+            id: 'dm-d5-t1',
+            time: '09h00',
+            tag: 'bastidores',
+            tagLabel: 'Bastidores',
+            text: 'Foto de caixas sendo embaladas/enviadas',
+            details: 'Texto: "Muitos filhos garantindo o presente por aqui! J\u00e1 pediu o seu?"',
+            copyText: 'Muitos filhos garantindo o presente por aqui! J\u00e1 pediu o seu? \u{1F4E6}'
+          },
+          {
+            id: 'dm-d5-t2',
+            time: '13h00',
+            tag: 'oferta',
+            tagLabel: 'Oferta (Custo-Benef\u00edcio)',
+            text: 'Apresentar kit com melhor custo-benef\u00edcio',
+            details: 'Produto: <span class="product-name">Presente Imensi Infinity Eudora</span> (caixa + caneca + lo\u00e7\u00e3o + bombom + wafer) \u2014 <span class="product-price">R$ 84,90</span>. Texto: "Aquele presente super completo! Lo\u00e7\u00e3o, caneca e bombons por apenas R$ 84,90."',
+            copyText: 'Aquele presente super completo! \u{1F929}\nLo\u00e7\u00e3o + caneca + bombons por apenas R$ 84,90.\nPresente Imensi Infinity Eudora.\nMe chama para garantir!'
+          },
+          {
+            id: 'dm-d5-t3',
+            time: '19h00',
+            tag: 'cta',
+            tagLabel: 'CTA Direto',
+            text: 'Chamada para a\u00e7\u00e3o: enviar cat\u00e1logo',
+            details: 'Fundo chamativo. Texto: "Faltam apenas 3 dias! Me manda um \'OI\' agora que eu te envio o cat\u00e1logo em PDF e te ajudo a escolher o presente ideal em 5 minutos."',
+            copyText: 'Faltam apenas 3 dias! \u{1F4C5}\nMe manda um "OI" agora que eu te envio o cat\u00e1logo e te ajudo a escolher o presente ideal em 5 minutos! \u{1F4F2}'
+          }
+        ]
+      },
+      {
+        id: 'sex-08',
+        date: '2026-05-08',
+        dayLabel: 'Sexta-feira, 08/05',
+        emoji: '\u{1F6A8}',
+        theme: 'Escassez Real (\u00daltimo Dia \u00datil)',
+        tasks: [
+          {
+            id: 'dm-d6-t1',
+            time: '09h30',
+            tag: 'urgencia',
+            tagLabel: 'Alerta',
+            text: 'Alerta de \u00faltimo dia \u00fatil',
+            details: 'Texto: "\u{1F6A8} ALERTA! \u00daltimo dia \u00fatil antes do Dia das M\u00e3es. Nosso estoque dos kits mais procurados j\u00e1 est\u00e1 no fim!"',
+            copyText: '\u{1F6A8} ALERTA! \u00daltimo dia \u00fatil antes do Dia das M\u00e3es.\nNosso estoque dos kits mais procurados j\u00e1 est\u00e1 no fim!\nGaranta agora antes que acabe!'
+          },
+          {
+            id: 'dm-d6-t2',
+            time: '12h30',
+            tag: 'oferta',
+            tagLabel: 'Oferta',
+            text: 'Mostrar op\u00e7\u00e3o com bom pre\u00e7o e pronta entrega',
+            details: 'Produto: <span class="product-name">Kit Presente La Victorie Intense Eudora</span> (body spray + sabonete l\u00edquido) \u2014 <span class="product-price">R$ 79,90</span>. Texto: "Ainda d\u00e1 tempo de garantir um present\u00e3o! La Victorie Intense por R$ 79,90 a pronta entrega."',
+            copyText: 'Ainda d\u00e1 tempo de garantir um present\u00e3o! \u{1F381}\nLa Victorie Intense Eudora por R$ 79,90.\nPronta entrega! Me chama agora.'
+          },
+          {
+            id: 'dm-d6-t3',
+            time: '18h00',
+            tag: 'facilidade',
+            tagLabel: 'Facilidade',
+            text: 'Mensagem para quem esqueceu',
+            details: 'Texto: "Esqueceu do presente? Calma! Trabalhamos com produtos a PRONTA ENTREGA. Me chama que resolvemos isso hoje mesmo."',
+            copyText: 'Esqueceu do presente? Calma! \u{1F605}\nTrabalhamos com produtos a PRONTA ENTREGA.\nMe chama que resolvemos isso hoje mesmo!'
+          }
+        ]
+      },
+      {
+        id: 'sab-09',
+        date: '2026-05-09',
+        dayLabel: 'S\u00e1bado, 09/05',
+        emoji: '\u26A1',
+        theme: 'Salva\u00e7\u00e3o dos Atrasados (Urg\u00eancia M\u00e1xima)',
+        tasks: [
+          {
+            id: 'dm-d7-t1',
+            time: '09h00',
+            tag: 'engajamento',
+            tagLabel: 'Humor/Empatia',
+            text: 'Meme leve sobre deixar para \u00faltima hora',
+            details: 'Texto: "Se voc\u00ea \u00e9 do time dos atrasados, respira! A Esdra Cosm\u00e9ticos salva sua vida hoje."',
+            copyText: 'Se voc\u00ea \u00e9 do time dos atrasados, respira! \u{1F602}\nA Esdra Cosm\u00e9ticos salva sua vida hoje.\nMe chama que eu te ajudo a escolher em 5 minutos!'
+          },
+          {
+            id: 'dm-d7-t2',
+            time: '11h00',
+            tag: 'oferta',
+            tagLabel: 'Oferta R\u00e1pida',
+            text: 'Mostrar op\u00e7\u00f5es at\u00e9 R$ 99,90 prontas para levar',
+            details: 'Produto: <span class="product-name">Kit Cesta de Banho Eudora</span> \u2014 <span class="product-price">R$ 69,90</span>. Texto: "Presentes lindos, montados e prontos para levar! Qual voc\u00ea escolhe?"',
+            copyText: 'Presentes lindos, montados e prontos para levar! \u{1F381}\nKit Cesta de Banho Eudora por R$ 69,90.\nQual voc\u00ea escolhe? Me chama!'
+          },
+          {
+            id: 'dm-d7-t3',
+            time: '14h00',
+            tag: 'urgencia',
+            tagLabel: '\u00daltima Chamada',
+            text: '\u00daltima chamada: hor\u00e1rio limite de atendimento',
+            details: 'Texto: "Estaremos atendendo at\u00e9 [inserir hor\u00e1rio] hoje! Garanta o presente da sua m\u00e3e para entregar amanh\u00e3 no almo\u00e7o."',
+            copyText: '\u23F0 \u00daltima chamada!\nEstaremos atendendo at\u00e9 [inserir hor\u00e1rio] hoje!\nGaranta o presente da sua m\u00e3e para entregar amanh\u00e3 no almo\u00e7o. Me chama agora!'
+          }
+        ]
+      },
+      {
+        id: 'dom-10',
+        date: '2026-05-10',
+        dayLabel: 'Domingo, 10/05 \u2014 DIA DAS M\u00c3ES',
+        emoji: '\u2764\uFE0F',
+        theme: 'Homenagem Emocional',
+        tasks: [
+          {
+            id: 'dm-d8-t1',
+            time: '10h00',
+            tag: 'homenagem',
+            tagLabel: 'Homenagem',
+            text: 'Post emocional de Dia das M\u00e3es',
+            details: 'Imagem bonita com logo da Esdra. Texto: "Para as m\u00e3es de sangue, de cora\u00e7\u00e3o, av\u00f3s que s\u00e3o m\u00e3es duas vezes... Um feliz e aben\u00e7oado Dia das M\u00e3es! Uma homenagem da equipe Esdra Cosm\u00e9ticos."',
+            copyText: 'Para as m\u00e3es de sangue, de cora\u00e7\u00e3o, av\u00f3s que s\u00e3o m\u00e3es duas vezes...\nUm feliz e aben\u00e7oado Dia das M\u00e3es! \u2764\uFE0F\nUma homenagem da equipe Esdra Cosm\u00e9ticos.'
+          },
+          {
+            id: 'dm-d8-t2',
+            time: '12h00',
+            tag: 'oferta',
+            tagLabel: 'Socorro Final (Opcional)',
+            text: 'Post para quem ainda precisa (se a loja estiver operando)',
+            details: 'Texto: "Ainda precisa de um presente de \u00faltima hora? Temos algumas op\u00e7\u00f5es a pronta entrega! Me chame no WhatsApp."',
+            copyText: 'Ainda precisa de um presente de \u00faltima hora? \u{1F381}\nTemos algumas op\u00e7\u00f5es a pronta entrega!\nMe chame no WhatsApp.'
+          }
+        ]
+      }
+    ];
+
+    // ===========================================================
+    // STATE
+    // ===========================================================
+    let checkedTasks = {};
+
+    // ===========================================================
+    // SUPABASE SYNC
+    // ===========================================================
+    async function loadFromSupabase() {
+      try {
+        const { data, error } = await sb
+          .from(TABLE)
+          .select('task_id, done')
+          .like('task_id', 'dm-%');
+
+        if (error) throw error;
+        if (data) {
+          data.forEach(row => {
+            if (row.done) checkedTasks[row.task_id] = true;
+          });
+        }
+      } catch (e) {
+        console.warn('Erro ao carregar do Supabase:', e);
+      }
+    }
+
+    async function saveToSupabase(taskId, done) {
+      try {
+        showSync('salvando...');
+        const { error } = await sb
+          .from(TABLE)
+          .upsert({ task_id: taskId, done: done }, { onConflict: 'task_id' });
+
+        if (error) throw error;
+        showSync('salvo');
+      } catch (e) {
+        console.warn('Erro ao salvar:', e);
+        showSync('erro ao salvar', true);
+      }
+    }
+
+    function showSync(msg, isError = false) {
+      const el = document.getElementById('sync-status');
+      el.textContent = msg;
+      el.className = isError ? 'show error' : 'show';
+      setTimeout(() => { el.className = ''; }, 2000);
+    }
+
+    // ===========================================================
+    // RENDER
+    // ===========================================================
+    function getTodayStr() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function render() {
+      const container = document.getElementById('days-container');
+      container.innerHTML = '';
+      const today = getTodayStr();
+
+      AGENDA.forEach(day => {
+        const block = document.createElement('div');
+        block.className = 'day-block';
+        block.dataset.date = day.date;
+
+        if (day.date === today) block.classList.add('today', 'open');
+        if (day.date < today) block.classList.add('past');
+
+        const doneTasks = day.tasks.filter(t => checkedTasks[t.id]).length;
+        const totalTasks = day.tasks.length;
+        if (doneTasks === totalTasks) block.classList.add('completed');
+
+        const counterClass = doneTasks === totalTasks ? 'day-counter all-done' : 'day-counter';
+
+        block.innerHTML = `
+          <div class="day-header" onclick="toggleDay(this)">
+            <div class="day-header-left">
+              <span class="day-emoji">${day.emoji}</span>
+              <div class="day-info">
+                <h2>${day.dayLabel}</h2>
+                <div class="day-theme">${day.theme}</div>
+              </div>
+            </div>
+            <div class="day-header-right">
+              <span class="${counterClass}">${doneTasks}/${totalTasks}</span>
+              <span class="chevron">\u25BC</span>
+            </div>
+          </div>
+          <div class="day-body">
+            ${day.tasks.map(t => renderTask(t)).join('')}
+          </div>
+        `;
+
+        container.appendChild(block);
+      });
+
+      updateProgress();
+    }
+
+    function renderTask(task) {
+      const isDone = checkedTasks[task.id] || false;
+      const checkedClass = isDone ? 'checked' : '';
+      const doneClass = isDone ? 'done' : '';
+
+      return `
+        <div class="task-item ${doneClass}" id="task-${task.id}">
+          <div class="task-checkbox ${checkedClass}" onclick="toggleTask('${task.id}')"></div>
+          <div class="task-content">
+            <div class="task-time">${task.time}</div>
+            <div class="task-text">${task.text}</div>
+            <div class="task-details">${task.details}</div>
+            <span class="task-tag tag-${task.tag}">${task.tagLabel}</span>
+            ${task.copyText ? `<button class="copy-btn" onclick="copyText(this, \`${task.copyText.replace(/`/g, '\\`')}\`)">Copiar texto</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleDay(header) {
+      header.closest('.day-block').classList.toggle('open');
+    }
+
+    function toggleTask(taskId) {
+      checkedTasks[taskId] = !checkedTasks[taskId];
+      if (!checkedTasks[taskId]) delete checkedTasks[taskId];
+      render();
+      saveToSupabase(taskId, !!checkedTasks[taskId]);
+    }
+
+    function copyText(btn, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Copiado!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copiar texto';
+          btn.classList.remove('copied');
+        }, 2000);
+      }).catch(() => {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.textContent = 'Copiado!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copiar texto';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    function updateProgress() {
+      const allTasks = AGENDA.flatMap(d => d.tasks);
+      const totalDone = allTasks.filter(t => checkedTasks[t.id]).length;
+      const totalAll = allTasks.length;
+      const pct = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0;
+
+      document.getElementById('total-progress').textContent = pct + '%';
+      document.getElementById('total-sublabel').textContent = `${totalDone} / ${totalAll} tarefas`;
+      document.getElementById('total-bar').style.width = pct + '%';
+
+      // Today
+      const today = getTodayStr();
+      const todayDay = AGENDA.find(d => d.date === today);
+      if (todayDay) {
+        const todayDone = todayDay.tasks.filter(t => checkedTasks[t.id]).length;
+        const todayTotal = todayDay.tasks.length;
+        document.getElementById('today-progress').textContent = `${todayDone}/${todayTotal}`;
+        const todayPct = todayTotal > 0 ? Math.round((todayDone / todayTotal) * 100) : 0;
+        document.getElementById('today-bar').style.width = todayPct + '%';
+      } else {
+        document.getElementById('today-progress').textContent = '--';
+        document.getElementById('today-bar').style.width = '0%';
+      }
+
+      // Days left
+      const endDate = new Date('2026-05-10T23:59:59-03:00');
+      const now = new Date();
+      const diffMs = endDate - now;
+      const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      document.getElementById('days-left').textContent = daysLeft;
+      const daysPct = Math.round(((8 - daysLeft) / 8) * 100);
+      document.getElementById('days-bar').style.width = daysPct + '%';
+    }
+
+    // ===========================================================
+    // ACTIONS
+    // ===========================================================
+    document.getElementById('goto-today-btn').addEventListener('click', () => {
+      const today = getTodayStr();
+      const block = document.querySelector(`.day-block[data-date="${today}"]`);
+      if (block) {
+        block.classList.add('open');
+        block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    let allExpanded = false;
+    document.getElementById('expand-all-btn').addEventListener('click', () => {
+      allExpanded = !allExpanded;
+      document.querySelectorAll('.day-block').forEach(b => {
+        if (allExpanded) b.classList.add('open');
+        else b.classList.remove('open');
+      });
+      document.getElementById('expand-all-btn').textContent = allExpanded ? 'Fechar Todos' : 'Abrir Todos';
+    });
+
+    // ===========================================================
+    // INIT
+    // ===========================================================
+    (async function init() {
+      await loadFromSupabase();
+      render();
+    })();
+  </script>
+</body>
+</html>
