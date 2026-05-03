@@ -2,6 +2,10 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "rewrites": [
+    { "source": "/checklist-diadasmaes", "destination": "/checklist-diadasmaes/index.html" },
+    { "source": "/checklist-diadasmaes/", "destination": "/checklist-diadasmaes/index.html" },
+    { "source": "/manual", "destination": "/manual/index.html" },
+    { "source": "/manual/", "destination": "/manual/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
