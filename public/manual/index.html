@@ -784,24 +784,29 @@
       <p class="login-subtitle">Trilho operacional de Maio de 2026</p>
 
       <form id="login-form">
-        <label class="label" for="email-input" style="margin-bottom: 8px; display: block;">Seu email</label>
+        <label class="label" for="email-input" style="margin-bottom: 8px; display: block;">Email</label>
         <input
           type="email"
           id="email-input"
-          placeholder="josemar@exemplo.com"
+          placeholder="seu@email.com"
           required
           autocomplete="email"
+          style="margin-bottom: 12px;"
+        >
+        <label class="label" for="password-input" style="margin-bottom: 8px; display: block;">Senha</label>
+        <input
+          type="password"
+          id="password-input"
+          placeholder="••••••••"
+          required
+          autocomplete="current-password"
         >
         <button type="submit" class="primary" id="login-button">
-          Receber link de acesso
+          Entrar
         </button>
       </form>
 
       <div id="login-message" class="login-msg hidden"></div>
-
-      <p style="margin-top: 32px; font-size: 0.8rem; color: var(--ink-muted); text-align: center; line-height: 1.5;">
-        Você receberá um link mágico no email. Sem senha. Funciona em qualquer dispositivo.
-      </p>
     </div>
   </div>
 
@@ -960,35 +965,27 @@
     $('#login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = $('#email-input').value.trim();
-      if (!email) return;
+      const password = $('#password-input').value;
+      if (!email || !password) return;
 
-      if (!db) {
-        showLoginMsg(
-          'Configuração Supabase não preenchida. Edite o arquivo HTML e cole sua SUPABASE_URL e SUPABASE_ANON_KEY no topo do <script>.',
-          true
-        );
+      if (!sb) {
+        showLoginMsg('Configuração Supabase não preenchida.', true);
         return;
       }
 
       const btn = $('#login-button');
       btn.disabled = true;
-      btn.textContent = 'Enviando…';
+      btn.textContent = 'Entrando…';
 
-      const { error } = await sb.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: window.location.href }
-      });
+      const { error } = await sb.auth.signInWithPassword({ email, password });
 
       btn.disabled = false;
-      btn.textContent = 'Receber link de acesso';
+      btn.textContent = 'Entrar';
 
       if (error) {
         showLoginMsg(`Erro: ${error.message}`, true);
       } else {
-        showLoginMsg(
-          `Link de acesso enviado para ${email}. Verifique sua caixa de entrada (e o spam) e clique no link.`,
-          false
-        );
+        showLoginMsg('Autenticado! Carregando…', false);
       }
     });
 
