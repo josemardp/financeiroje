@@ -899,9 +899,9 @@
     const SUPABASE_URL = 'https://hhedxktueawursnzqixg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoZWR4a3R1ZWF3dXJzbnpxaXhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjI4NTEsImV4cCI6MjA5MDczODg1MX0.iuu7JERWiyKqHAE-Lvgfk1kWy0UK4QbMKvZGMqCNUYQ';
 
-    let sb = null;
+    let supabase = null;
     if (SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20) {
-      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
     // ===========================================================
@@ -961,7 +961,7 @@
       const email = $('#email-input').value.trim();
       if (!email) return;
 
-      if (!sb) {
+      if (!supabase) {
         showLoginMsg(
           'Configuração Supabase não preenchida. Edite o arquivo HTML e cole sua SUPABASE_URL e SUPABASE_ANON_KEY no topo do <script>.',
           true
@@ -992,13 +992,13 @@
     });
 
     $('#logout-btn').addEventListener('click', async () => {
-      if (!sb) return;
+      if (!supabase) return;
       await sb.auth.signOut();
       window.location.reload();
     });
 
     async function checkAuth() {
-      if (!sb) {
+      if (!supabase) {
         $('#loading').classList.add('hidden');
         return;
       }
@@ -1029,8 +1029,8 @@
     // CARGA DE DADOS DO SUPABASE
     // ===========================================================
     async function loadProgress() {
-      if (!sb || !currentUser) return;
-      const { data, error } = await sb
+      if (!supabase || !currentUser) return;
+      const { data, error } = await supabase
         .from('manual_30_dias_progresso')
         .select('*')
         .eq('user_id', currentUser.id);
@@ -1048,8 +1048,8 @@
     }
 
     async function loadDecisoes() {
-      if (!sb || !currentUser) return;
-      const { data, error } = await sb
+      if (!supabase || !currentUser) return;
+      const { data, error } = await supabase
         .from('manual_30_dias_decisoes')
         .select('*')
         .eq('user_id', currentUser.id);
@@ -1074,12 +1074,12 @@
       renderDay();
       renderProgress();
 
-      if (!sb || !currentUser) {
+      if (!supabase || !currentUser) {
         showSync('offline (sem login)', true);
         return;
       }
 
-      const { error } = await sb
+      const { error } = await supabase
         .from('manual_30_dias_progresso')
         .upsert({
           user_id: currentUser.id,
@@ -1113,7 +1113,7 @@
 
       clearTimeout(decisaoSaveTimer);
       decisaoSaveTimer = setTimeout(async () => {
-        if (!sb || !currentUser) return;
+        if (!supabase || !currentUser) return;
 
         const payload = {
           user_id: currentUser.id,
@@ -1124,7 +1124,7 @@
           aprendizado: current.aprendizado || null,
         };
 
-        const { error } = await sb
+        const { error } = await supabase
           .from('manual_30_dias_decisoes')
           .upsert(payload, { onConflict: 'user_id,semana' });
 
