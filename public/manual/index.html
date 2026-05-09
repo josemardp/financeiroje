@@ -903,6 +903,7 @@
     if (SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20) {
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
+    const sb = db; // alias — todo o código usa sb, mas o cliente foi criado como db
 
     // ===========================================================
     // DADOS — Manual 30 Dias (embutido)
