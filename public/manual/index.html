@@ -962,6 +962,7 @@
     let currentUser = null;
     let currentDayNum = 1;
     let progressMap = new Map(); // key: "day_num:operador:nivel:idx" → {cumprido, observacao}
+    let pendingSyncMap = new Map(); // key: "day_num:operador:nivel:idx" → payload ainda não confirmado no Supabase
     let decisoesMap = new Map(); // key: semana → {decisao, criterio, ...}
 
     // ===========================================================
@@ -972,6 +973,109 @@
 
     function progKey(day, op, nivel, idx) {
       return `${day}:${op}:${nivel}:${idx}`;
+    }
+
+    function parseProgKey(key) {
+      const [dayNum, operador, nivel, taskIndex] = key.split(':');
+      return {
+        day_num: Number(dayNum),
+        operador,
+        nivel,
+        task_index: Number(taskIndex),
+      };
+    }
+
+    function pendingStorageKey() {
+      return currentUser ? `manual30:pending-progress:${currentUser.id}` : null;
+    }
+
+    function loadPendingSync() {
+      pendingSyncMap.clear();
+      const storageKey = pendingStorageKey();
+      if (!storageKey) return;
+
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        Object.entries(parsed).forEach(([key, value]) => {
+          pendingSyncMap.set(key, value);
+        });
+      } catch (error) {
+        console.error('loadPendingSync', error);
+      }
+    }
+
+    function savePendingSync() {
+      const storageKey = pendingStorageKey();
+      if (!storageKey) return;
+
+      const data = {};
+      pendingSyncMap.forEach((value, key) => {
+        data[key] = value;
+      });
+
+      try {
+        if (pendingSyncMap.size === 0) {
+          localStorage.removeItem(storageKey);
+        } else {
+          localStorage.setItem(storageKey, JSON.stringify(data));
+        }
+      } catch (error) {
+        console.error('savePendingSync', error);
+      }
+    }
+
+    function applyPendingSyncToProgress() {
+      pendingSyncMap.forEach((payload, key) => {
+        progressMap.set(key, {
+          cumprido: payload.cumprido,
+          observacao: payload.observacao || null,
+        });
+      });
+    }
+
+    function rememberPendingTask(key, payload) {
+      pendingSyncMap.set(key, {
+        ...payload,
+        saved_locally_at: new Date().toISOString(),
+      });
+      savePendingSync();
+    }
+
+    function forgetPendingTask(key) {
+      if (!pendingSyncMap.delete(key)) return;
+      savePendingSync();
+    }
+
+    async function syncPendingTasks() {
+      if (!db || !currentUser || pendingSyncMap.size === 0) return;
+
+      const entries = Array.from(pendingSyncMap.entries());
+      for (const [key, pending] of entries) {
+        const parsed = parseProgKey(key);
+        const { error } = await db
+          .from('manual_30_dias_progresso')
+          .upsert({
+            user_id: currentUser.id,
+            ...parsed,
+            cumprido: pending.cumprido,
+            cumprido_em: pending.cumprido ? (pending.cumprido_em || new Date().toISOString()) : null,
+            observacao: pending.observacao || null,
+          }, { onConflict: 'user_id,day_num,operador,nivel,task_index' });
+
+        if (error) {
+          console.error('syncPendingTasks', error);
+          showSync('sincronização pendente', true);
+          return;
+        }
+
+        forgetPendingTask(key);
+      }
+
+      showSync('✓ sincronizado');
+      renderDay();
+      renderProgress();
     }
 
     function todayDayNum() {
@@ -1047,8 +1151,11 @@
       if (session) {
         currentUser = session.user;
         await loadProgress();
+        loadPendingSync();
+        applyPendingSyncToProgress();
         await loadDecisoes();
         showApp();
+        syncPendingTasks();
       } else {
         $('#loading').classList.add('hidden');
       }
@@ -1058,8 +1165,11 @@
         if (event === 'SIGNED_IN' && session) {
           currentUser = session.user;
           await loadProgress();
+          loadPendingSync();
+          applyPendingSyncToProgress();
           await loadDecisoes();
           showApp();
+          syncPendingTasks();
         }
       });
     }
@@ -1107,16 +1217,24 @@
       const key = progKey(dayNum, operador, nivel, taskIndex);
       const current = progressMap.get(key) || { cumprido: false };
       const newDone = !current.cumprido;
+      const pendingPayload = {
+        cumprido: newDone,
+        cumprido_em: newDone ? new Date().toISOString() : null,
+        observacao: current.observacao || null,
+      };
 
       // Otimistic UI
       progressMap.set(key, { cumprido: newDone, observacao: current.observacao });
+      rememberPendingTask(key, pendingPayload);
       renderDay();
       renderProgress();
 
       if (!db || !currentUser) {
-        showSync('offline (sem login)', true);
+        showSync('salvo neste aparelho', true);
         return;
       }
+
+      showSync('salvando...');
 
       const { error } = await db
         .from('manual_30_dias_progresso')
@@ -1127,16 +1245,17 @@
           nivel,
           task_index: taskIndex,
           cumprido: newDone,
-          cumprido_em: newDone ? new Date().toISOString() : null,
+          cumprido_em: pendingPayload.cumprido_em,
+          observacao: pendingPayload.observacao,
         }, { onConflict: 'user_id,day_num,operador,nivel,task_index' });
 
       if (error) {
-        showSync('erro ao salvar', true);
-        // Reverte
-        progressMap.set(key, current);
+        console.error('toggleTask', error);
+        showSync('salvo neste aparelho; sincronização pendente', true);
         renderDay();
         renderProgress();
       } else {
+        forgetPendingTask(key);
         showSync(newDone ? '✓ cumprido' : 'pendente');
       }
     }
