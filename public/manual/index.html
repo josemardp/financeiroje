@@ -582,6 +582,47 @@
       text-decoration-thickness: 1px;
     }
 
+    .overdue-block {
+      border-color: var(--rust-soft);
+      box-shadow: inset 3px 0 0 var(--rust-soft);
+    }
+
+    .overdue-block .day-block-header {
+      background: rgba(154, 77, 44, 0.06);
+    }
+
+    .overdue-day-section {
+      padding: 18px 24px;
+    }
+
+    .overdue-day-section + .overdue-day-section {
+      border-top: 1px dashed var(--line-soft);
+    }
+
+    .overdue-day-label {
+      display: block;
+      margin-bottom: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--rust);
+    }
+
+    .task-item.overdue {
+      padding-left: 10px;
+    }
+
+    .task-context {
+      display: block;
+      margin-bottom: 3px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+
     /* ============================================================
        DESCANSO
        ============================================================ */
@@ -1225,15 +1266,19 @@
       const content = $('#day-content');
       content.innerHTML = '';
 
+      const overdueBlock = buildOverdueBlock(currentDayNum);
+      if (overdueBlock) content.appendChild(overdueBlock);
+
       // Dia de descanso
       if (d.is_rest) {
-        content.innerHTML = `
-          <div class="rest-day">
+        const rest = document.createElement('div');
+        rest.className = 'rest-day';
+        rest.innerHTML = `
             <div class="symbol">~</div>
             <h2>Dia de descanso</h2>
             <p>Fé, filha, Esdra, descanso. O negócio sobrevive. Você não, se quebrar.</p>
-          </div>
         `;
+        content.appendChild(rest);
         return;
       }
 
@@ -1296,6 +1341,94 @@
       return block;
     }
 
+    function buildOverdueBlock(referenceDayNum) {
+      const pending = collectPendingTasksBefore(referenceDayNum);
+      if (pending.length === 0) return null;
+
+      const block = document.createElement('div');
+      block.className = 'day-block overdue-block';
+
+      const header = document.createElement('div');
+      header.className = 'day-block-header';
+      header.innerHTML = `
+        <div>
+          <div class="operator-name">Pend&ecirc;ncias anteriores</div>
+          <div class="operator-meta">${pending.length} compromisso${pending.length === 1 ? '' : 's'} aberto${pending.length === 1 ? '' : 's'} antes deste dia</div>
+        </div>
+      `;
+      block.appendChild(header);
+
+      const groups = new Map();
+      pending.forEach(item => {
+        if (!groups.has(item.dayNum)) groups.set(item.dayNum, []);
+        groups.get(item.dayNum).push(item);
+      });
+
+      groups.forEach((items, dayNum) => {
+        const day = MANUAL_DATA.days[dayNum - 1];
+        const section = document.createElement('div');
+        section.className = 'overdue-day-section';
+        section.innerHTML = `
+          <span class="overdue-day-label">Dia ${day.day_num} - ${day.day_label}</span>
+        `;
+
+        const list = document.createElement('ul');
+        list.className = 'task-list';
+        items.forEach(item => {
+          list.appendChild(buildTaskItem(
+            item.dayNum,
+            item.opKey,
+            item.nivelKey,
+            item.taskIndex,
+            item.task,
+            'overdue',
+            `${item.opName} - ${item.nivelLabel}`
+          ));
+        });
+
+        section.appendChild(list);
+        block.appendChild(section);
+      });
+
+      return block;
+    }
+
+    function collectPendingTasksBefore(referenceDayNum) {
+      const pending = [];
+      MANUAL_DATA.days.forEach(d => {
+        if (d.is_rest || d.day_num >= referenceDayNum) return;
+
+        [
+          ['josemar', 'Josemar'],
+          ['esdra', 'Esdra'],
+        ].forEach(([opKey, opName]) => {
+          if (!d[opKey]) return;
+
+          [
+            ['minimo_viavel', 'M&iacute;nimo Vi&aacute;vel'],
+            ['ideal', 'Ideal'],
+          ].forEach(([nivelKey, nivelLabel]) => {
+            (d[opKey][nivelKey] || []).forEach((task, taskIndex) => {
+              const done = progressMap.get(progKey(d.day_num, opKey, nivelKey, taskIndex))?.cumprido || false;
+              if (done) return;
+
+              pending.push({
+                dayNum: d.day_num,
+                opKey,
+                opName,
+                nivelKey,
+                nivelLabel,
+                taskIndex,
+                task,
+              });
+            });
+          });
+        });
+      });
+
+      return pending;
+    }
+
     function buildLevelSection(dayNum, opKey, nivelKey, nivelLabel, badgeClass, tasks) {
       const section = document.createElement('div');
       section.className = 'level-section';
@@ -1309,21 +1442,26 @@
       list.className = 'task-list';
 
       tasks.forEach((task, idx) => {
-        const key = progKey(dayNum, opKey, nivelKey, idx);
-        const done = progressMap.get(key)?.cumprido || false;
-
-        const li = document.createElement('li');
-        li.className = 'task-item' + (done ? ' done' : '');
-        li.innerHTML = `
-          <div class="task-checkbox" role="checkbox" aria-checked="${done}"></div>
-          <div class="task-text">${formatTaskText(task)}</div>
-        `;
-        li.addEventListener('click', () => toggleTask(dayNum, opKey, nivelKey, idx));
-        list.appendChild(li);
+        list.appendChild(buildTaskItem(dayNum, opKey, nivelKey, idx, task));
       });
 
       section.appendChild(list);
       return section;
+    }
+
+    function buildTaskItem(dayNum, opKey, nivelKey, taskIndex, task, extraClass = '', contextLabel = '') {
+      const done = progressMap.get(progKey(dayNum, opKey, nivelKey, taskIndex))?.cumprido || false;
+      const li = document.createElement('li');
+      li.className = ['task-item', extraClass, done ? 'done' : ''].filter(Boolean).join(' ');
+      li.innerHTML = `
+        <div class="task-checkbox" role="checkbox" aria-checked="${done}"></div>
+        <div class="task-text">
+          ${contextLabel ? `<span class="task-context">${contextLabel}</span>` : ''}
+          ${formatTaskText(task)}
+        </div>
+      `;
+      li.addEventListener('click', () => toggleTask(dayNum, opKey, nivelKey, taskIndex));
+      return li;
     }
 
     function formatTaskText(text) {
