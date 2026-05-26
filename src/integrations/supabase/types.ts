@@ -1211,7 +1211,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      system_health_overview: {
+        Row: {
+          component_name: string
+          last_status: string | null
+          last_execution_at: string | null
+          last_duration_ms: number | null
+          error_count_24h: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_transaction_trash: {

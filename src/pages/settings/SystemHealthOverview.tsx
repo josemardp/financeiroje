@@ -71,7 +71,7 @@ export default function SystemHealthOverview() {
   } = useQuery({
     queryKey: ["system-health-overview"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("system_health_overview")
         .select("component_name,last_status,last_execution_at,last_duration_ms,error_count_24h")
         .order("component_name", { ascending: true });
@@ -81,7 +81,10 @@ export default function SystemHealthOverview() {
         throw new Error(describeSupabaseError(error));
       }
 
-      return (data || []) as SystemHealthRow[];
+      return (data ?? []).map((row) => ({
+        ...row,
+        error_count_24h: row.error_count_24h ?? 0,
+      })) as SystemHealthRow[];
     },
   });
 
