@@ -1064,7 +1064,7 @@ export async function getFinancialContext(
   const eventosRaw = lifeEventsResult.data || [];
   const eventosProximos30d: EventoProximo[] = eventosRaw.map((e: any) => {
     const baseDate = new Date(e.event_date + 'T00:00:00');
-    let nextOccurrence = new Date(baseDate);
+    const nextOccurrence = new Date(baseDate);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     if (e.recurrence_type === 'yearly') {

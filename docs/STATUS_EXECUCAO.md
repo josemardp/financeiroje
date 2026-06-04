@@ -129,6 +129,16 @@ Impedimentos:
   - Ordem de limpeza dos marcadores no edge function consistente com instrução no prompt
   - Nenhum marcador visível ao usuário (todos removidos de `textToCache` antes de cache e retorno)
 
+- T1.8 — Alertas / thresholds usando system_health_thresholds + system_health_overview concluída
+  - Migration `20260525000002_system_health_alerts_view.sql` criada
+  - View `system_health_alerts` implementada com lógica de:
+    - Silêncio operacional (max_silent_hours)
+    - Erro recorrente (max_error_count)
+    - Latência alta (max_duration_ms)
+  - Seed de thresholds iniciais para componentes críticos (`ai-advisor`, `evaluate-achievements`, `learn-patterns`, `generate-weekly-digest`)
+  - Frontend (`SystemHealthOverview.tsx`) atualizado para consumir a nova view e exibir badges de alerta
+  - Commit da lógica e UI: `T1.8 Add health alerts and threshold monitoring`
+
 ### 2026-04-26 (Plano A.1 — Observabilidade e SRE)
 
 - T1.7 — Leitura operacional da observabilidade concluída
