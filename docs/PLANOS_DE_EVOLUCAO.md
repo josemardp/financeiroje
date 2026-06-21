@@ -589,21 +589,22 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
 
 > **Pré-requisito:** nenhum (pode ir em paralelo a S1). Esforço: Médio.
 
-- [ ] **S2.1** — `.env` fora do versionamento: adicionar `.env` ao `.gitignore`,
-  `git rm --cached .env`, manter só `.env.example`. Auditar o histórico por segredos
-  de servidor (service_role / OPENAI / OPENROUTER / TAVILY) e **rotacionar** se houver.
-- [ ] **S2.2** — `REVOKE EXECUTE` de `PUBLIC`/`anon`/`authenticated` nas funções
-  `SECURITY DEFINER` de `supabase/migrations/20260525000001_system_health_alerts.sql`
-  (`_system_health_primary_user_id`, `emit_system_health_alerts`). **Migration nova
-  via painel.**
-- [ ] **S2.3** — Corrigir XSS self-stored do Manual: em
-  `public/manual/index.html:1597-1616`, criar elementos e usar `.value`/`.textContent`
-  em vez de interpolar `saved.decisao/criterio/aprendizado` em `innerHTML`.
-- [ ] **S2.4** — Reabilitar RLS em `challenges_catalog` com policy de leitura pública
-  (`USING (true)` no `SELECT`) em vez do `DISABLE ROW LEVEL SECURITY` de
-  `20260428000002_challenges_catalog.sql`; documentar a "regressão de RLS" citada.
-- [ ] **S2.5** — Auditoria fechada de RLS: confirmar policies por `auth.uid()` em toda
-  tabela com dado de usuário (materializa B.1 parcial). Registrar resultado.
+- [x] **S2.1** — ✅ (21/06/2026) `.env` removido do git (`git rm --cached`); `.gitignore`
+  atualizado com `.env`, `.env.local`, `.env.*.local`; `.env.example` atualizado.
+  Histórico auditado — apenas anon keys; sem service_role ou API keys de terceiros.
+- [x] **S2.2** — ✅ (21/06/2026) `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` nas
+  funções `_system_health_primary_user_id` e `emit_system_health_alerts`.
+  Migration `20260621000001_security_revoke_definer_functions.sql` aplicada e validada.
+- [x] **S2.3** — ✅ (21/06/2026) XSS self-stored corrigido em `public/manual/index.html`:
+  campos `saved.decisao/criterio/aprendizado` saíram do `innerHTML` e passaram para
+  `.value` nos textareas após montagem do DOM.
+- [x] **S2.4** — ✅ (21/06/2026) RLS reabilitado em `challenges_catalog` com policy
+  `SELECT TO authenticated USING (true)`. Padrão idêntico ao `achievements_catalog`.
+  Migration `20260621000002_security_rls_challenges_catalog.sql` aplicada e validada.
+- [x] **S2.5** — ✅ (21/06/2026) Auditoria de RLS concluída: **43/43 tabelas com RLS ativo**.
+  Zero tabelas com `rls_ativo = false`. Duas tabelas com 0 policies (`prompt_variants`
+  e `system_health_logs`) são infra de acesso exclusivo por `service_role` — intencional
+  e documentado. Nenhuma ação adicional necessária.
 
 ### Sprint S3 — Backup/DR + auditoria de produção 🔴 (A.2)
 
