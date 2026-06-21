@@ -35,3 +35,5 @@ supabase/.temp/
 
 # Config local do script de backup (contém service_role_key)
 scripts/backup-config.local.json
+# Log gerado pelo setup da tarefa agendada
+scripts/setup-task-log.txt
