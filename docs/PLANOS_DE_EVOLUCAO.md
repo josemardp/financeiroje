@@ -610,14 +610,17 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
 
 > **Pré-requisito:** definir storage externo de backup. Esforço: Médio.
 
-- [ ] **S3.1** — Rotina de backup: `pg_dump`/export agendado do Supabase para storage
-  externo independente. (Distinto do `user-data-export`, que é sob demanda do usuário.)
+- [ ] **S3.1** — Rotina de backup: export agendado do Supabase para Google Drive.
+  Storage escolhido: Google Drive (MCP disponível). Requer Service Account Google Cloud.
 - [ ] **S3.2** — Runbook curto de restauração (passo a passo testado uma vez).
-- [ ] **S3.3** — Auditoria **somente leitura** do que está em produção: migrations
-  aplicadas, versão de cada Edge Function, crons ativos, secrets, RLS/policies.
-  Conciliar com o repo. Nada é alterado sem confirmação de Josemar.
-- [ ] **S3.4** — Implementar retenção de telemetria (`pg_cron` de 30 dias) — hoje TODO
-  em `supabase/migrations/20260515000003_system_health_infrastructure.sql:63-64`.
+- [x] **S3.3** — ✅ (21/06/2026) Auditoria de produção concluída via MCP Supabase:
+  36 migrations rastreadas (restante aplicado via SQL Editor — divergência esperada);
+  13/13 Edge Functions ACTIVE, versões corretas; 11 crons ativos.
+  **Achados corrigidos:** jobid 5 e 6 tinham URL/token com angle brackets literais
+  (falhando silenciosamente) — recriados com comandos corretos (novos jobid 13 e 14).
+- [x] **S3.4** — ✅ (21/06/2026) Retenção de 30 dias implementada via `cron.schedule`
+  (`daily-purge-health-logs`, `30 4 * * *`). Migration
+  `20260621000003_system_health_logs_retention.sql` aplicada (jobid 12).
 
 ### Sprint S4 — Qualidade de código e tipagem 🟡 (C.1/C.2/C.3)
 
