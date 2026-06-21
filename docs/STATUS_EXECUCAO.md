@@ -826,8 +826,8 @@ Próximo sprint a definir.
 ### Roteiro de Saneamento — checklist de alto nível
 - [x] **S1** — ✅ Correção dos números (20/06/2026): saldo do Dashboard, `recommendations`
   no Score, anomalia com amostra mínima, datas em fuso de SP, parcelamento por competência
-  + resíduo. `tsc` 0 erros, 97/97 testes. ⚠️ pendente redeploy manual de `finance-engine`
-  e `smart-capture-interpret`.
+  + resíduo. `tsc` 0 erros, 97/97 testes. ✅ Deploys concluídos: `finance-engine` v5,
+  `smart-capture-interpret` v15. **Sprint S1 100% fechado.**
 - [ ] **S2** — Segurança e segredos (.env, REVOKE, XSS, RLS)
 - [ ] **S3** — Backup/DR + auditoria de produção + retenção de telemetria
 - [ ] **S4** — Qualidade e tipagem (as any, strict, hooks, rate-limit, paridade de motores)

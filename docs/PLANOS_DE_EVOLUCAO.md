@@ -566,25 +566,24 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
 - [x] **S1.2** — ✅ (20/06/2026) `finance-engine` passa a retornar `recommendations`:
   portado `buildHealthRecommendations` em `supabase/functions/finance-engine/index.ts`
   (paridade com `healthScore.ts`). Frontend blindado em `backend.ts` (`recommendations
-  ?? []`) — UI não quebra mesmo antes do redeploy. ⚠️ **Pendente redeploy manual da
-  function** para as recomendações reais virem do servidor.
+  ?? []`). ✅ **Redeploy concluído (v5, 20/06/2026)** — recomendações reais vêm do servidor.
 - [x] **S1.3** — ✅ Anomalia exige amostra mínima E p90>0 nos dois níveis
   (`src/hooks/useTransactionAnomalyCheck.ts`): `hasEnoughData = n>=5 && p90>0`. Resolve
   o falso-positivo com histórico vazio. *Teste dedicado de 0/1/4 amostras → S5.*
 - [x] **S1.4** — ✅ Datas em `America/Sao_Paulo` via `Intl.DateTimeFormat("en-CA")`:
   corrigido `src/services/smartCapture/textParser.ts` (`today` + branch "ontem") e
   `supabase/functions/smart-capture-interpret/index.ts:233`. Teste `detects yesterday
-  date` realinhado ao fuso de SP. ⚠️ **Pendente redeploy manual** do `smart-capture-interpret`.
+  date` realinhado ao fuso de SP. ✅ **Redeploy concluído (v15, 20/06/2026)**.
 - [x] **S1.5** — ✅ Parcelamento: competência derivada de `form.data` (ano/mês/dia) e
   última parcela absorve o resíduo de centavos. Corrigido em
   `src/pages/Transactions.tsx` **e** `src/pages/SmartCapture.tsx`.
 - [x] **S1.6** — ✅ Validação: `tsc --noEmit` 0 erros; **97/97 testes** verdes; sem
   novos erros de lint. Fechamento de S1 registrado neste roteiro e no `STATUS_EXECUCAO.md`.
 
-> **⚠️ Deploys manuais pendentes do S1** (Supabase → Edge Functions → Deploy):
-> redeployar `finance-engine` (S1.2) e `smart-capture-interpret` (S1.4). O frontend já
-> está blindado, então nada quebra; o redeploy ativa as recomendações reais do Score e
-> a data correta no fuso de SP no lado servidor.
+> **✅ Deploys do S1 concluídos (20/06/2026)** via MCP Supabase, conta autorizada:
+> `finance-engine` v4→**v5** (recomendações reais no servidor) e
+> `smart-capture-interpret` v14→**v15** (data no fuso de SP). Ambas `ACTIVE`,
+> `verify_jwt: false` preservado. **Sprint S1 100% concluído.**
 
 ### Sprint S2 — Segurança e segredos 🔴 (B.1/B.2)
 
