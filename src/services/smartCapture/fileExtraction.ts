@@ -6,7 +6,7 @@
 
 export interface FileExtractionResult {
   text: string;
-  source: string; // "pdf" | "docx" | "xlsx"
+  source: "pdf" | "docx" | "xlsx" | "html";
   pageCount?: number;
 }
 
@@ -108,5 +108,36 @@ export async function extractTextFromSupportedFile(file: File): Promise<FileExtr
     return extractTextFromSpreadsheet(file);
   }
 
+  if (type === "text/html" || name.endsWith(".html") || name.endsWith(".htm")) {
+    return extractTextFromHtml(file);
+  }
+
   throw new Error(`Formato de arquivo não suportado: ${name}`);
+}
+
+async function extractTextFromHtml(file: File): Promise<FileExtractionResult> {
+  const text = await file.text();
+  const cleaned = text
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<\/td>/gi, " | ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s{3,}/g, "\n")
+    .trim();
+
+  if (!cleaned || cleaned.length < 20) {
+    throw new Error("Não foi possível extrair texto deste arquivo HTML.");
+  }
+
+  return { text: cleaned, source: "html" };
 }

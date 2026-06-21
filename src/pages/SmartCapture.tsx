@@ -43,6 +43,8 @@ import { MicroRewardCheckmark } from "@/components/shared/MicroRewardCheckmark";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import { extractTextFromSupportedFile } from "@/services/smartCapture/fileExtraction";
+import { detectPhoneBill } from "@/services/smartCapture/billDetection";
+import { extractPhoneBillData, type PhoneBillData } from "@/services/smartCapture/billExtractor";
 import {
   Mic,
   Type,
@@ -285,6 +287,7 @@ export default function SmartCapture() {
   const [isInterpreting, setIsInterpreting] = useState(false);
   const [isExtractingFile, setIsExtractingFile] = useState(false);
   const [sourceLabel, setSourceLabel] = useState("Texto Livre");
+  const [phoneBillData, setPhoneBillData] = useState<PhoneBillData | null>(null);
 
   const [editForm, setEditForm] = useState({
     valor: "",
@@ -679,6 +682,7 @@ export default function SmartCapture() {
         setParsed(null);
         setTextInput("");
         setInstallmentStart(null);
+        setPhoneBillData(null);
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
@@ -719,6 +723,7 @@ export default function SmartCapture() {
         setParsed(null);
         setTextInput("");
         setInstallmentStart(null);
+        setPhoneBillData(null);
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-transactions"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-account-balances"] });
@@ -736,6 +741,7 @@ export default function SmartCapture() {
     }
     setParsed(null);
     setTextInput("");
+    setPhoneBillData(null);
     toast.info("Captura descartada");
   };
 
@@ -753,6 +759,7 @@ export default function SmartCapture() {
     const imageValidation = validateOcrImageFile(file);
     const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
     const isDocx = name.endsWith(".docx");
+    const isHtml = name.endsWith(".html") || name.endsWith(".htm") || file.type === "text/html";
     const isSpreadsheet = name.endsWith(".xlsx") || name.endsWith(".xls");
     const isDoc = name.endsWith(".doc") && !name.endsWith(".docx");
 
@@ -787,18 +794,44 @@ export default function SmartCapture() {
       return;
     }
 
-    if (isPdf || isDocx) {
+    if (isPdf || isDocx || isHtml) {
       setIsExtractingFile(true);
 
       try {
         const result = await extractTextFromSupportedFile(file);
 
         const sourceKind: InterpretSourceKind =
-          result.source === "pdf" ? "pdf_text" : "docx_text";
+          result.source === "pdf" ? "pdf_text"
+          : result.source === "html" ? "pdf_text"
+          : "docx_text";
 
-        const sourceLabelForUi = result.source === "pdf" ? "PDF" : "DOCX";
+        const sourceLabelForUi =
+          result.source === "pdf" ? "PDF"
+          : result.source === "html" ? "HTML"
+          : "DOCX";
 
-        await handleParse(result.text, "free_text", sourceKind, sourceLabelForUi);
+        try {
+          const billDetection = detectPhoneBill(result.text);
+          if (billDetection.isBill) {
+            const billData = extractPhoneBillData(result.text, billDetection.carrier);
+            setPhoneBillData(billData);
+            const billContext = [
+              `Fatura de celular ${billDetection.carrier}`,
+              billData.totalAmount !== null ? `Total a pagar: R$ ${billData.totalAmount.toFixed(2)}` : "",
+              billData.dueDate ? `Vencimento: ${billData.dueDate}` : "",
+              billData.referencePeriod ? `Período: ${billData.referencePeriod}` : "",
+              billData.phoneLines.length ? `Linha(s): ${billData.phoneLines.join(", ")}` : "",
+            ].filter(Boolean).join(" | ");
+            await handleParse(billContext, "free_text", sourceKind, sourceLabelForUi);
+          } else {
+            setPhoneBillData(null);
+            await handleParse(result.text, "free_text", sourceKind, sourceLabelForUi);
+          }
+        } catch (billError) {
+          console.warn("[billDetection] erro silencioso:", billError);
+          setPhoneBillData(null);
+          await handleParse(result.text, "free_text", sourceKind, sourceLabelForUi);
+        }
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Erro ao processar arquivo";
         toast.error(msg);
@@ -1013,7 +1046,7 @@ export default function SmartCapture() {
                   </p>
 
                   <p className="text-sm text-muted-foreground">
-                    Suportados aqui: {getSupportedOcrImageFormatsLabel()}, PDF textual e DOCX.
+                    Suportados: {getSupportedOcrImageFormatsLabel()}, PDF, HTML de fatura e DOCX.
                     HEIC/HEIF, BMP, TIFF e SVG são bloqueados no OCR.
                   </p>
 
@@ -1026,7 +1059,7 @@ export default function SmartCapture() {
 
                 <input
                   type="file"
-                  accept={`${OCR_IMAGE_FILE_ACCEPT},.pdf,.docx`}
+                  accept={`${OCR_IMAGE_FILE_ACCEPT},.pdf,.docx,.html,.htm`}
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
@@ -1105,6 +1138,27 @@ export default function SmartCapture() {
                     : "Negócio"}
               </Badge>
             </div>
+
+            {phoneBillData && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                <div className="mb-1 font-semibold">Fatura detectada: {phoneBillData.carrier}</div>
+                <div className="space-y-0.5 text-blue-800">
+                  {phoneBillData.totalAmount !== null && (
+                    <div>Total a pagar: <span className="font-medium">R$ {phoneBillData.totalAmount.toFixed(2)}</span></div>
+                  )}
+                  {phoneBillData.dueDate && (
+                    <div>Vencimento: <span className="font-medium">{phoneBillData.dueDate.split("-").reverse().join("/")}</span></div>
+                  )}
+                  {phoneBillData.referencePeriod && (
+                    <div>Período: <span className="font-medium">{phoneBillData.referencePeriod}</span></div>
+                  )}
+                  {phoneBillData.phoneLines.length > 0 && (
+                    <div>Linha(s): <span className="font-medium">{phoneBillData.phoneLines.join(", ")}</span></div>
+                  )}
+                  <div className="mt-1 text-xs text-blue-600">Confiança: {phoneBillData.confidence} — dados pré-preenchidos abaixo</div>
+                </div>
+              </div>
+            )}
 
             {parsed.camposFaltantes.length > 0 && (
               <div className="flex items-start gap-2 rounded-lg bg-warning/10 px-4 py-3 text-sm text-warning">
