@@ -610,9 +610,14 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
 
 > **Pré-requisito:** definir storage externo de backup. Esforço: Médio.
 
-- [ ] **S3.1** — Rotina de backup: export agendado do Supabase para Google Drive.
-  Storage escolhido: Google Drive (MCP disponível). Requer Service Account Google Cloud.
-- [ ] **S3.2** — Runbook curto de restauração (passo a passo testado uma vez).
+- [x] **S3.1** — ✅ (21/06/2026) Script `scripts/backup-supabase.ps1`: exporta 26 tabelas
+  via Supabase REST API (service_role) e salva JSON timestampado em
+  `G:\Meu Drive\Arquivos Josemar\projetos nao vercionados\financeiroje` (Google Drive
+  Desktop sincroniza automaticamente). Retenção 30 dias. Testado: 26/26 tabelas, 1.94 MB.
+  Agendar via Windows Task Scheduler (comando no histórico da sessão).
+- [x] **S3.2** — ✅ (21/06/2026) Runbook em `docs/RUNBOOK_RESTORE.md`: localizar backup,
+  inspecionar JSON, restaurar via merge seguro (ON CONFLICT DO NOTHING) ou TRUNCATE+INSERT,
+  ordem de dependências entre tabelas, teste semestral (próximo: Dez/2026).
 - [x] **S3.3** — ✅ (21/06/2026) Auditoria de produção concluída via MCP Supabase:
   36 migrations rastreadas (restante aplicado via SQL Editor — divergência esperada);
   13/13 Edge Functions ACTIVE, versões corretas; 11 crons ativos.
