@@ -1600,21 +1600,26 @@
 
         <div class="field">
           <span class="field-label">Sua decisão</span>
-          <textarea data-decisao-field="decisao" data-semana="${semana}" placeholder="Escreva sua decisão aqui...">${saved.decisao || ''}</textarea>
+          <textarea data-decisao-field="decisao" data-semana="${semana}" placeholder="Escreva sua decisão aqui..."></textarea>
         </div>
 
         <div class="field">
           <span class="field-label">Critério (por que decidi assim)</span>
-          <textarea data-decisao-field="criterio" data-semana="${semana}" placeholder="Qual o raciocínio por trás dessa escolha?">${saved.criterio || ''}</textarea>
+          <textarea data-decisao-field="criterio" data-semana="${semana}" placeholder="Qual o raciocínio por trás dessa escolha?"></textarea>
         </div>
 
         <div class="field">
           <span class="field-label">Aprendizado (preencher depois, ao revisar em 30 dias)</span>
-          <textarea data-decisao-field="aprendizado" data-semana="${semana}" placeholder="O que essa decisão me ensinou?">${saved.aprendizado || ''}</textarea>
+          <textarea data-decisao-field="aprendizado" data-semana="${semana}" placeholder="O que essa decisão me ensinou?"></textarea>
         </div>
 
         <span class="saved-indicator" data-saved-ind="${semana}">salvo automaticamente</span>
       `;
+
+      // Preenche via .value — não interpreta HTML, elimina XSS self-stored
+      block.querySelector('[data-decisao-field="decisao"]').value = saved.decisao || '';
+      block.querySelector('[data-decisao-field="criterio"]').value = saved.criterio || '';
+      block.querySelector('[data-decisao-field="aprendizado"]').value = saved.aprendizado || '';
 
       // Listeners
       block.querySelectorAll('textarea[data-decisao-field]').forEach(ta => {
