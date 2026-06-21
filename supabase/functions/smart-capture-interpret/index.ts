@@ -230,7 +230,7 @@ serve(async (req) => {
     const userName = typeof body?.user_name === "string" && body.user_name.trim() ? body.user_name.trim() : null;
     const userContext = typeof body?.user_context === "string" && body.user_context.trim() ? body.user_context.trim() : null;
 
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD no fuso UTC (próximo o suficiente para BR)
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()); // YYYY-MM-DD no fuso de São Paulo
 
     if (!text || text.length < 3) {
       return new Response(

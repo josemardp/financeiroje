@@ -145,6 +145,29 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
+  // Saldo oficial por conta = saldo_inicial + transações confirmadas (income − expense).
+  // Mesma regra de Accounts.tsx (fonte única). NÃO usar a coluna `saldo_atual` (anulável,
+  // não mantida). PHASE 4.2: confirmed + null = oficial.
+  const { data: accountBalances } = useQuery({
+    queryKey: ["dashboard-account-balances", user?.id],
+    queryFn: async () => {
+      const { data: txns } = await supabase
+        .from("transactions")
+        .select("account_id, tipo, valor, data_status")
+        .not("account_id", "is", null)
+        .or("data_status.eq.confirmed,data_status.is.null");
+
+      const map: Record<string, number> = {};
+      (txns || []).forEach((t: any) => {
+        const id = t.account_id;
+        if (!map[id]) map[id] = 0;
+        map[id] += t.tipo === "income" ? Number(t.valor) : -Number(t.valor);
+      });
+      return map;
+    },
+    enabled: !!user,
+  });
+
   const { data: goalsAtRisk } = useQuery({
     queryKey: ["dashboard-goals", user?.id],
     queryFn: async () => {
@@ -165,7 +188,10 @@ export default function Dashboard() {
   );
 
   const recentTransactions = rawTransactions ? rawTransactions.slice(0, 5) : [];
-  const totalAccountBalance = (accounts || []).reduce((acc: number, curr: any) => acc + Number(curr.saldo_actual || curr.saldo_inicial || 0), 0);
+  const totalAccountBalance = (accounts || []).reduce(
+    (acc: number, curr: any) => acc + Number(curr.saldo_inicial || 0) + (accountBalances?.[curr.id] || 0),
+    0,
+  );
 
   const prefs = (profile?.preferences || {}) as any;
   const reserveValue = Number(prefs.reserva_emergencia_valor || 0);

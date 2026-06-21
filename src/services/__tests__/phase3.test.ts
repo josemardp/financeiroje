@@ -31,9 +31,12 @@ describe("parseTransactionText", () => {
 
   it("detects yesterday date", () => {
     const r = parseTransactionText("mercado 320 ontem");
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    expect(r.data).toBe(yesterday.toISOString().split("T")[0]);
+    // "Ontem" relativo ao dia de São Paulo (não UTC) — alinhado à correção de fuso.
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+    const [ty, tm, td] = today.split("-").map(Number);
+    const d = new Date(Date.UTC(ty, tm - 1, td));
+    d.setUTCDate(d.getUTCDate() - 1);
+    expect(r.data).toBe(d.toISOString().split("T")[0]);
   });
 
   it("entende data com mês textual abreviado", () => {

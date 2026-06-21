@@ -59,8 +59,11 @@ export function useTransactionAnomalyCheck(
     fetchHistory();
   }, [userId, categoryId, type, value]);
 
-  const isHighAnomaly = stats.n >= 5 && value > stats.p90 * 3;
-  const isMediumAnomaly = value > stats.p90 * 2 && !isHighAnomaly;
+  // Só avalia anomalia com amostra mínima E p90 válido (> 0).
+  // Sem isso, histórico vazio (p90 = 0) faria qualquer valor positivo virar anomalia.
+  const hasEnoughData = stats.n >= 5 && stats.p90 > 0;
+  const isHighAnomaly = hasEnoughData && value > stats.p90 * 3;
+  const isMediumAnomaly = hasEnoughData && value > stats.p90 * 2 && !isHighAnomaly;
 
   return {
     isHighAnomaly,

@@ -2,13 +2,14 @@
 
 > **Objetivo deste documento:** servir como backlog estratégico do projeto além da camada de inteligência pessoal. Lista os 22 planos de evolução identificados em auditoria de Abril/2026 + 4 planos da nova **Categoria H — Esdra Cosméticos como Sistema** adicionada em Maio/2026, organizados por categoria, com descrição sucinta, prioridade, esforço estimado e pré-requisitos.
 >
-> **Autor:** sessão Claude com Josemar — Abril/2026
-> **Versão:** 1.1
+> **Autor:** sessão Claude com Josemar — Abril/2026 (v1.0–1.1); integração do diagnóstico técnico — Junho/2026 (v1.2)
+> **Versão:** 1.2
 > **Status:** backlog aprovado, aguardando elaboração individual
 > **Relação com outros documentos:**
 > - Complemento estratégico ao `PLANO_INTELIGENCIA_PESSOAL.md` (v1.3) e `PLANO_COMPLEMENTAR_INTELIGENCIA.md` (v1.0)
 > - **Categoria H** referencia o `PLANO_PAINEL_ESDRA.md` (v2.0) para detalhamento técnico
-> - Ordem de execução sugerida: primeiro completar Sprints 8-10 do plano complementar; depois iniciar os planos prioritários listados aqui.
+> - **Categoria S e Roteiro de Saneamento** (§9-bis e §10-bis) incorporam o diagnóstico técnico consolidado de Junho/2026 — os relatórios-fonte foram pulverizados neste plano e removidos do repositório.
+> - Ordem de execução sugerida: primeiro o **Roteiro de Saneamento (Fase 1.5)**; depois retomar os planos prioritários das categorias A–H.
 
 ---
 
@@ -24,8 +25,12 @@
 8. [Categoria F — Colaboração familiar](#8-categoria-f--colaboração-familiar)
 9. [Categoria G — Inteligência deferida](#9-categoria-g--inteligência-deferida)
 10. [Categoria H — Esdra Cosméticos como Sistema](#10-categoria-h--esdra-cosméticos-como-sistema)
+- [Diagnóstico técnico — Junho/2026 (snapshot)](#diagnóstico-técnico--junho2026-snapshot)
+- [Categoria S — Saneamento Técnico (Diagnóstico Jun/2026)](#categoria-s--saneamento-técnico-diagnóstico-jun2026)
+- [Roteiro de Saneamento — sprint a sprint (S1→S6)](#roteiro-de-saneamento--sprint-a-sprint-s1s6)
 11. [Matriz consolidada de priorização](#11-matriz-consolidada-de-priorização)
 12. [Recomendação de sequência](#12-recomendação-de-sequência)
+- [Apêndice — Backlog especulativo (Diagnóstico Jun/2026)](#apêndice--backlog-especulativo-diagnóstico-jun2026)
 13. [Histórico de versões](#13-histórico-de-versões)
 
 ---
@@ -455,10 +460,228 @@ FinanceiroJe — Ecossistema de Planos
 
 ---
 
+## Diagnóstico técnico — Junho/2026 (snapshot)
+
+> Esta seção e as duas seguintes (Categoria S + Roteiro de Saneamento) incorporam
+> o **diagnóstico técnico consolidado de 20/06/2026** (branch `main`, commit
+> `6dc482f`). Os 6 relatórios-fonte foram dissolvidos aqui e removidos do repo.
+> Toda afirmação abaixo foi verificada no código.
+
+**Estado verificado:**
+- App **roda**: `vite` sobe, tela pública redireciona a `/auth` sem erro.
+- **97/97 testes Vitest** passando; **ESLint** 0 erros / 14 avisos; **`tsc --noEmit` 0 erros** sob a config do projeto.
+- 24 rotas, 47 migrations, ~30 tabelas, 13 Edge Functions + `_shared`.
+- Sprints 1–10 (inteligência) concluídos e com código correspondente.
+
+**Correção de engano de diagnóstico:** uma análise-fonte relatou "75 erros de
+TypeScript". **Não se reproduz** — sob `tsconfig.app.json` (`strict: false`,
+`noImplicitAny: false`, linhas 25 e 16) o `tsc --noEmit` retorna **0 erros**. O
+achado real é que o **modo estrito está desligado** (item S.4), não que há 75 erros.
+
+**Diagnóstico em uma frase:** *produto funcional e bem planejado, com fundação de
+qualidade defasada e alguns números financeiros incorretos.* O que ficou para trás
+não é capacidade de execução — é base operacional (backup, onboarding, segurança) e
+correção de bugs que ferem o princípio de zero-alucinação.
+
+**Gap central:** o planejamento (29 entradas A–H) é muito mais ambicioso que a
+cadência recente (3 commits em Junho). A fundação 🔴 (A.2, B.1, B.2, D.1) ficou
+atrás enquanto a frente de IA já estava rica. O Go/No-Go do Painel Esdra (H.1),
+agendado para fim de Maio/2026, está **vencido e não registrado** no Git.
+
+---
+
+## Categoria S — Saneamento Técnico (Diagnóstico Jun/2026)
+
+> Categoria nova, **prioritária e bloqueante**, derivada do diagnóstico. Catalogada
+> na matriz (§11) e detalhada sprint-a-sprint no Roteiro de Saneamento (§10-bis).
+> O detalhamento técnico de cada bug (arquivo:linha) está no roteiro.
+
+### S.1 — Correção dos números financeiros 🔴
+
+**Descrição:** corrigir bugs confirmados que produzem número errado ou quebra de
+runtime: saldo do Dashboard que ignora transações (`Dashboard.tsx:168` usa
+`saldo_actual`, grafia inexistente; schema é `saldo_atual`); Edge Function
+`finance-engine` que omite `recommendations` exigido pela UI (`HealthScore.tsx:145`);
+detecção de anomalia "média" sem amostra mínima; datas em UTC tratadas como horário
+de São Paulo; parcelamento que joga a competência no mês corrente e perde resíduo de
+centavos. **Sem mudança de schema.** Viola diretamente o princípio "zero alucinação".
+
+### S.2 — Segurança e segredos 🔴
+
+**Descrição:** `.env` versionado fora do `.gitignore`; funções `SECURITY DEFINER` de
+`system_health_alerts` sem `REVOKE EXECUTE`; XSS self-stored no Manual standalone
+(`innerHTML` com dados persistidos); RLS desabilitado em `challenges_catalog`;
+auditoria fechada de RLS por tabela. Materializa parte de **B.1** e **B.2**.
+
+### S.3 — Backup/DR + auditoria de produção 🔴
+
+**Descrição:** criar a primeira rotina de backup (`pg_dump`/export agendado para
+storage externo) + runbook de restauração; auditar (somente leitura) o que está de
+fato aplicado no Supabase (migrations, versões de functions, crons, secrets, RLS);
+implementar a retenção de telemetria que hoje é um TODO. Materializa **A.2** e parte
+de **A.1**.
+
+### S.4 — Qualidade de código e tipagem 🟡
+
+**Descrição:** remover os ~50 `as any` dos caminhos de escrita financeira; ligar
+`strict`/`noImplicitAny` gradualmente; corrigir warnings de hooks (`exhaustive-deps`);
+tornar o rate-limit persistente (hoje só em memória); criar contrato/teste de paridade
+entre os **dois motores financeiros** (frontend puro × Edge Function). Materializa
+parte de **C.1/C.2/C.3**.
+
+### S.5 — Testes e ferramentas 🟡
+
+**Descrição:** consertar o Playwright (config importa pacote ausente) + smoke E2E de
+login/rotas; tornar o `scripts/integration-test.ts` real (hoje afirma "OK" sem
+verificar) ou renomeá-lo; aliviar o `contextCollector` (baixa 24 meses brutos) com
+RPC/view agregada. Materializa parte de **C.1**.
+
+### S.6 — Documentação e higiene de repositório 🟢
+
+**Descrição:** README real (hoje stub Lovable); unificar `AGENTS.md`≡`CLAUDE.md`
+(fonte + stub); corrigir a doc que diz "Anthropic Claude direto" quando o código usa
+**OpenRouter**; escolher um único gerenciador de pacotes (4 lockfiles hoje);
+documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **C.4**.
+
+---
+
+## Roteiro de Saneamento — sprint a sprint (S1→S6)
+
+> Passo a passo executável até concluir **todas** as correções e melhorias do
+> diagnóstico. Ordem por risco. Cada tarefa cita evidência (arquivo:linha).
+> Marcar `[x]` ao concluir e registrar em `STATUS_EXECUCAO.md`. Respeitar as regras
+> de deploy manual do `CLAUDE.md` (migrations/functions via painel).
+
+### Sprint S1 — Correção dos números (P0, sem schema)
+
+> **Por que primeiro:** número financeiro errado fere o princípio de zero-alucinação
+> antes mesmo de envolver IA. Nenhum pré-requisito. Esforço: Pequeno/Médio.
+
+- [x] **S1.1** — ✅ Corrigido o saldo do Dashboard (20/06/2026): removido o campo
+  inexistente `saldo_actual`; adicionada query `dashboard-account-balances` que aplica
+  a regra oficial `saldo_inicial + transações confirmadas` (income − expense), idêntica
+  a `src/pages/Accounts.tsx:56-96` (fonte única). Contas já filtradas por `ativa`.
+  `tsc --noEmit` 0 erros; 97/97 testes verdes. *Pendente:* teste dedicado Dashboard ×
+  Contas (a adicionar em S5).
+- [x] **S1.2** — ✅ (20/06/2026) `finance-engine` passa a retornar `recommendations`:
+  portado `buildHealthRecommendations` em `supabase/functions/finance-engine/index.ts`
+  (paridade com `healthScore.ts`). Frontend blindado em `backend.ts` (`recommendations
+  ?? []`) — UI não quebra mesmo antes do redeploy. ⚠️ **Pendente redeploy manual da
+  function** para as recomendações reais virem do servidor.
+- [x] **S1.3** — ✅ Anomalia exige amostra mínima E p90>0 nos dois níveis
+  (`src/hooks/useTransactionAnomalyCheck.ts`): `hasEnoughData = n>=5 && p90>0`. Resolve
+  o falso-positivo com histórico vazio. *Teste dedicado de 0/1/4 amostras → S5.*
+- [x] **S1.4** — ✅ Datas em `America/Sao_Paulo` via `Intl.DateTimeFormat("en-CA")`:
+  corrigido `src/services/smartCapture/textParser.ts` (`today` + branch "ontem") e
+  `supabase/functions/smart-capture-interpret/index.ts:233`. Teste `detects yesterday
+  date` realinhado ao fuso de SP. ⚠️ **Pendente redeploy manual** do `smart-capture-interpret`.
+- [x] **S1.5** — ✅ Parcelamento: competência derivada de `form.data` (ano/mês/dia) e
+  última parcela absorve o resíduo de centavos. Corrigido em
+  `src/pages/Transactions.tsx` **e** `src/pages/SmartCapture.tsx`.
+- [x] **S1.6** — ✅ Validação: `tsc --noEmit` 0 erros; **97/97 testes** verdes; sem
+  novos erros de lint. Fechamento de S1 registrado neste roteiro e no `STATUS_EXECUCAO.md`.
+
+> **⚠️ Deploys manuais pendentes do S1** (Supabase → Edge Functions → Deploy):
+> redeployar `finance-engine` (S1.2) e `smart-capture-interpret` (S1.4). O frontend já
+> está blindado, então nada quebra; o redeploy ativa as recomendações reais do Score e
+> a data correta no fuso de SP no lado servidor.
+
+### Sprint S2 — Segurança e segredos 🔴 (B.1/B.2)
+
+> **Pré-requisito:** nenhum (pode ir em paralelo a S1). Esforço: Médio.
+
+- [ ] **S2.1** — `.env` fora do versionamento: adicionar `.env` ao `.gitignore`,
+  `git rm --cached .env`, manter só `.env.example`. Auditar o histórico por segredos
+  de servidor (service_role / OPENAI / OPENROUTER / TAVILY) e **rotacionar** se houver.
+- [ ] **S2.2** — `REVOKE EXECUTE` de `PUBLIC`/`anon`/`authenticated` nas funções
+  `SECURITY DEFINER` de `supabase/migrations/20260525000001_system_health_alerts.sql`
+  (`_system_health_primary_user_id`, `emit_system_health_alerts`). **Migration nova
+  via painel.**
+- [ ] **S2.3** — Corrigir XSS self-stored do Manual: em
+  `public/manual/index.html:1597-1616`, criar elementos e usar `.value`/`.textContent`
+  em vez de interpolar `saved.decisao/criterio/aprendizado` em `innerHTML`.
+- [ ] **S2.4** — Reabilitar RLS em `challenges_catalog` com policy de leitura pública
+  (`USING (true)` no `SELECT`) em vez do `DISABLE ROW LEVEL SECURITY` de
+  `20260428000002_challenges_catalog.sql`; documentar a "regressão de RLS" citada.
+- [ ] **S2.5** — Auditoria fechada de RLS: confirmar policies por `auth.uid()` em toda
+  tabela com dado de usuário (materializa B.1 parcial). Registrar resultado.
+
+### Sprint S3 — Backup/DR + auditoria de produção 🔴 (A.2)
+
+> **Pré-requisito:** definir storage externo de backup. Esforço: Médio.
+
+- [ ] **S3.1** — Rotina de backup: `pg_dump`/export agendado do Supabase para storage
+  externo independente. (Distinto do `user-data-export`, que é sob demanda do usuário.)
+- [ ] **S3.2** — Runbook curto de restauração (passo a passo testado uma vez).
+- [ ] **S3.3** — Auditoria **somente leitura** do que está em produção: migrations
+  aplicadas, versão de cada Edge Function, crons ativos, secrets, RLS/policies.
+  Conciliar com o repo. Nada é alterado sem confirmação de Josemar.
+- [ ] **S3.4** — Implementar retenção de telemetria (`pg_cron` de 30 dias) — hoje TODO
+  em `supabase/migrations/20260515000003_system_health_infrastructure.sql:63-64`.
+
+### Sprint S4 — Qualidade de código e tipagem 🟡 (C.1/C.2/C.3)
+
+> **Pré-requisito:** S1 concluído (evita misturar correção e refator). Esforço: Médio.
+
+- [ ] **S4.1** — Remover `as any` dos caminhos de escrita (`Transactions.tsx` 11,
+  `SmartCapture.tsx` 10, `Loans.tsx`, `Goals.tsx`, etc.): tipar enums com
+  `Database["public"]["Enums"]["scope_type"]` e afins de `types.ts`.
+- [ ] **S4.2** — Ligar `strict`/`noImplicitAny` por diretório em `tsconfig.app.json`
+  (16,25), zerando erros incrementalmente; reativar regra de `any` no ESLint.
+- [ ] **S4.3** — Corrigir warnings de hooks (`SmartCapture.tsx:448,519`,
+  `Dashboard.tsx:84`, `useTransactionAnomalyCheck.ts:60`,
+  `AchievementUnlockedToast.tsx:38`); comentar casos intencionais.
+- [ ] **S4.4** — Rate-limit persistente no backend (hoje Maps em memória em
+  `ai-advisor`, `smart-capture-interpret`, `smart-capture-voice`).
+- [ ] **S4.5** — Contrato/teste de paridade entre os dois motores financeiros
+  (`src/services/financeEngine/` puro × `supabase/functions/finance-engine/`).
+
+### Sprint S5 — Testes e ferramentas 🟡 (C.1)
+
+> **Pré-requisito:** nenhum. Esforço: Médio.
+
+- [ ] **S5.1** — Consertar Playwright: substituir o import de
+  `lovable-agent-playwright-config` (`playwright.config.ts:1`, pacote ausente) por
+  config própria de `@playwright/test`; adicionar smoke E2E de login + rotas
+  principais; script `test:e2e` no `package.json`.
+- [ ] **S5.2** — Tornar `scripts/integration-test.ts` real (assertions de verdade) ou
+  renomear como demonstração estática (hoje `:22-26`,`:62-69` afirmam "OK" sem checar).
+- [ ] **S5.3** — Aliviar `contextCollector` (`:375-385` baixa 24 meses brutos;
+  `:842-852` agrega no cliente): mover agregação para RPC/view mensal.
+
+### Sprint S6 — Documentação e higiene de repositório 🟢 (C.4)
+
+> **Pré-requisito:** nenhum. Esforço: Pequeno/Médio.
+
+- [ ] **S6.1** — README real apontando para `docs/` + passo a passo de execução.
+- [ ] **S6.2** — Unificar `AGENTS.md`≡`CLAUDE.md` (uma fonte + um stub que referencia).
+- [ ] **S6.3** — Corrigir doc do provedor de IA: registrar **OpenRouter** (modelos
+  `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5`) + Tavily (`ai-advisor/index.ts:621,796`),
+  e atualizar a métrica obsoleta ("contextCollector 852 linhas" → ~1141).
+- [ ] **S6.4** — Escolher um gerenciador (Vercel usa npm) e remover lockfiles extras
+  (`pnpm-lock.yaml`/`bun.lock`/`bun.lockb`/`deno.lock` conforme decisão).
+- [ ] **S6.5** — Documentar no README a fronteira de escopo dos artefatos
+  Esdra/PMESP (`public/manual`, `public/checklist-diadasmaes`, `Rotina de trabalho/`).
+
+### Critério de conclusão do Saneamento
+
+Saneamento concluído quando S1–S6 estiverem `[x]`, com: bugs financeiros corrigidos e
+testados; `.env` fora do git e segredos auditados; backup operacional + runbook;
+produção auditada; `strict` ligado; Playwright funcional com smoke E2E; doc alinhada
+ao código. Só então retomar com folga as Fases 2+ (Painel Esdra etc.).
+
+---
+
 ## 11. Matriz consolidada de priorização
 
 | # | Plano | Categoria | Prioridade | Esforço | Pré-requisitos |
 |---|---|---|---|---|---|
+| **S.1** | **Correção dos números financeiros** | **Saneamento** | 🔴 | **Pequeno/Médio** | **— (bloqueante)** |
+| **S.2** | **Segurança e segredos** | **Saneamento** | 🔴 | **Médio** | **—** |
+| **S.3** | **Backup/DR + auditoria de produção** | **Saneamento** | 🔴 | **Médio** | **Definir storage** |
+| **S.4** | **Qualidade de código e tipagem** | **Saneamento** | 🟡 | **Médio** | **S.1** |
+| **S.5** | **Testes e ferramentas** | **Saneamento** | 🟡 | **Médio** | **—** |
+| **S.6** | **Documentação e higiene de repo** | **Saneamento** | 🟢 | **Pequeno/Médio** | **—** |
 | A.1 | Observabilidade e SRE | Plataforma | 🔴 | Médio | — |
 | A.2 | Backup e DR | Plataforma | 🔴 | Médio | Definir storage |
 | B.1 | Auditoria LGPD | Segurança | 🔴 | Médio | — |
@@ -489,7 +712,7 @@ FinanceiroJe — Ecossistema de Planos
 | G.2 | Drift Detection | Inteligência deferida | 🟢 | Médio | A.1 |
 | G.3 | Laboratório Experimental | Inteligência deferida | 🟢 | Grande | G.2 |
 
-**Total:** 22 planos originais + 4 da Categoria H + 3 deferidos = **29 entradas de backlog**.
+**Total:** 22 planos originais + 4 da Categoria H + 3 deferidos + **6 de Saneamento (Categoria S)** = **35 entradas de backlog**.
 
 ---
 
@@ -512,9 +735,22 @@ Após Sprints 8-10 do plano complementar (já concluídos em Abril/2026):
 3. **B.2 — Hardening de Segurança** — Fechar portas abertas antes de crescer.
 4. **A.2 — Backup e DR** — Proteção contra perda catastrófica.
 
+### Fase 1.5 — Saneamento técnico (bloqueante, Junho/2026) 🆕
+
+> Inserida pela integração do diagnóstico (v1.2). **Precede a Fase 2.** Os bugs de
+> número (S.1) ferem o princípio de zero-alucinação e o Go/No-Go do Painel Esdra
+> depende de uma base sã. Detalhe em "Roteiro de Saneamento — S1→S6".
+
+- **S.1 — Correção dos números** 🔴 (bloqueante; sem schema)
+- **S.2 — Segurança e segredos** 🔴 (paralela a S.1; absorve B.1/B.2 imediatos)
+- **S.3 — Backup/DR + auditoria de produção** 🔴 (absorve A.2)
+- **S.4 — Qualidade e tipagem** 🟡 · **S.5 — Testes/ferramentas** 🟡 · **S.6 — Doc/higiene** 🟢
+
+Concluído o Saneamento (S1–S6 `[x]`), retomar a Fase 2.
+
 ### Fase 2 — Esdra Cosméticos Operacional (Junho-Julho/2026, ~6-8 semanas)
 
-5. **H.1 — Painel Empreendedor (Sprints 1-4)** — Sistema operacional completo. Inicia após mínimo 30 dias de uso do Manual HTML.
+5. **H.1 — Painel Empreendedor (Sprints 1-4)** — Sistema operacional completo. Inicia após mínimo 30 dias de uso do Manual HTML **e após o Saneamento (Fase 1.5)**.
 6. **D.2 — Importação de Dados Externos** — Multiplica o volume de dados para todas as camadas de inteligência (paralelo a H.1 se houver banda).
 
 ### Fase 3 — Inteligência Esdra + Crescimento (Agosto-Setembro/2026, ~8 semanas)
@@ -548,7 +784,65 @@ Após Sprints 8-10 do plano complementar (já concluídos em Abril/2026):
 
 ---
 
+## Apêndice — Backlog especulativo (Diagnóstico Jun/2026)
+
+> ⚠️ **Especulativo.** Ideias do diagnóstico que **não** estavam no roadmap, mas são
+> coerentes com o domínio (finanças família + MEI Esdra + contexto de valores). Avaliar
+> **após** o Saneamento. Esforço relativo. Não confundir com backlog aprovado (A–H).
+
+**Eixo Integridade de dados:**
+- **I.1 — Ritual de reconciliação de 5 min** (baixo/médio): usuário informa saldo
+  observado por conta; app explica a diferença e cria ajuste só após confirmação.
+- **I.2 — Detector de contagem dupla entre escopos** (médio): pareia transferências
+  pessoal↔família↔negócio para não inflar indicadores.
+- **I.3 — Explicação causal de mudanças (diff determinístico)** (médio): "o que mudou
+  no score/saldo desde ontem" — transações, reclassificações, impacto numérico.
+- **I.4 — Previsão em faixas (mín/provável/máx)** (médio): usa `data_status`/`confidence`
+  — aplica zero-alucinação também à apresentação visual.
+
+**Eixo MEI Esdra:**
+- **I.5 — Monitor de teto fiscal MEI + simulação de desenquadramento** (baixo/médio):
+  faturamento móvel 12m vs. R$ 81.000, alerta em 80/95%, simula migração a Simples.
+- **I.6 — Guardrail de retirada (pró-labore) do MEI** (médio): faixa segura de retirada
+  por caixa mínimo + obrigações + volatilidade.
+- **I.7 — CRM geográfico + roteirizador de entregas** (médio/alto): geocodifica clientes
+  e sugere rota semanal otimizada.
+
+**Eixo Valores e perfil:**
+- **I.8 — Caixa de Mordomia (dízimo/ofertas first-class)** (médio): deduz percentual da
+  receita, protege a parcela, destrava conquistas `semeador`/`mordomo_fiel_3m` (D7-A).
+- **I.9 — Orçamento por energia executiva + briefing falado** (baixo/médio): modos
+  mínimo/normal/completo, sem push; digest semanal em TTS reusando peças existentes.
+
+**Eixo Resiliência/decisão:**
+- **I.10 — Modo de estresse familiar** (médio): simula 30/60/90 dias sem renda, vendas −40%.
+- **I.11 — Simulador de quitação de dívidas (avalanche × bola de neve)** (baixo/médio):
+  engine calcula, IA explica; card "comprar minha liberdade".
+- **I.12 — Diário de decisões financeiras** (baixo): hipótese, alternativas, revisão
+  sem julgamento; acopla à telemetria `mirror_hesitation`.
+- **I.13 — Plano offline de emergência (exportável/impresso)** (médio): contas
+  essenciais, vencimentos, reserva e sequência de ações pré-aprovada.
+
+**Entrada recomendada (pós-saneamento):** I.8 (Mordomia) e I.5 (teto MEI) — esforço
+contido, destravam itens já catalogados (D7-A; Esdra) e atendem valor exclusivo do
+usuário. I.1 e I.3 são as mais alinhadas ao princípio de integridade de dados.
+
+---
+
 ## 13. Histórico de versões
+
+### v1.2 — 20 de Junho de 2026
+
+**Adições (integração do diagnóstico técnico consolidado):**
+- Nova seção **Diagnóstico técnico — Junho/2026 (snapshot)** com o estado verificado do repo e a correção do engano "75 erros TS → 0 erros".
+- Nova **Categoria S — Saneamento Técnico** (S.1–S.6) na matriz (§11) — total de backlog sobe de 29 para **35 entradas**.
+- Novo **Roteiro de Saneamento — sprint a sprint (S1→S6)** com checklists de tarefas (arquivo:linha) até concluir todas as correções/melhorias.
+- Nova **Fase 1.5 — Saneamento técnico (bloqueante)** na sequência (§12), antes da Fase 2.
+- Novo **Apêndice — Backlog especulativo** com 13 ideias (I.1–I.13) do diagnóstico.
+
+**Origem:** os 6 relatórios do diagnóstico consolidado (resumo executivo, estrutura,
+planejamento, próximos passos, correções, ideias) foram **pulverizados** neste plano e
+**removidos do repositório** — este documento passa a ser a fonte única.
 
 ### v1.1 — 02 de Maio de 2026
 

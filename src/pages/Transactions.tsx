@@ -254,20 +254,26 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
     if (isInstallment) {
       const totalValue = Number(form.valor);
       const parcelaValue = Math.round((totalValue / installmentCount) * 100) / 100;
+      // Resíduo de centavos vai na última parcela para que a soma feche o total exato
+      // (ex.: 100/3 = 33,33 + 33,33 + 33,34 = 100,00, não 99,99).
+      const lastParcelaValue = Math.round((totalValue - parcelaValue * (installmentCount - 1)) * 100) / 100;
       const now = new Date();
       const startMonth = installmentStart === "next_month" ? 1 : 0;
+      // Competência derivada de form.data (ano/mês/dia), não do mês corrente.
       const dateParts = form.data.split("-").map(Number);
+      const baseYear = dateParts.length === 3 ? dateParts[0] : now.getFullYear();
+      const baseMonth = dateParts.length === 3 ? dateParts[1] - 1 : now.getMonth(); // 0-indexed
       const baseDay = dateParts.length === 3 ? dateParts[2] : 1;
 
       const rows = Array.from({ length: installmentCount }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() + startMonth + i, 1);
+        const d = new Date(baseYear, baseMonth + startMonth + i, 1);
         const safeDay = Math.min(baseDay, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate());
         d.setDate(safeDay);
         const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
         return {
           user_id: user.id,
-          valor: parcelaValue,
+          valor: i === installmentCount - 1 ? lastParcelaValue : parcelaValue,
           tipo: form.tipo as any,
           categoria_id: form.categoria_id || null,
           descricao: `${form.descricao} (${i + 1}/${installmentCount})`,

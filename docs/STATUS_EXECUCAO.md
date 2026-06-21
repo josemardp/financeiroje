@@ -28,6 +28,27 @@
 2. Estender Manual HTML por mais 30 dias antes de migrar?
 3. Pivotar abordagem com base em aprendizados reais?
 
+### ✅ Decisão Go/No-Go registrada — 20/06/2026
+
+**Decisão: NO-GO por ora — início do Painel Esdra (H.1) adiado.**
+
+- **Resolução:** **não** iniciar H.1 Sprint 1 agora (opção 1 descartada por ora);
+  **manter o Manual HTML em produção** acumulando dados (parte da opção 2), **sem**
+  pivotar (opção 3 descartada).
+- **Motivo:** o diagnóstico técnico consolidado (20/06/2026) encontrou bugs de
+  número (saldo do Dashboard, contrato do Score) que ferem o princípio de
+  zero-alucinação, além de fundação defasada (backup, segredos, RLS). A sequência
+  aprovada na v1.2 do `PLANOS_DE_EVOLUCAO.md` coloca a **Fase 1.5 — Saneamento
+  técnico** como bloqueante antes da Fase 2 (Painel Esdra).
+- **Condição de reavaliação:** ao concluir **S1–S3** do Roteiro de Saneamento
+  (números corrigidos + segurança + backup/auditoria de produção), reabrir o
+  Go/No-Go e decidir entre iniciar H.1 / estender Manual / pivotar, agora com base
+  sã e dados reais acumulados.
+- **Reversível:** Josemar pode antecipar o Go a qualquer momento — esta é a posição
+  registrada como padrão, não uma trava.
+- **Status do pré-requisito original (30 dias de uso do Manual):** cumprido em
+  excesso (Manual em produção desde 02/05/2026); o que faltava era a base técnica.
+
 ---
 
 ## Fase 2 — EM EXECUÇÃO (2026-04-26)
@@ -792,4 +813,23 @@ Próximo sprint a definir.
 - Validação real: tratamento de estado vazio e cruzamento de UUIDs via `message_id` confirmado
 
 ## Próxima tarefa esperada
-**Sessão 8 — Sprint 9 Finalização (ou Sprint 10 conforme PLANO_COMPLEMENTAR_INTELIGENCIA.md)**
+
+**Sprint S1 — Correção dos números (Roteiro de Saneamento)** — ver
+`PLANOS_DE_EVOLUCAO.md` → "Roteiro de Saneamento — sprint a sprint (S1→S6)".
+
+> Atualizado em 20/06/2026 pela integração do diagnóstico técnico consolidado.
+> A frente de inteligência (Sprints 1–10) está concluída; a próxima prioridade é a
+> **Fase 1.5 — Saneamento técnico** (bloqueante), começando por **S1.1** (corrigir o
+> saldo do Dashboard, `Dashboard.tsx:168` `saldo_actual`→`saldo_atual`). A entrada
+> anterior ("Sessão 8 — Sprint 9/10") está obsoleta: esses sprints já foram fechados.
+
+### Roteiro de Saneamento — checklist de alto nível
+- [x] **S1** — ✅ Correção dos números (20/06/2026): saldo do Dashboard, `recommendations`
+  no Score, anomalia com amostra mínima, datas em fuso de SP, parcelamento por competência
+  + resíduo. `tsc` 0 erros, 97/97 testes. ⚠️ pendente redeploy manual de `finance-engine`
+  e `smart-capture-interpret`.
+- [ ] **S2** — Segurança e segredos (.env, REVOKE, XSS, RLS)
+- [ ] **S3** — Backup/DR + auditoria de produção + retenção de telemetria
+- [ ] **S4** — Qualidade e tipagem (as any, strict, hooks, rate-limit, paridade de motores)
+- [ ] **S5** — Testes e ferramentas (Playwright, integration-test, contextCollector)
+- [ ] **S6** — Documentação e higiene (README, AGENTS/CLAUDE, doc IA, lockfiles, escopo)

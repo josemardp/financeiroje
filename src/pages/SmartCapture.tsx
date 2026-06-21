@@ -629,13 +629,19 @@ export default function SmartCapture() {
 
     if (isInstallmentPurchase) {
       const parcelaValue = Math.round((totalValue / installCount) * 100) / 100;
+      // Resíduo de centavos vai na última parcela para a soma fechar o total exato.
+      const lastParcelaValue = Math.round((totalValue - parcelaValue * (installCount - 1)) * 100) / 100;
       const now = new Date();
       const startMonth = installmentStart === "next_month" ? 1 : 0;
+      // Competência derivada de editForm.data (ano/mês/dia), não do mês corrente.
+      const baseParts = editForm.data ? editForm.data.split("-").map(Number) : [];
+      const baseYear = baseParts.length === 3 ? baseParts[0] : now.getFullYear();
+      const baseMonth = baseParts.length === 3 ? baseParts[1] - 1 : now.getMonth(); // 0-indexed
 
       const installmentRows = Array.from({ length: installCount }, (_, i) => {
-        const installDate = new Date(now.getFullYear(), now.getMonth() + startMonth + i, 1);
+        const installDate = new Date(baseYear, baseMonth + startMonth + i, 1);
         // Parse day directly from ISO string to avoid UTC-3 offset bug (new Date("YYYY-MM-DD") is UTC midnight)
-        const baseDay = editForm.data ? parseInt(editForm.data.split("-")[2], 10) : 1;
+        const baseDay = baseParts.length === 3 ? baseParts[2] : 1;
         const safeDay = Math.min(
           baseDay,
           new Date(installDate.getFullYear(), installDate.getMonth() + 1, 0).getDate()
@@ -647,7 +653,7 @@ export default function SmartCapture() {
 
         return {
           user_id: user.id,
-          valor: parcelaValue,
+          valor: i === installCount - 1 ? lastParcelaValue : parcelaValue,
           tipo: editForm.tipo as any,
           categoria_id: editForm.categoria_id || null,
           descricao: `${editForm.descricao} (${i + 1}/${installCount})`,

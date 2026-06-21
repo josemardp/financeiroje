@@ -90,7 +90,8 @@ function normalizeMonthToken(raw: string) {
 }
 
 function extractDateFromText(text: string, observacoes: string[]) {
-  const today = new Date().toISOString().split("T")[0];
+  // "Hoje" no fuso de São Paulo (não UTC) — evita virar o dia entre 21h e 24h em BR.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
   const labeledDateRegex =
     /\b(?:data|data da transa[cç][aã]o|data do pagamento|data do recebimento|emiss[aã]o|lan[çc]amento|ocorr[êe]ncia)\b[^\n\r]{0,18}?(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b/gi;
@@ -169,8 +170,10 @@ function extractDateFromText(text: string, observacoes: string[]) {
   }
 
   if (/\bontem\b/i.test(text)) {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
+    // "Ontem" relativo ao dia de São Paulo (deriva de `today`), não de UTC.
+    const [ty, tm, td] = today.split("-").map(Number);
+    const d = new Date(Date.UTC(ty, tm - 1, td));
+    d.setUTCDate(d.getUTCDate() - 1);
     observacoes.push("Data inferida pela palavra 'ontem'.");
     return {
       data: d.toISOString().split("T")[0],

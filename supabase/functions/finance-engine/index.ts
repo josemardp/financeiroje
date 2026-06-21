@@ -154,6 +154,16 @@ function calculateHealthScore(input: any) {
     scoreGeral = round2(weightedSum / totalWeight);
   }
 
+  // Recomendações determinísticas — paridade com src/services/financeEngine/healthScore.ts.
+  // O contrato HealthScoreResult exige este campo (types.ts) e a UI o consome (HealthScore.tsx).
+  const recommendations = buildHealthRecommendations({
+    comprometimentoRenda,
+    reservaEmergencia,
+    controleOrcamento,
+    adimplencia,
+    regularidade,
+  });
+
   return {
     scoreGeral,
     comprometimentoRenda,
@@ -161,9 +171,62 @@ function calculateHealthScore(input: any) {
     controleOrcamento,
     adimplencia,
     regularidade,
+    recommendations,
     availableComponents: available.length,
     totalComponents: components.length,
   };
+}
+
+/** Recomendações do Health Score — espelha buildRecommendations do frontend. */
+function buildHealthRecommendations(scores: Record<string, number | null>) {
+  const recs: Array<{ component: string; score: number | null; message: string; severity: string }> = [];
+
+  const check = (
+    component: string,
+    score: number | null,
+    messages: Record<string, [string, string]>,
+    unavailableMsg?: string,
+  ) => {
+    if (score === null) {
+      if (unavailableMsg) recs.push({ component, score: null, message: unavailableMsg, severity: "info" });
+      return;
+    }
+    for (const [threshold, [message, severity]] of Object.entries(messages).sort(([a], [b]) => Number(a) - Number(b))) {
+      if (score <= Number(threshold)) {
+        recs.push({ component, score, message, severity });
+        return;
+      }
+    }
+    recs.push({ component, score, message: "Excelente! Continue assim.", severity: "ok" });
+  };
+
+  check("comprometimentoRenda", scores.comprometimentoRenda, {
+    40: ["Suas despesas superam ou se aproximam da renda. Revise gastos urgentemente.", "critical"],
+    60: ["Comprometimento alto da renda. Busque reduzir despesas não essenciais.", "warning"],
+    80: ["Bom controle, mas há margem para melhorar a economia.", "info"],
+  }, "Sem receitas confirmadas para avaliar comprometimento da renda.");
+
+  check("reservaEmergencia", scores.reservaEmergencia, {
+    40: ["Reserva de emergência insuficiente. Priorize construir pelo menos 1 mês de despesas.", "critical"],
+    70: ["Reserva parcial. O ideal são 6 meses de despesas como colchão.", "warning"],
+  }, "Reserva de emergência não configurada. Configure nas preferências para ativar esta análise.");
+
+  check("controleOrcamento", scores.controleOrcamento, {
+    30: ["Orçamento muito estourado. Revise categorias com maior desvio.", "critical"],
+    50: ["Desvio significativo no orçamento. Ajuste os limites ou reduza gastos.", "warning"],
+    70: ["Pequenos desvios no orçamento. Monitore categorias específicas.", "info"],
+  }, "Nenhum orçamento configurado para este mês. Crie um orçamento para ativar esta análise.");
+
+  check("adimplencia", scores.adimplencia, {
+    50: ["Parcelas em atraso detectadas. Regularize para evitar juros.", "critical"],
+    80: ["Algumas pendências. Mantenha as parcelas em dia.", "warning"],
+  });
+
+  check("regularidade", scores.regularidade, {
+    50: ["Poucos meses com dados. Use o sistema regularmente para melhor análise.", "info"],
+  });
+
+  return recs;
 }
 
 /** Budget Deviation Calculation */

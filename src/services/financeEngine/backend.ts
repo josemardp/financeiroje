@@ -25,8 +25,12 @@ async function callEngine<T>(operation: string, data: any): Promise<T> {
 }
 
 export const backendEngine = {
-  calculateHealthScore: (input: HealthScoreInput) => 
-    callEngine<HealthScoreResult>("calculate-health-score", input),
+  calculateHealthScore: async (input: HealthScoreInput) => {
+    const result = await callEngine<HealthScoreResult>("calculate-health-score", input);
+    // Defesa de contrato: edge functions antigas podem não retornar `recommendations`.
+    // Garante array para que a UI (HealthScore.tsx) nunca quebre em `.length`/`.map`.
+    return { ...result, recommendations: result.recommendations ?? [] };
+  },
   
   calculateBudgetDeviation: (budgets: BudgetRaw[], transactions: TransactionRaw[]) => 
     callEngine<BudgetDeviationResult>("calculate-budget-deviation", { budgets, transactions }),
