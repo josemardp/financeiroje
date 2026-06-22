@@ -814,12 +814,33 @@ Próximo sprint a definir.
 
 ## Próxima tarefa esperada
 
-**Fase 2 — Esdra Cosméticos Operacional: H.1 Painel Empreendedor (Sprint 1)**
+**Fase 2 — Esdra Cosméticos Operacional: H.1 Painel Empreendedor (Sprint 2)**
 
-> Atualizado em 22/06/2026. Saneamento técnico S1–S6 concluído integralmente.
-> Pré-requisito de H.1 cumprido: ≥30 dias de uso do Manual HTML (desde 02/05/2026).
-> Próxima sessão: elaborar e iniciar H.1 Sprint 1 (estrutura base do Painel Empreendedor).
+> Atualizado em 22/06/2026. H.1 Sprint 1 concluído integralmente.
+> Próxima sessão: H.1 Sprint 2 — Tela Métricas + Integração Financeira.
 > Ver `docs/PLANO_PAINEL_ESDRA.md` (v2.0) para o detalhamento técnico dos 6 sprints.
+
+### H.1 Sprint 1 — Estrutura Base do Painel Empreendedor ✅ (22/06/2026)
+
+- [x] **T1.1** — Migration `20260622000002_esdra_painel_init.sql`: 5 tabelas criadas via MCP
+  - `esdra_compromissos_diarios`, `esdra_kpis_semanais`, `esdra_decisoes`, `esdra_clientes`, `esdra_estoque`
+  - Todas com RLS habilitado, políticas por user_id, triggers de updated_at, índices
+  - Colunas GENERATED: `ticket_medio` (kpis) e `margem_pct` (estoque)
+  - Validado: 5/5 tabelas com `relrowsecurity=true`
+
+- [x] **T1.2** — Seed `scripts/seed-manual-esdra.ts`: 83 compromissos ciclo 22/06→21/07
+  - 48 josemar / 35 esdra; 52 mínimo_viável / 31 ideal
+  - Dias de descanso sem compromissos: 3 (24/06), 10 (01/07), 17 (08/07), 24 (15/07)
+  - Aplicado via MCP execute_sql (bypass RLS); idempotente
+  - Validado: 83 linhas confirmadas no Supabase
+
+- [x] **T1.3** — Rota `/painel-esdra/hoje` com persistência completa; 142/142 testes verdes
+  - `src/modules/painel-esdra/types.ts`: interfaces + CICLO_INICIO
+  - `src/modules/painel-esdra/lib/progressoHoje.ts`: calcularProgresso, numeroDiaCiclo, formatarDataPtBr, diaSemana, fraseDodia (15 testes)
+  - `src/modules/painel-esdra/hooks/useCompromissos.ts`: useQuery + updateStatus + fecharDia
+  - `src/modules/painel-esdra/components/CompromissoCard.tsx`: clique-ciclo pendente→cumprido→pulado, observação colapsável
+  - `src/modules/painel-esdra/components/PainelHoje.tsx`: navegação de datas, barras MV/Ideal, blocos por operador, Fechar Dia
+  - `src/pages/PainelEsdraHoje.tsx` + rota lazy em `App.tsx`
 
 ### Roteiro de Saneamento — checklist de alto nível
 - [x] **S1** — ✅ Correção dos números (20/06/2026): saldo do Dashboard, `recommendations`

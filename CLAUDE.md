@@ -147,9 +147,10 @@ Sprints:
 
 - Pipeline de Captura estável (OCR, voz, texto, PDF, Excel, Word).
 - IA Conselheira com perfil comportamental rico (`contextCollector` 1124 linhas).
-- Sprints 1–10 de inteligência pessoal concluídos; Saneamento S1–S5 concluídos.
+- Sprints 1–10 de inteligência pessoal concluídos; Saneamento S1–S6 concluídos.
 - Schema `transactions` tem `confidence`, `source_type`, `validation_notes`, `data_status`.
-- TypeScript strict ligado; zero `as any`; 127 testes verdes; rate-limit via Deno KV.
+- TypeScript strict ligado; zero `as any`; 142 testes verdes; rate-limit via Deno KV.
 - Histórico mensal do Advisor agregado no servidor via RPC `get_monthly_history`.
 - Deploy de edge functions via MCP do Supabase (ferramenta `deploy_edge_function`).
-- **Próximo:** Sprint S6 (doc/higiene) → Fase 2 Painel Esdra (H.1).
+- **H.1 Sprint 1 concluído (22/06/2026):** 5 tabelas `esdra_*`, seed 83 compromissos, rota `/painel-esdra/hoje`.
+- **Próximo:** H.1 Sprint 2 — Tela Métricas + Integração Financeira.
