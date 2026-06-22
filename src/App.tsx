@@ -36,6 +36,7 @@ const AIMemory = lazy(() => import("./pages/settings/AIMemory"));
 const AIExperiments = lazy(() => import("./pages/settings/AIExperiments"));
 const SystemHealthOverview = lazy(() => import("./pages/settings/SystemHealthOverview"));
 const Challenges = lazy(() => import("./pages/Challenges"));
+const PainelEsdraHoje = lazy(() => import("./pages/PainelEsdraHoje"));
 
 const LazyFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -94,6 +95,7 @@ function AppRoutes() {
         <Route path="/configuracoes/ia-experimentos" element={<Suspense fallback={<LazyFallback />}><AIExperiments /></Suspense>} />
         <Route path="/configuracoes/observabilidade" element={<Suspense fallback={<LazyFallback />}><SystemHealthOverview /></Suspense>} />
         <Route path="/challenges" element={<Suspense fallback={<LazyFallback />}><Challenges /></Suspense>} />
+        <Route path="/painel-esdra/hoje" element={<Suspense fallback={<LazyFallback />}><PainelEsdraHoje /></Suspense>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

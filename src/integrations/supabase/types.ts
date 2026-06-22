@@ -464,6 +464,54 @@ export type Database = {
         }
         Relationships: []
       }
+      esdra_compromissos_diarios: {
+        Row: {
+          bloco: string
+          created_at: string
+          data: string
+          descricao: string
+          id: string
+          nivel: string
+          observacoes: string | null
+          operador: string
+          ordem: number
+          status: string
+          tempo_estimado_min: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bloco: string
+          created_at?: string
+          data: string
+          descricao: string
+          id?: string
+          nivel?: string
+          observacoes?: string | null
+          operador: string
+          ordem?: number
+          status?: string
+          tempo_estimado_min?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bloco?: string
+          created_at?: string
+          data?: string
+          descricao?: string
+          id?: string
+          nivel?: string
+          observacoes?: string | null
+          operador?: string
+          ordem?: number
+          status?: string
+          tempo_estimado_min?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       extra_amortizations: {
         Row: {
           created_at: string
