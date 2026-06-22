@@ -649,7 +649,7 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
   `Math.max` vs soma em `calculateGoalProgress` (bug crítico de dupla contagem),
   `progressPercent` cap 100%, filtro `ativo` em `calculateLoanIndicators`,
   suporte a `extraAmortizations` e preferência por `saldo_devedor` quando preenchido.
-  Commit: (pendente)
+  Commit: `87aa058`
 
 ### Sprint S5 — Testes e ferramentas 🟡 (C.1)
 
