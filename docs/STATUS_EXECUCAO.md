@@ -814,13 +814,12 @@ Próximo sprint a definir.
 
 ## Próxima tarefa esperada
 
-**Sprint S6 — Documentação e higiene de repositório** — ver
-`PLANOS_DE_EVOLUCAO.md` → "Roteiro de Saneamento — S6".
+**Fase 2 — Esdra Cosméticos Operacional: H.1 Painel Empreendedor (Sprint 1)**
 
-> Atualizado em 22/06/2026. Sprints S1–S5 do Saneamento concluídos.
-> Pendente antes de prosseguir: aplicar migration `20260622000001_rpc_monthly_history.sql`
-> no Supabase SQL Editor (instrução no prompt gerado pela sessão de 22/06/2026).
-> Após S6, retomar a **Fase 2 — Esdra Cosméticos Operacional** (H.1 Painel Empreendedor).
+> Atualizado em 22/06/2026. Saneamento técnico S1–S6 concluído integralmente.
+> Pré-requisito de H.1 cumprido: ≥30 dias de uso do Manual HTML (desde 02/05/2026).
+> Próxima sessão: elaborar e iniciar H.1 Sprint 1 (estrutura base do Painel Empreendedor).
+> Ver `docs/PLANO_PAINEL_ESDRA.md` (v2.0) para o detalhamento técnico dos 6 sprints.
 
 ### Roteiro de Saneamento — checklist de alto nível
 - [x] **S1** — ✅ Correção dos números (20/06/2026): saldo do Dashboard, `recommendations`
@@ -856,4 +855,7 @@ Próximo sprint a definir.
   aplicada e validada (22/06/2026): função criada, permissões corretas, teste funcional
   com dados reais OK (04/2026 e 05/2026 retornados, junho ausente como esperado).
   **Sprint S5 100% fechado.**
-- [ ] **S6** — Documentação e higiene (README, AGENTS/CLAUDE, doc IA, lockfiles, escopo)
+- [x] **S6** — ✅ Documentação e higiene (22/06/2026): README real; AGENTS.md → stub;
+  CLAUDE.md corrigido (OpenRouter, Tavily, 1124 linhas, npm); lockfiles extras removidos
+  (bun.lock, bun.lockb, pnpm-lock.yaml); playwright atualizado (npm run dev).
+  127/127 testes verdes. **Sprint S6 100% fechado. Saneamento S1–S6 COMPLETO.**

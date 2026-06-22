@@ -669,15 +669,16 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
 
 > **Pré-requisito:** nenhum. Esforço: Pequeno/Médio.
 
-- [ ] **S6.1** — README real apontando para `docs/` + passo a passo de execução.
-- [ ] **S6.2** — Unificar `AGENTS.md`≡`CLAUDE.md` (uma fonte + um stub que referencia).
-- [ ] **S6.3** — Corrigir doc do provedor de IA: registrar **OpenRouter** (modelos
-  `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5`) + Tavily (`ai-advisor/index.ts:621,796`),
-  e atualizar a métrica obsoleta ("contextCollector 852 linhas" → ~1141).
-- [ ] **S6.4** — Escolher um gerenciador (Vercel usa npm) e remover lockfiles extras
-  (`pnpm-lock.yaml`/`bun.lock`/`bun.lockb`/`deno.lock` conforme decisão).
-- [ ] **S6.5** — Documentar no README a fronteira de escopo dos artefatos
-  Esdra/PMESP (`public/manual`, `public/checklist-diadasmaes`, `Rotina de trabalho/`).
+- [x] **S6.1** — ✅ (22/06/2026) README real: stack, como rodar, testes, links para `docs/`.
+- [x] **S6.2** — ✅ (22/06/2026) `AGENTS.md` virou stub de uma linha apontando para `CLAUDE.md`.
+- [x] **S6.3** — ✅ (22/06/2026) `CLAUDE.md` corrigido: provedor de IA → OpenRouter
+  (claude-haiku-4-5, gpt-4o-mini, gemini-3-flash-preview) + Tavily; contextCollector
+  852 → 1124 linhas; package manager → npm; estado atual atualizado.
+- [x] **S6.4** — ✅ (22/06/2026) npm escolhido (alinhado ao `vercel.json`); removidos
+  `bun.lock`, `bun.lockb`, `pnpm-lock.yaml`; `deno.lock` mantido (Deno edge functions);
+  `playwright.config.ts` atualizado (`pnpm dev` → `npm run dev`).
+- [x] **S6.5** — ✅ (22/06/2026) README documenta `public/manual/`,
+  `public/checklist-diadasmaes/` e `Rotina de trabalho/` como artefatos Esdra/PMESP.
 
 ### Critério de conclusão do Saneamento
 

@@ -27,9 +27,10 @@ Não é um produto SaaS — é uso pessoal/familiar. Sem multi-tenant.
 | Estilo | Tailwind CSS + shadcn/ui |
 | Backend | Supabase (PostgreSQL + Auth + RLS + Edge Functions) |
 | Edge Functions | Deno (TypeScript) |
-| IA Conselheira | Anthropic Claude (via Supabase Edge Function `ai-advisor`) |
-| Captura Inteligente | OpenAI gpt-4o-mini (via `smart-capture-interpret`) |
-| Package manager | pnpm (há também bun.lock — ambos presentes) |
+| IA Conselheira | OpenRouter (modelos: `anthropic/claude-haiku-4-5`, `openai/gpt-4o-mini`, `google/gemini-3-flash-preview`) |
+| Busca web | Tavily Search API (via `ai-advisor`) |
+| Captura Inteligente | OpenAI `gpt-4o-mini` (via `smart-capture-interpret`) |
+| Package manager | npm (`vercel.json` usa `npm install/build`; lockfile: `package-lock.json`) |
 | Build | Vite |
 | Testes | Vitest + Playwright |
 
@@ -74,7 +75,7 @@ para tarefas que dependem do schema novo.
 
 ```
 src/services/aiAdvisor/
-  contextCollector.ts   — coleta todo o contexto financeiro (852 linhas)
+  contextCollector.ts   — coleta todo o contexto financeiro (1124 linhas)
   systemPrompt.ts       — monta o system prompt do AI Advisor
   responseParser.ts     — parseia a resposta
 
@@ -145,11 +146,10 @@ Sprints:
 ## Estado atual (Junho/2026)
 
 - Pipeline de Captura estável (OCR, voz, texto, PDF, Excel, Word).
-- IA Conselheira com perfil comportamental rico (`contextCollector` 852 linhas).
-- `ai_coach_memory` existe mas é primitiva (sem tipos, sem deduplicação, sem decaimento).
-- `captureContext.ts` é raso — só categorias + 20 últimas transações. Principal gap a resolver.
+- IA Conselheira com perfil comportamental rico (`contextCollector` 1124 linhas).
+- Sprints 1–10 de inteligência pessoal concluídos; Saneamento S1–S5 concluídos.
 - Schema `transactions` tem `confidence`, `source_type`, `validation_notes`, `data_status`.
-- **Sprint S4 concluído e em produção (2026-06-21):** TypeScript strict, zero `as any`, eslint deps
-  warnings eliminados, rate-limit persistente via Deno KV, contrato de paridade frontend/backend
-  com 30 testes + 4 bugs críticos corrigidos no motor financeiro backend.
-- Deploy de edge functions agora via MCP do Supabase (sem painel web).
+- TypeScript strict ligado; zero `as any`; 127 testes verdes; rate-limit via Deno KV.
+- Histórico mensal do Advisor agregado no servidor via RPC `get_monthly_history`.
+- Deploy de edge functions via MCP do Supabase (ferramenta `deploy_edge_function`).
+- **Próximo:** Sprint S6 (doc/higiene) → Fase 2 Painel Esdra (H.1).
