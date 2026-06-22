@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { checkRateLimit } from "../_shared/rateLimiter.ts";
 
 type HealthStatus = "success" | "warning" | "error";
 
@@ -49,21 +50,8 @@ Responda em português brasileiro, com base nos dados financeiros reais fornecid
 NUNCA invente dados. Se não tiver no contexto, diga que não tem.
 Ao terminar cada resposta, adicione uma linha: INSIGHT_COACH: [observação comportamental, máx 150 chars]`;
 
-// ── Rate limiter in-memory ─────────────────────────────────────────────────
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60_000;
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  entry.count++;
-  return entry.count <= RATE_LIMIT;
-}
 
 // ── Caching helpers ────────────────────────────────────────────────────────
 
@@ -605,7 +593,7 @@ serve(async (req) => {
     }
     const userId = authUser.id;
 
-    if (!checkRateLimit(userId)) {
+    if (!await checkRateLimit(`ai-advisor:${userId}`, RATE_LIMIT, RATE_WINDOW_MS)) {
       return new Response(JSON.stringify({ error: "Limite de requisições excedido. Aguarde um momento." }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { checkRateLimit } from "../_shared/rateLimiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +8,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60_000;
 
@@ -28,19 +28,6 @@ interface StructuredInterpretPayload {
   evidence: string[];
   missing_fields: string[];
   installment_text: string | null;
-}
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-
-  entry.count++;
-  return entry.count <= RATE_LIMIT;
 }
 
 function parseLocalizedAmount(value: unknown) {
@@ -206,7 +193,7 @@ serve(async (req) => {
       });
     }
 
-    if (!checkRateLimit(user.id)) {
+    if (!await checkRateLimit(`smart-capture-interpret:${user.id}`, RATE_LIMIT, RATE_WINDOW_MS)) {
       return new Response(
         JSON.stringify({
           error: "Limite de requisições excedido. Aguarde um momento.",
