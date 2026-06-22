@@ -814,22 +814,44 @@ Próximo sprint a definir.
 
 ## Próxima tarefa esperada
 
-**Sprint S1 — Correção dos números (Roteiro de Saneamento)** — ver
-`PLANOS_DE_EVOLUCAO.md` → "Roteiro de Saneamento — sprint a sprint (S1→S6)".
+**Sprint S6 — Documentação e higiene de repositório** — ver
+`PLANOS_DE_EVOLUCAO.md` → "Roteiro de Saneamento — S6".
 
-> Atualizado em 20/06/2026 pela integração do diagnóstico técnico consolidado.
-> A frente de inteligência (Sprints 1–10) está concluída; a próxima prioridade é a
-> **Fase 1.5 — Saneamento técnico** (bloqueante), começando por **S1.1** (corrigir o
-> saldo do Dashboard, `Dashboard.tsx:168` `saldo_actual`→`saldo_atual`). A entrada
-> anterior ("Sessão 8 — Sprint 9/10") está obsoleta: esses sprints já foram fechados.
+> Atualizado em 22/06/2026. Sprints S1–S5 do Saneamento concluídos.
+> Pendente antes de prosseguir: aplicar migration `20260622000001_rpc_monthly_history.sql`
+> no Supabase SQL Editor (instrução no prompt gerado pela sessão de 22/06/2026).
+> Após S6, retomar a **Fase 2 — Esdra Cosméticos Operacional** (H.1 Painel Empreendedor).
 
 ### Roteiro de Saneamento — checklist de alto nível
 - [x] **S1** — ✅ Correção dos números (20/06/2026): saldo do Dashboard, `recommendations`
   no Score, anomalia com amostra mínima, datas em fuso de SP, parcelamento por competência
   + resíduo. `tsc` 0 erros, 97/97 testes. ✅ Deploys concluídos: `finance-engine` v5,
   `smart-capture-interpret` v15. **Sprint S1 100% fechado.**
-- [ ] **S2** — Segurança e segredos (.env, REVOKE, XSS, RLS)
-- [ ] **S3** — Backup/DR + auditoria de produção + retenção de telemetria
-- [ ] **S4** — Qualidade e tipagem (as any, strict, hooks, rate-limit, paridade de motores)
-- [ ] **S5** — Testes e ferramentas (Playwright, integration-test, contextCollector)
+- [x] **S2** — ✅ Segurança e segredos (21/06/2026): `.env` removido do git + `.gitignore`
+  atualizado; REVOKE EXECUTE nas funções SECURITY DEFINER; XSS corrigido no Manual HTML
+  (`innerHTML` → `.value`); RLS reabilitado em `challenges_catalog`; auditoria de RLS:
+  43/43 tabelas com RLS ativo. **Sprint S2 100% fechado.**
+- [x] **S3** — ✅ Backup/DR + auditoria de produção (21/06/2026): script
+  `scripts/backup-supabase.ps1` (26 tabelas → Google Drive, retenção 30 dias, testado
+  1,94 MB); runbook `docs/RUNBOOK_RESTORE.md`; auditoria de produção via MCP (13/13
+  edge functions ACTIVE, 11 crons, 2 crons com URL quebrada recriados como jobid 13/14);
+  retenção de 30 dias em `system_health_logs` via cron `daily-purge-health-logs`.
+  **Sprint S3 100% fechado.**
+- [x] **S4** — ✅ Qualidade e tipagem (21/06/2026): 48 → 0 `as any` fora de testes;
+  `strict: true` + `noImplicitAny: true` no `tsconfig.app.json`; 5 warnings
+  `exhaustive-deps` eliminados; rate-limit persistente via Deno KV (`_shared/rateLimiter.ts`);
+  30 testes de paridade frontend × backend + 4 bugs corrigidos no motor backend.
+  `tsc` 0 erros, 97/97 testes. **Sprint S4 100% fechado.**
+- [x] **S5** — ✅ Testes e ferramentas (22/06/2026):
+  S5.1 — `playwright.config.ts` corrigido (import ausente substituído por config nativa
+  `@playwright/test`); `e2e/smoke.spec.ts` criado (4 smoke tests de rotas/auth);
+  script `test:e2e` adicionado ao `package.json`.
+  S5.2 — `scripts/integration-test.ts` reescrito com assertions reais (env vars, conexão
+  Supabase, `fs.existsSync` em 5 arquivos, cálculo de score com thresholds verificados).
+  S5.3 — `contextCollector.ts` aliviado: query de 24 meses de transações brutas
+  substituída por RPC `get_monthly_history` (agregação no servidor → ~24 linhas vs.
+  milhares); `buildMonthlySummaryLite` e loop de agrupamento removidos; tipo adicionado
+  em `types.ts`; migration `20260622000001_rpc_monthly_history.sql` criada.
+  `tsc` 0 erros, 127/127 testes. **Sprint S5 100% fechado. ⚠️ Pendente: aplicar
+  migration `20260622000001_rpc_monthly_history.sql` no Supabase SQL Editor.**
 - [ ] **S6** — Documentação e higiene (README, AGENTS/CLAUDE, doc IA, lockfiles, escopo)

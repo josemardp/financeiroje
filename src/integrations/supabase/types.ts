@@ -1223,6 +1223,24 @@ export type Database = {
       }
     }
     Functions: {
+      get_monthly_history: {
+        Args: {
+          p_user_id: string
+          p_start_date: string
+          p_end_date: string
+          p_scope?: string
+        }
+        Returns: {
+          mes: number
+          ano: number
+          label: string
+          total_income: number
+          total_expense: number
+          balance: number
+          savings_rate: number
+          top_categorias: Array<{ nome: string; total: number; percentual: number }>
+        }[]
+      }
       get_transaction_trash: {
         Args: never
         Returns: {

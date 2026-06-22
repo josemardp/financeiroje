@@ -1,49 +1,69 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { calculateHealthScore } from '../src/services/financeEngine/healthScore';
 
 dotenv.config();
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const ROOT = path.resolve(process.cwd());
+
+function check(condition: boolean, label: string): void {
+  if (!condition) throw new Error(`FALHA: ${label}`);
+  console.log(`  ✅ ${label}`);
+}
 
 async function runTests() {
-  console.log('🚀 INICIANDO TESTE DE INTEGRAÇÃO REAL — PROVA DE CONCEITO E2E\n');
+  let passed = 0;
+  let failed = 0;
 
+  console.log('🚀 TESTE DE INTEGRAÇÃO — FinanceiroJe\n');
+
+  // --- TESTE 1: Variáveis de ambiente e conexão Supabase ---
+  console.log('TESTE 1: Variáveis de ambiente e conexão Supabase');
   try {
-    // 1. TESTE DE AUTH (Simulação de verificação de sessão)
-    console.log('--- TESTE 1: AUTH & SESSÃO ---');
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log('✅ Conexão com Supabase: OK');
-    console.log('✅ Endpoint de Auth: Respondendo');
-    console.log('ℹ️ Nota: Criação de conta real requer confirmação de e-mail (infra Supabase externa).\n');
+    const url = process.env.VITE_SUPABASE_URL;
+    const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    check(typeof url === 'string' && url.startsWith('https://'), 'VITE_SUPABASE_URL configurada');
+    check(typeof key === 'string' && key.length > 20, 'VITE_SUPABASE_PUBLISHABLE_KEY configurada');
 
-    // 2. TESTE DE DOCUMENTOS (Integridade de Fluxo)
-    console.log('--- TESTE 2: DOCUMENTOS (INTEGRIDADE) ---');
-    console.log('✅ Verificação de Bucket Privado: OK (Bucket "documents" configurado)');
-    console.log('✅ Verificação de RLS (Row Level Security): OK (Políticas aplicadas no banco)');
-    console.log('✅ Lógica de Exclusão (Inspeção): OK (Inversão de ordem DB -> Storage confirmada em src/pages/Documents.tsx)\n');
+    const supabase = createClient(url!, key!);
+    const { error } = await supabase.auth.getSession();
+    check(error === null, 'auth.getSession() retorna sem erro');
+    passed++;
+  } catch (e) {
+    console.error(`  ❌ ${(e as Error).message}`);
+    failed++;
+  }
 
-    // 3. TESTE DE FECHAMENTO MENSAL (SNAPSHOT DE SCORE)
-    console.log('--- TESTE 3: FECHAMENTO MENSAL (SNAPSHOT DE SCORE) ---');
-    
-    // Simulação de cálculo com preferências reais (como implementado no patch)
-    const mockProfilePrefs = {
-      reserva_emergencia_valor: 15000,
-      reserva_emergencia_meses_meta: 6
-    };
-    
-    const mockMonthData = {
+  // --- TESTE 2: Integridade estrutural do repositório ---
+  console.log('\nTESTE 2: Integridade estrutural do repositório');
+  try {
+    const requiredFiles = [
+      'vercel.json',
+      'src/App.tsx',
+      'src/pages/Documents.tsx',
+      'src/components/shared/ErrorBoundary.tsx',
+      'src/services/financeEngine/healthScore.ts',
+    ];
+    for (const f of requiredFiles) {
+      check(fs.existsSync(path.join(ROOT, f)), `Arquivo existe: ${f}`);
+    }
+    passed++;
+  } catch (e) {
+    console.error(`  ❌ ${(e as Error).message}`);
+    failed++;
+  }
+
+  // --- TESTE 3: Motor financeiro — cálculo de score ---
+  console.log('\nTESTE 3: Motor financeiro — cálculo de score');
+  try {
+    // Perfil saudável: income 2× expense, reserva de 3 meses, sem dívidas vencidas
+    const scoreOK = calculateHealthScore({
       totalIncome: 10000,
       totalExpense: 5000,
-    };
-
-    const scoreResult = calculateHealthScore({
-      totalIncome: mockMonthData.totalIncome,
-      totalExpense: mockMonthData.totalExpense,
       totalDebt: 0,
-      emergencyReserve: mockProfilePrefs.reserva_emergencia_valor,
+      emergencyReserve: 15000,
       emergencyReserveConfigured: true,
       budgetConfigured: true,
       budgetDeviation: 0,
@@ -52,25 +72,50 @@ async function runTests() {
       monthsWithData: 1,
       totalMonthsPossible: 1,
     });
+    check(scoreOK.scoreGeral !== null, 'scoreGeral não é null com dados suficientes');
+    check(scoreOK.scoreGeral! >= 0 && scoreOK.scoreGeral! <= 100, `scoreGeral em [0,100]: ${scoreOK.scoreGeral}`);
+    check(scoreOK.scoreGeral! > 70, `score saudável (income=10k, expense=5k): ${scoreOK.scoreGeral}`);
+    check(Array.isArray(scoreOK.recommendations), 'campo recommendations é array');
+    check(scoreOK.availableComponents > 0, `availableComponents > 0: ${scoreOK.availableComponents}`);
 
-    console.log('✅ Cálculo de Score com Preferências Reais:');
-    console.log(`   - Reserva: R$ ${mockProfilePrefs.reserva_emergencia_valor}`);
-    console.log(`   - Score Geral Calculado: ${scoreResult.scoreGeral}`);
-    console.log(`   - Componente Reserva: ${scoreResult.reservaEmergencia}`);
-    console.log('✅ Validação de Snapshot: OK (Lógica de MonthlyClosing.tsx consome dados do profile corretamente)\n');
+    // Perfil crítico: expense = 5× income, sem reserva, 3/5 parcelas em atraso
+    const scoreBad = calculateHealthScore({
+      totalIncome: 1000,
+      totalExpense: 5000,
+      totalDebt: 50000,
+      emergencyReserve: 0,
+      emergencyReserveConfigured: true,
+      budgetConfigured: true,
+      budgetDeviation: 80,
+      overdueInstallments: 3,
+      totalInstallments: 5,
+      monthsWithData: 1,
+      totalMonthsPossible: 1,
+    });
+    check(scoreBad.scoreGeral !== null, 'scoreGeral não é null no perfil crítico');
+    check(scoreBad.scoreGeral! < 30, `score crítico (expense=5×income, dívidas): ${scoreBad.scoreGeral}`);
 
-    // 4. TESTE DE BUILD & INTEGRIDADE ESTRUTURAL
-    console.log('--- TESTE 4: BUILD & ESTRUTURA ---');
-    console.log('✅ Build de Produção: SUCESSO (Validado via pnpm build)');
-    console.log('✅ Configuração SPA (Vercel): OK (vercel.json presente)');
-    console.log('✅ Resiliência (ErrorBoundary): OK (Presente e integrado no App.tsx)\n');
+    // Discriminação: score saudável > score crítico
+    check(scoreOK.scoreGeral! > scoreBad.scoreGeral!, 'score saudável > score crítico (discriminação)');
 
-    console.log('🏁 TESTES CONCLUÍDOS COM SUCESSO!');
-    console.log('A infraestrutura real está respondendo e as regras de negócio estão íntegras.');
-  } catch (error) {
-    console.error('❌ FALHA NO TESTE DE INTEGRAÇÃO:', error);
+    console.log(`  Score saudável: ${scoreOK.scoreGeral} | Score crítico: ${scoreBad.scoreGeral}`);
+    passed++;
+  } catch (e) {
+    console.error(`  ❌ ${(e as Error).message}`);
+    failed++;
+  }
+
+  // --- RESULTADO ---
+  console.log(`\n${'─'.repeat(40)}`);
+  if (failed === 0) {
+    console.log(`🏁 ${passed}/${passed + failed} testes passaram.`);
+  } else {
+    console.log(`❌ ${failed} teste(s) falharam de ${passed + failed}.`);
     process.exit(1);
   }
 }
 
-runTests();
+runTests().catch((error: Error) => {
+  console.error('\n❌ ERRO INESPERADO:', error.message);
+  process.exit(1);
+});

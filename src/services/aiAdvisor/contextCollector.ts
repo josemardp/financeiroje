@@ -380,15 +380,17 @@ export async function getFinancialContext(
       .or("data_status.eq.confirmed,data_status.is.null"),
     // Fase 12: alertas do mês anterior (snapshot via lidos)
     supabase.from("alerts").select("id, nivel").eq("lido", true).limit(50),
-    // Coach: histórico 2 anos — query única, agrupado por mês no JS
+    // Coach: histórico 2 anos — agregado no servidor (evita trazer milhares de linhas brutas)
     (() => {
       const histStart = new Date(ano - 2, mes - 1, 1).toISOString().split("T")[0];
-      let q = supabase.from("transactions")
-        .select("id, valor, tipo, data, data_status, categoria_id, categories(nome), scope")
-        .gte("data", histStart).lte("data", endOfMonth)
-        .or("data_status.eq.confirmed,data_status.is.null");
-      if (scope !== "all") q = q.eq("scope", scopeTyped);
-      return q;
+      // último dia do mês anterior — mês atual já está em resumoConfirmado
+      const histEnd = new Date(ano, mes - 1, 0).toISOString().split("T")[0];
+      return supabase.rpc("get_monthly_history", {
+        p_user_id: userId,
+        p_start_date: histStart,
+        p_end_date: histEnd,
+        p_scope: scope,
+      });
     })(),
     // Coach: transações recentes (ordered by created_at)
     (() => {
@@ -818,48 +820,21 @@ export async function getFinancialContext(
   const decisaoGuiada = buildDecisaoGuiada();
   const assinaturasResumo = buildAssinaturasResumo();
 
-  // --- Coach: histórico mensal (3 meses anteriores) ---
-  function buildMonthlySummaryLite(
-    rows: any[],
-    m: number,
-    y: number
-  ): FinancialContext["historicoMensal"][number] {
-    const txns = rows.map((t: any) => ({
-      valor: Number(t.valor),
-      tipo: t.tipo,
-      categoria_nome: t.categories?.nome || "Sem categoria",
-    }));
-    const income = txns.filter(t => t.tipo === "income").reduce((s, t) => s + t.valor, 0);
-    const expense = txns.filter(t => t.tipo === "expense").reduce((s, t) => s + t.valor, 0);
-    const balance = income - expense;
-    const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
-    const catMap: Record<string, number> = {};
-    txns.filter(t => t.tipo === "expense").forEach(t => {
-      catMap[t.categoria_nome] = (catMap[t.categoria_nome] || 0) + t.valor;
-    });
-    const topCategorias = Object.entries(catMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([nome, total]) => ({ nome, total, percentual: expense > 0 ? (total / expense) * 100 : 0 }));
-    return { mes: m, ano: y, label: `${String(m).padStart(2, "0")}/${y}`, totalIncome: income, totalExpense: expense, balance, savingsRate, topCategorias };
-  }
-
-  // Agrupar histórico de 2 anos por mês (excluindo mês atual que já está em resumoConfirmado)
-  const currentMonthKey = `${ano}-${String(mes).padStart(2, "0")}`;
-  const monthBuckets: Record<string, any[]> = {};
-  (historyTxResult.data || []).forEach((t: any) => {
-    const key = t.data?.substring(0, 7);
-    if (!key || key === currentMonthKey) return;
-    if (!monthBuckets[key]) monthBuckets[key] = [];
-    monthBuckets[key].push(t);
-  });
-
-  const historicoMensal: FinancialContext["historicoMensal"] = Object.entries(monthBuckets)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([key, rows]) => {
-      const [y, m] = key.split("-").map(Number);
-      return buildMonthlySummaryLite(rows, m, y);
-    });
+  // Histórico mensal — já agregado pelo servidor via RPC get_monthly_history
+  const historicoMensal: FinancialContext["historicoMensal"] = (historyTxResult.data || []).map((row) => ({
+    mes: row.mes,
+    ano: row.ano,
+    label: row.label,
+    totalIncome: Number(row.total_income),
+    totalExpense: Number(row.total_expense),
+    balance: Number(row.balance),
+    savingsRate: Number(row.savings_rate),
+    topCategorias: (row.top_categorias || []).map((c) => ({
+      nome: c.nome,
+      total: Number(c.total),
+      percentual: Number(c.percentual ?? 0),
+    })),
+  }));
 
   const transacoesRecentes: FinancialContext["transacoesRecentes"] = (recentTxResult.data || []).map((t: any) => ({
     data: t.data,
