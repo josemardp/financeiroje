@@ -852,6 +852,8 @@ Próximo sprint a definir.
   substituída por RPC `get_monthly_history` (agregação no servidor → ~24 linhas vs.
   milhares); `buildMonthlySummaryLite` e loop de agrupamento removidos; tipo adicionado
   em `types.ts`; migration `20260622000001_rpc_monthly_history.sql` criada.
-  `tsc` 0 erros, 127/127 testes. **Sprint S5 100% fechado. ⚠️ Pendente: aplicar
-  migration `20260622000001_rpc_monthly_history.sql` no Supabase SQL Editor.**
+  `tsc` 0 erros, 127/127 testes. ✅ Migration `20260622000001_rpc_monthly_history.sql`
+  aplicada e validada (22/06/2026): função criada, permissões corretas, teste funcional
+  com dados reais OK (04/2026 e 05/2026 retornados, junho ausente como esperado).
+  **Sprint S5 100% fechado.**
 - [ ] **S6** — Documentação e higiene (README, AGENTS/CLAUDE, doc IA, lockfiles, escopo)

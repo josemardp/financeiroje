@@ -655,14 +655,15 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
 
 > **Pré-requisito:** nenhum. Esforço: Médio.
 
-- [ ] **S5.1** — Consertar Playwright: substituir o import de
-  `lovable-agent-playwright-config` (`playwright.config.ts:1`, pacote ausente) por
-  config própria de `@playwright/test`; adicionar smoke E2E de login + rotas
-  principais; script `test:e2e` no `package.json`.
-- [ ] **S5.2** — Tornar `scripts/integration-test.ts` real (assertions de verdade) ou
-  renomear como demonstração estática (hoje `:22-26`,`:62-69` afirmam "OK" sem checar).
-- [ ] **S5.3** — Aliviar `contextCollector` (`:375-385` baixa 24 meses brutos;
-  `:842-852` agrega no cliente): mover agregação para RPC/view mensal.
+- [x] **S5.1** — ✅ (22/06/2026) `playwright.config.ts` corrigido (import ausente →
+  config nativa `@playwright/test`); `e2e/smoke.spec.ts` criado (4 smoke tests);
+  script `test:e2e` adicionado ao `package.json`.
+- [x] **S5.2** — ✅ (22/06/2026) `scripts/integration-test.ts` reescrito com assertions
+  reais: env vars, `auth.getSession()`, `fs.existsSync` em 5 arquivos, thresholds de
+  score verificados (saudável >70, crítico <30).
+- [x] **S5.3** — ✅ (22/06/2026) `contextCollector` aliviado: query de 24 meses brutos
+  substituída por `supabase.rpc('get_monthly_history')`; `buildMonthlySummaryLite` e
+  loop de agrupamento removidos; migration aplicada e validada no Supabase.
 
 ### Sprint S6 — Documentação e higiene de repositório 🟢 (C.4)
 
