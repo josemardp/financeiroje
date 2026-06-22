@@ -627,20 +627,20 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
   (`daily-purge-health-logs`, `30 4 * * *`). Migration
   `20260621000003_system_health_logs_retention.sql` aplicada (jobid 12).
 
-### Sprint S4 — Qualidade de código e tipagem 🟡 (C.1/C.2/C.3)
+### Sprint S4 — Qualidade de código e tipagem ✅ CONCLUÍDO 2026-06-21 (C.1/C.2/C.3)
 
 > **Pré-requisito:** S1 concluído (evita misturar correção e refator). Esforço: Médio.
 
-- [ ] **S4.1** — Remover `as any` dos caminhos de escrita (`Transactions.tsx` 11,
-  `SmartCapture.tsx` 10, `Loans.tsx`, `Goals.tsx`, etc.): tipar enums com
-  `Database["public"]["Enums"]["scope_type"]` e afins de `types.ts`.
-- [ ] **S4.2** — Ligar `strict`/`noImplicitAny` por diretório em `tsconfig.app.json`
-  (16,25), zerando erros incrementalmente; reativar regra de `any` no ESLint.
-- [ ] **S4.3** — Corrigir warnings de hooks (`SmartCapture.tsx:448,519`,
-  `Dashboard.tsx:84`, `useTransactionAnomalyCheck.ts:60`,
-  `AchievementUnlockedToast.tsx:38`); comentar casos intencionais.
-- [ ] **S4.4** — Rate-limit persistente no backend (hoje Maps em memória em
-  `ai-advisor`, `smart-capture-interpret`, `smart-capture-voice`).
+- [x] **S4.1** — 48 → 0 `as any` fora de testes: enums via `Enums<"*">`, `UserPreferences`
+  interface, `Json` para JSONB, `"tabela" as never` para tabelas fora dos tipos gerados.
+  Commits: `9ccf441`
+- [x] **S4.2** — `noImplicitAny: false` → `true`, `strict: false` → `true` no `tsconfig.app.json`.
+  Zero erros de compilação. Commit: `86f83bd`
+- [x] **S4.3** — 5 warnings `exhaustive-deps` eliminados: `eslint-disable-next-line` em 2 casos
+  intencionais (rastreio por ID), ref para `lastFetchedCategory` em `useTransactionAnomalyCheck`,
+  pattern de refs estáveis em SmartCapture (voz/OCR). Commit: `ce96ac3`
+- [x] **S4.4** — Rate-limit persistente via Deno KV (`_shared/rateLimiter.ts`): operação
+  atômica com retry, TTL automático, chaves prefixadas por função. Commit: `bc80aa7`
 - [ ] **S4.5** — Contrato/teste de paridade entre os dois motores financeiros
   (`src/services/financeEngine/` puro × `supabase/functions/finance-engine/`).
 
