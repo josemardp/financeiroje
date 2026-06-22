@@ -3,6 +3,7 @@
  * Modo Espelho: Texto Livre, Voz e OCR → Parser → Confirmação → Persistência
  */
 import { useState, useEffect, useRef } from "react";
+import type { Enums } from "@/integrations/supabase/types";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useScope } from "@/contexts/ScopeContext";
@@ -657,14 +658,14 @@ export default function SmartCapture() {
         return {
           user_id: user.id,
           valor: i === installCount - 1 ? lastParcelaValue : parcelaValue,
-          tipo: editForm.tipo as any,
+          tipo: editForm.tipo as Enums<"transaction_type">,
           categoria_id: editForm.categoria_id || null,
           descricao: `${editForm.descricao} (${i + 1}/${installCount})`,
           data: isoDate,
-          scope: editForm.scope as any,
-          data_status: "confirmed" as any,
-          source_type: editForm.source_type as any,
-          confidence: (parsed?.confianca as any) || "media",
+          scope: editForm.scope as Enums<"scope_type">,
+          data_status: "confirmed" as Enums<"data_status">,
+          source_type: editForm.source_type as Enums<"source_type">,
+          confidence: (parsed?.confianca as Enums<"confidence_level">) || "media",
           created_by: user.id,
           validation_notes: `${validationNotes}\nParcela ${i + 1}/${installCount} — Total: ${totalValue} — Início: ${installmentStart}`,
         };
@@ -692,14 +693,14 @@ export default function SmartCapture() {
       const { data: txData, error } = await supabase.from("transactions").insert({
         user_id: user.id,
         valor: totalValue,
-        tipo: editForm.tipo as any,
+        tipo: editForm.tipo as Enums<"transaction_type">,
         categoria_id: editForm.categoria_id || null,
         descricao: editForm.descricao,
         data: editForm.data,
-        scope: editForm.scope as any,
-        data_status: "confirmed" as any,
-        source_type: editForm.source_type as any,
-        confidence: (parsed?.confianca as any) || "media",
+        scope: editForm.scope as Enums<"scope_type">,
+        data_status: "confirmed" as Enums<"data_status">,
+        source_type: editForm.source_type as Enums<"source_type">,
+        confidence: (parsed?.confianca as Enums<"confidence_level">) || "media",
         created_by: user.id,
         validation_notes: validationNotes,
       }).select("id").single();

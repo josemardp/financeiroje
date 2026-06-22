@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -53,7 +54,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({ nome, preferences: prefs as any }).eq("user_id", user.id);
+    const { error } = await supabase.from("profiles").update({ nome, preferences: prefs as unknown as Json }).eq("user_id", user.id);
     if (error) {
       toast.error("Erro ao salvar configurações");
     } else {

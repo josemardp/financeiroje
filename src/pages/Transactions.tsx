@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useScope } from "@/contexts/ScopeContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -48,7 +49,7 @@ export default function Transactions() {
       let query = supabase.from("transactions").select("*, categories(nome, icone, cor)").order("data", { ascending: false }).limit(100);
       if (filterType !== "all") query = query.eq("tipo", filterType as "income" | "expense");
       if (currentScope !== "all") query = query.eq("scope", currentScope);
-      if (filterStatus !== "all") query = query.eq("data_status", filterStatus as any);
+      if (filterStatus !== "all") query = query.eq("data_status", filterStatus as Enums<"data_status">);
       if (search) query = query.ilike("descricao", `%${search}%`);
       const { data } = await query;
       return data || [];
@@ -274,12 +275,12 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
         return {
           user_id: user.id,
           valor: i === installmentCount - 1 ? lastParcelaValue : parcelaValue,
-          tipo: form.tipo as any,
+          tipo: form.tipo as Enums<"transaction_type">,
           categoria_id: form.categoria_id || null,
           descricao: `${form.descricao} (${i + 1}/${installmentCount})`,
           data: isoDate,
-          scope: form.scope as any,
-          data_status: "confirmed" as any,
+          scope: form.scope as Enums<"scope_type">,
+          data_status: "confirmed" as Enums<"data_status">,
           validation_notes: `Parcela ${i + 1}/${installmentCount} — Total: ${totalValue} — Início: ${installmentStart}`,
         };
       });
@@ -288,7 +289,7 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
       if (error) toast.error("Erro ao salvar parcelas", { description: error.message });
       else { toast.success(`${installmentCount} parcelas criadas!`, { description: `R$ ${parcelaValue.toFixed(2)} por parcela` }); onSuccess(); }
     } else {
-      const { error } = await supabase.from("transactions").insert({ user_id: user.id, valor: Number(form.valor), tipo: form.tipo as any, categoria_id: form.categoria_id || null, descricao: form.descricao, data: form.data, scope: form.scope as any, data_status: "confirmed" });
+      const { error } = await supabase.from("transactions").insert({ user_id: user.id, valor: Number(form.valor), tipo: form.tipo as Enums<"transaction_type">, categoria_id: form.categoria_id || null, descricao: form.descricao, data: form.data, scope: form.scope as Enums<"scope_type">, data_status: "confirmed" as Enums<"data_status"> });
       if (error) toast.error("Erro ao salvar", { description: error.message });
       else { toast.success("Transação salva!"); onSuccess(); }
     }
@@ -372,7 +373,7 @@ function NewTransactionForm({ categories, onSuccess }: { categories: any[]; onSu
       <AnomalyWarningModal 
         isOpen={showAnomalyModal}
         onClose={() => setShowAnomalyModal(false)}
-        onConfirm={() => { setShowAnomalyModal(false); handleSubmit(null as any); }}
+        onConfirm={() => { setShowAnomalyModal(false); void proceedWithSubmit(pendingConfirmAfter ?? false); }}
         value={Number(form.valor)}
         expectedRange={anomaly.expectedRange}
       />
@@ -420,15 +421,15 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
     setShowInstallmentConfirm(false);
 
     const newBaseDesc = isInstallment ? form.descricao.replace(/\s*\(\d+\/\d+\)$/, "") : form.descricao;
-    const updateData: any = {
+    const updateData = {
       valor: Number(form.valor),
-      tipo: form.tipo as any,
+      tipo: form.tipo as Enums<"transaction_type">,
       categoria_id: form.categoria_id || null,
       descricao: isInstallment ? `${newBaseDesc} (${currentParcel}/${totalParcels})` : form.descricao,
       data: form.data,
-      scope: form.scope as any,
+      scope: form.scope as Enums<"scope_type">,
+      ...(confirmAfter ? { data_status: "confirmed" as Enums<"data_status"> } : {}),
     };
-    if (confirmAfter) updateData.data_status = "confirmed";
 
     const { error } = await supabase.from("transactions").update(updateData).eq("id", transaction.id);
     if (error) { toast.error("Erro ao atualizar", { description: error.message }); setIsSubmitting(false); return; }
@@ -444,17 +445,17 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
       if (sibError) {
         toast.error("Erro ao buscar parcelas", { description: sibError.message });
       } else if (siblings && siblings.length > 0) {
-        const siblingUpdates = siblings.map((s: any) => {
+        const siblingUpdates = siblings.map((s: { id: string; descricao: string | null }) => {
           const sibMatch = s.descricao?.match(/\((\d+)\/(\d+)\)$/);
           const sibSuffix = sibMatch ? `(${sibMatch[1]}/${sibMatch[2]})` : "";
-          const sibUpdateData: any = {
+          const sibUpdateData = {
             valor: Number(form.valor),
-            tipo: form.tipo as any,
+            tipo: form.tipo as Enums<"transaction_type">,
             categoria_id: form.categoria_id || null,
             descricao: sibSuffix ? `${newBaseDesc} ${sibSuffix}` : s.descricao,
-            scope: form.scope as any,
+            scope: form.scope as Enums<"scope_type">,
+            ...(confirmAfter ? { data_status: "confirmed" as Enums<"data_status"> } : {}),
           };
-          if (confirmAfter) sibUpdateData.data_status = "confirmed";
           return supabase.from("transactions").update(sibUpdateData).eq("id", s.id);
         });
         await Promise.all(siblingUpdates);
@@ -550,7 +551,7 @@ function EditTransactionForm({ transaction, categories, onSuccess }: { transacti
           </p>
         )}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button type="button" variant="outline" className="flex-1" onClick={(e) => handleFormSubmit(e as any, true)} disabled={isSubmitting}>Salvar e Confirmar</Button>
+          <Button type="button" variant="outline" className="flex-1" onClick={() => void doSave(true, false)} disabled={isSubmitting}>Salvar e Confirmar</Button>
           <Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Apenas Salvar</Button>
         </div>
       </form>

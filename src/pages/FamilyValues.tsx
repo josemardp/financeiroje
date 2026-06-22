@@ -2,6 +2,7 @@
  * FinanceAI — Valores Familiares (CRUD funcional)
  */
 import { useState } from "react";
+import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -148,7 +149,7 @@ function ValueForm({ categories, editData, onSuccess }: { categories: any[]; edi
       descricao: form.descricao.trim(),
       importancia: form.importancia,
       categoria_id: form.categoria_id || null,
-      scope: form.scope as any,
+      scope: form.scope as Enums<"scope_type">,
     };
 
     const { error } = editData

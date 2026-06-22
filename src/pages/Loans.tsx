@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -201,7 +202,7 @@ function LoanForm({ onSuccess }: { onSuccess: () => void }) {
     e.preventDefault();
     if (!user || !form.nome || !form.valor_original) { toast.error("Preencha nome e valor original"); return; }
     setIsSubmitting(true);
-    const { error } = await supabase.from("loans").insert({ user_id: user.id, nome: form.nome, valor_original: Number(form.valor_original), saldo_devedor: form.saldo_devedor ? Number(form.saldo_devedor) : Number(form.valor_original), taxa_juros_mensal: form.taxa_juros_mensal ? Number(form.taxa_juros_mensal) : null, cet_anual: form.cet_anual ? Number(form.cet_anual) : null, parcelas_total: form.parcelas_total ? Number(form.parcelas_total) : null, parcelas_restantes: form.parcelas_restantes ? Number(form.parcelas_restantes) : null, valor_parcela: form.valor_parcela ? Number(form.valor_parcela) : null, tipo: form.tipo as any, metodo_amortizacao: form.metodo_amortizacao as any, credor: form.credor || null, data_inicio: form.data_inicio || null, scope: form.scope as any, observacoes: form.observacoes || null });
+    const { error } = await supabase.from("loans").insert({ user_id: user.id, nome: form.nome, valor_original: Number(form.valor_original), saldo_devedor: form.saldo_devedor ? Number(form.saldo_devedor) : Number(form.valor_original), taxa_juros_mensal: form.taxa_juros_mensal ? Number(form.taxa_juros_mensal) : null, cet_anual: form.cet_anual ? Number(form.cet_anual) : null, parcelas_total: form.parcelas_total ? Number(form.parcelas_total) : null, parcelas_restantes: form.parcelas_restantes ? Number(form.parcelas_restantes) : null, valor_parcela: form.valor_parcela ? Number(form.valor_parcela) : null, tipo: form.tipo as Enums<"loan_type">, metodo_amortizacao: form.metodo_amortizacao as Enums<"amortization_method">, credor: form.credor || null, data_inicio: form.data_inicio || null, scope: form.scope as Enums<"scope_type">, observacoes: form.observacoes || null });
     if (error) toast.error("Erro ao salvar", { description: error.message });
     else { toast.success("Dívida cadastrada!"); onSuccess(); }
     setIsSubmitting(false);

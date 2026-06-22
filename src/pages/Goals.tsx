@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,7 +100,7 @@ export default function Goals() {
   });
 
   const PRIORITY_LABELS: Record<string, string> = { alta: "Alta", media: "Média", baixa: "Baixa" };
-  const PRIORITY_COLORS: Record<string, string> = { alta: "destructive", media: "default", baixa: "secondary" };
+  const PRIORITY_COLORS: Record<string, "destructive" | "default" | "secondary"> = { alta: "destructive", media: "default", baixa: "secondary" };
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -134,7 +135,7 @@ export default function Goals() {
                       <span className="line-clamp-2">{g.nome}</span>
                     </CardTitle>
                     <div className="flex flex-wrap items-center gap-1">
-                      <Badge variant={PRIORITY_COLORS[g.prioridade] as any}>{PRIORITY_LABELS[g.prioridade] || "Média"}</Badge>
+                      <Badge variant={PRIORITY_COLORS[g.prioridade] ?? "default"}>{PRIORITY_LABELS[g.prioridade] || "Média"}</Badge>
                       <ScopeBadge scope={g.scope} />
                     </div>
                   </div>
@@ -230,8 +231,8 @@ function GoalForm({ onSuccess, initialData }: { onSuccess: () => void; initialDa
       nome: form.nome.trim(),
       valor_alvo: Number(form.valor_alvo),
       prazo: form.prazo || null,
-      prioridade: form.prioridade as any,
-      scope: form.scope as any,
+      prioridade: form.prioridade as Enums<"goal_priority">,
+      scope: form.scope as Enums<"scope_type">,
       notas: form.notas || null,
     };
 

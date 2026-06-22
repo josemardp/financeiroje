@@ -55,9 +55,9 @@ export default function AIExperiments() {
     queryFn: async () => {
       // 1. Buscar dados em paralelo
       const [variantsRes, messagesRes, feedbackRes] = await Promise.all([
-        (supabase as any).from("prompt_variants").select("*").eq("active", true),
-        (supabase as any).from("ai_messages").select("id, prompt_variant_keys").not("prompt_variant_keys", "is", null),
-        (supabase as any).from("ai_self_observations").select("user_feedback, message_id").not("message_id", "is", null).not("user_feedback", "is", null)
+        supabase.from("prompt_variants" as never).select("*").eq("active", true),
+        supabase.from("ai_messages" as never).select("id, prompt_variant_keys").not("prompt_variant_keys", "is", null),
+        supabase.from("ai_self_observations" as never).select("user_feedback, message_id").not("message_id", "is", null).not("user_feedback", "is", null)
       ]);
 
       if (variantsRes.error) throw variantsRes.error;
@@ -80,7 +80,7 @@ export default function AIExperiments() {
       const finalResult: Experiment[] = variantsData.map((exp: any) => {
         const variantOptions = Array.isArray(exp.variants) 
           ? exp.variants 
-          : (exp.variants as any)?.options || [];
+          : (exp.variants as Record<string, unknown>)?.options as unknown[] || [];
         
         const variantKeys = variantOptions.map((v: any) => 
           typeof v === "string" ? v : (v.key || v.variant_key)

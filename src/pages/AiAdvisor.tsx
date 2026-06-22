@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -280,7 +281,7 @@ export default function AiAdvisor() {
           user_id: user.id,
           role: "user" as const,
           content: userText,
-          contexto_enviado: context as any,
+          contexto_enviado: context as unknown as Json,
         }]);
       }
 
@@ -427,7 +428,7 @@ export default function AiAdvisor() {
             user_id: user.id,
             role: "assistant" as const,
             content: assistantText,
-            prompt_variant_keys: promptVariantKeys as any,
+            prompt_variant_keys: promptVariantKeys as unknown as Json,
           })
           .select("id")
           .single();
@@ -444,8 +445,8 @@ export default function AiAdvisor() {
       if (hasRecommendation && user) {
         const targetId = finalMessageId;
         setTimeout(async () => {
-          const { data: rec } = await (supabase as any)
-            .from("decision_outcomes")
+          const { data: rec } = await supabase
+            .from("decision_outcomes" as never)
             .select("id")
             .eq("user_id", user.id)
             .is("user_response", null)

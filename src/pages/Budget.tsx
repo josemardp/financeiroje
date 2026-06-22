@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useScope } from "@/contexts/ScopeContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -276,7 +277,7 @@ function BudgetForm({ categories, month, year, onSuccess }: { categories: any[];
       valor_planejado: Number(form.valor_planejado),
       mes: month,
       ano: year,
-      scope: form.scope as any,
+      scope: form.scope as Enums<"scope_type">,
     });
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });

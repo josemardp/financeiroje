@@ -5,6 +5,7 @@
  * Regras: mês fechado não pode ser alterado silenciosamente.
  */
 import { useState, useMemo } from "react";
+import type { UserPreferences } from "@/types/userPreferences";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,7 +118,7 @@ export default function MonthlyClosing() {
     } : null;
 
     // Reserve closing input
-    const prefs = (profile?.preferences || {}) as any;
+    const prefs = (profile?.preferences || {}) as UserPreferences;
     const reserveValue = Number(prefs.reserva_emergencia_valor) || 0;
     const targetMonths = Number(prefs.reserva_emergencia_meses_meta) || 6;
     const reserveConfigured = reserveValue > 0 || targetMonths > 0;
@@ -149,7 +150,7 @@ export default function MonthlyClosing() {
         overallStatus: monthData.budget.overallStatus,
       } : null;
 
-      const prefs = (profile?.preferences || {}) as any;
+      const prefs = (profile?.preferences || {}) as UserPreferences;
       const emergencyReserveValue = prefs.reserva_emergencia_valor || 0;
       const emergencyReserveConfigured = emergencyReserveValue > 0 || !!prefs.reserva_emergencia_meses_meta;
       const scoreSnapshot = await calculateHealthScore({

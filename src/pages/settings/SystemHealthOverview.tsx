@@ -80,8 +80,8 @@ export default function SystemHealthOverview() {
   } = useQuery({
     queryKey: ["system-health-alerts"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("system_health_alerts")
+      const { data, error } = await (supabase as unknown as typeof supabase)
+        .from("system_health_alerts" as never)
         .select("*")
         .order("component_name", { ascending: true });
 

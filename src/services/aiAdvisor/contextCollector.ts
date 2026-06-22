@@ -42,6 +42,14 @@ import type {
   LoanSummary,
 } from "@/services/financeEngine/types";
 
+interface ScriptureRow {
+  book: string;
+  chapter: number;
+  verse: number;
+  text_acf: string;
+  themes: string[];
+}
+
 // --- Fase 12: Tipos de memória de progresso, decisão guiada e assinaturas ---
 
 export interface ProgressoMemoriaItem {
@@ -1014,7 +1022,7 @@ export async function getFinancialContext(
 
   // --- Sprint 10 T10.2: Identidade e Versículos (Determinístico) ---
   const questionLower = currentQuestion?.toLowerCase() || "";
-  const allScriptures = (scriptureResult.data || []) as any[];
+  const allScriptures = (scriptureResult.data || []) as ScriptureRow[];
   
   // 1. Detecção controlada de temas
   const keywordsMapping: Record<string, string[]> = {

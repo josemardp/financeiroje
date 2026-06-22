@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -186,7 +187,7 @@ function AccountForm({ onSuccess }: { onSuccess: () => void }) {
       nome: form.nome.trim(),
       tipo: form.tipo,
       saldo_inicial: Number(form.saldo_inicial) || 0,
-      scope: form.scope as any,
+      scope: form.scope as Enums<"scope_type">,
     });
     if (error) {
       toast.error("Erro ao criar conta", { description: error.message });

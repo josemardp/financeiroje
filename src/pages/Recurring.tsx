@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,7 +142,7 @@ function RecurringForm({ categories, editData, onSuccess }: { categories: any[];
     e.preventDefault();
     if (!user || !form.descricao || !form.valor || Number(form.valor) <= 0) { toast.error("Preencha todos os campos obrigatórios"); return; }
     setIsSubmitting(true);
-    const payload = { user_id: user.id, descricao: form.descricao, valor: Number(form.valor), tipo: form.tipo as any, categoria_id: form.categoria_id || null, frequencia: form.frequencia as any, dia_mes: form.dia_mes ? Number(form.dia_mes) : null, scope: form.scope as any, responsavel: form.responsavel || null, e_mei: form.e_mei };
+    const payload = { user_id: user.id, descricao: form.descricao, valor: Number(form.valor), tipo: form.tipo as Enums<"transaction_type">, categoria_id: form.categoria_id || null, frequencia: form.frequencia as Enums<"frequency_type">, dia_mes: form.dia_mes ? Number(form.dia_mes) : null, scope: form.scope as Enums<"scope_type">, responsavel: form.responsavel || null, e_mei: form.e_mei };
     const { error } = editData ? await supabase.from("recurring_transactions").update(payload).eq("id", editData.id) : await supabase.from("recurring_transactions").insert(payload);
     if (error) toast.error("Erro ao salvar", { description: error.message });
     else { toast.success(editData ? "Recorrência atualizada!" : "Recorrência criada!"); onSuccess(); }

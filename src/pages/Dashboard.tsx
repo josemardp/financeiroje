@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import type { UserPreferences } from "@/types/userPreferences";
 import { useScope } from "@/contexts/ScopeContext";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -193,7 +194,7 @@ export default function Dashboard() {
     0,
   );
 
-  const prefs = (profile?.preferences || {}) as any;
+  const prefs = (profile?.preferences || {}) as UserPreferences;
   const reserveValue = Number(prefs.reserva_emergencia_valor || 0);
   const reserveConfigured = !!prefs.reserva_emergencia_valor;
 

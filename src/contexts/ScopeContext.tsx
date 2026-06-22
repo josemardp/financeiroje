@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
+import type { UserPreferences } from "@/types/userPreferences";
 
 export type ScopeType = "private" | "family" | "business" | "all";
 
@@ -28,7 +29,7 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
   // Sync with profile preference on login or profile change
   useEffect(() => {
     if (profile?.preferences) {
-      const prefs = profile.preferences as any;
+      const prefs = profile.preferences as UserPreferences;
       if (prefs.escopo_padrao && !localStorage.getItem("financeai_scope_initialized")) {
         setCurrentScope(prefs.escopo_padrao as ScopeType);
         localStorage.setItem("financeai_scope_initialized", "true");

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { UserPreferences } from "@/types/userPreferences";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -140,7 +141,7 @@ export default function Alerts() {
         status: i.status,
       }));
 
-      const prefs = (financialData.profile?.preferences || {}) as any;
+      const prefs = (financialData.profile?.preferences || {}) as UserPreferences;
 
       return generateAlerts({
         totalIncome: summary?.totalIncome || 0,

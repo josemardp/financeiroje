@@ -18,7 +18,7 @@ export function DecisionResponseButtons({ decisionId }: Props) {
   async function submit(response: "accepted" | "postponed" | "rejected", noteText?: string) {
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("mark_decision_response" as any, {
+      const { error } = await supabase.rpc("mark_decision_response" as never, {
         p_decision_id: decisionId,
         p_response:    response,
         p_note:        noteText ?? null,
