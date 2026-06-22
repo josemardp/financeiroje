@@ -35,17 +35,25 @@ Não é um produto SaaS — é uso pessoal/familiar. Sem multi-tenant.
 
 ---
 
-## Deploys ao Supabase — workflow manual via painel web
+## Deploys ao Supabase — via MCP (preferencial) ou painel web (fallback)
 
 Importante: o Supabase NÃO está conectado ao GitHub via Actions.
 Push no repo NÃO aplica migrations nem deploya edge functions automaticamente.
 
-O usuário aplica migrations manualmente via painel web do Supabase (SQL Editor).
-Por isso, sempre que você criar uma migration ou edge function nova,
-OBRIGATORIAMENTE inclua no final da resposta um bloco de instruções
-passo a passo de aplicação:
+### Edge Functions — usar MCP do Supabase (preferencial)
 
-PARA MIGRATIONS:
+O usuário tem o MCP do Supabase disponível na sessão do Claude Code.
+Para deployar edge functions, usar a ferramenta `mcp__claude_ai_Supabase__deploy_edge_function`.
+O arquivo `_shared/rateLimiter.ts` deve ser incluído como dependência relativa
+nas funções `ai-advisor`, `smart-capture-interpret` e `smart-capture-voice`.
+
+Após o deploy, confirmar com `mcp__claude_ai_Supabase__list_edge_functions` que o status ficou ACTIVE.
+
+### Migrations — painel web do Supabase (SQL Editor)
+
+O usuário aplica migrations manualmente via SQL Editor.
+Sempre que criar uma migration nova, incluir no final da resposta:
+
 1. Abrir https://app.supabase.com → projeto FinanceiroJe → SQL Editor
 2. Clicar em + New query
 3. Colar o SQL exato (forneça pronto para colar)
@@ -53,18 +61,8 @@ PARA MIGRATIONS:
 5. Rodar query de validação (forneça SELECT que prova aplicação)
 6. Aguardar confirmação do usuário antes de prosseguir
 
-PARA EDGE FUNCTIONS:
-1. Abrir https://app.supabase.com → projeto FinanceiroJe → Edge Functions
-2. Clicar em Deploy a new function
-3. Informar nome exato
-4. Colar o código completo
-5. Clicar em Deploy
-6. Testar com curl ou query de validação
-7. Aguardar confirmação do usuário antes de prosseguir
-
 NUNCA sugira `supabase db push`, `supabase functions deploy`,
-ou `supabase migration up` — o usuário não tem CLI instalado
-e prefere fluxo manual via painel.
+ou `supabase migration up` — o usuário não tem o CLI Supabase instalado.
 
 NUNCA assuma que uma migration foi aplicada só porque o arquivo
 existe no repo. Sempre confirme com o usuário antes de prosseguir
@@ -121,7 +119,7 @@ Sprints:
 
 ## Regras de colaboração (OBRIGATÓRIAS em toda sessão)
 
-- **NÃO executar `supabase db push` nem `supabase functions deploy`** — Josemar deploya manualmente.
+- **NÃO executar `supabase db push` nem `supabase functions deploy` via CLI** — sem CLI instalado. Usar MCP para edge functions, painel web para migrations.
 - **NÃO executar `npm run build`** sem pedido explícito — demora muito.
 - **ANTES de editar qualquer arquivo**: mostrar o plano/diff e aguardar validação.
 - **Uma tarefa por vez** — não fazer tudo em cascata sem aprovação de cada etapa.
@@ -144,11 +142,14 @@ Sprints:
 
 ---
 
-## Estado atual (Abril/2026)
+## Estado atual (Junho/2026)
 
 - Pipeline de Captura estável (OCR, voz, texto, PDF, Excel, Word).
 - IA Conselheira com perfil comportamental rico (`contextCollector` 852 linhas).
 - `ai_coach_memory` existe mas é primitiva (sem tipos, sem deduplicação, sem decaimento).
 - `captureContext.ts` é raso — só categorias + 20 últimas transações. Principal gap a resolver.
 - Schema `transactions` tem `confidence`, `source_type`, `validation_notes`, `data_status`.
-- Sprint A concluído: nome do usuário passado ao LLM, PIX de receita corrigidos.
+- **Sprint S4 concluído e em produção (2026-06-21):** TypeScript strict, zero `as any`, eslint deps
+  warnings eliminados, rate-limit persistente via Deno KV, contrato de paridade frontend/backend
+  com 30 testes + 4 bugs críticos corrigidos no motor financeiro backend.
+- Deploy de edge functions agora via MCP do Supabase (sem painel web).
