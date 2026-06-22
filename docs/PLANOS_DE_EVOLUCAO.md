@@ -627,7 +627,7 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
   (`daily-purge-health-logs`, `30 4 * * *`). Migration
   `20260621000003_system_health_logs_retention.sql` aplicada (jobid 12).
 
-### Sprint S4 — Qualidade de código e tipagem ✅ CONCLUÍDO 2026-06-21 (C.1/C.2/C.3)
+### Sprint S4 — Qualidade de código e tipagem ✅ CONCLUÍDO 2026-06-21
 
 > **Pré-requisito:** S1 concluído (evita misturar correção e refator). Esforço: Médio.
 
@@ -641,8 +641,15 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
   pattern de refs estáveis em SmartCapture (voz/OCR). Commit: `ce96ac3`
 - [x] **S4.4** — Rate-limit persistente via Deno KV (`_shared/rateLimiter.ts`): operação
   atômica com retry, TTL automático, chaves prefixadas por função. Commit: `bc80aa7`
-- [ ] **S4.5** — Contrato/teste de paridade entre os dois motores financeiros
+- [x] **S4.5** — Contrato/teste de paridade entre os dois motores financeiros
   (`src/services/financeEngine/` puro × `supabase/functions/finance-engine/`).
+  30 testes de paridade (`parity.test.ts`) cobrem os 6 contratos núméricos.
+  4 bugs corrigidos no backend: `overallStatus` threshold (`>5→>10`),
+  `deviationPercent` quando `planned=0`, `confidenceLevel` forecast (30d/90d),
+  `Math.max` vs soma em `calculateGoalProgress` (bug crítico de dupla contagem),
+  `progressPercent` cap 100%, filtro `ativo` em `calculateLoanIndicators`,
+  suporte a `extraAmortizations` e preferência por `saldo_devedor` quando preenchido.
+  Commit: (pendente)
 
 ### Sprint S5 — Testes e ferramentas 🟡 (C.1)
 

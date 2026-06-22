@@ -54,6 +54,15 @@ interface LoanRaw {
   parcelas_restantes: number | null;
   valor_parcela: number | null;
   metodo_amortizacao: "price" | "sac" | null;
+  ativo?: boolean | null;
+}
+
+interface ExtraAmortizationRaw {
+  id: string;
+  emprestimo_id: string;
+  valor: number;
+  data: string;
+  observacao: string | null;
 }
 
 interface InstallmentRaw {
@@ -237,7 +246,9 @@ function calculateBudgetDeviation(budgets: BudgetRaw[], transactions: Transactio
     const actual = categoryTxns.filter(t => t.data_status === "confirmed" || !t.data_status).reduce((s, t) => s + Number(t.valor), 0);
     const suggestedActual = categoryTxns.filter(t => t.data_status === "suggested").reduce((s, t) => s + Number(t.valor), 0);
     const deviationAbsolute = actual - Number(budget.valor_planejado);
-    const deviationPercent = budget.valor_planejado > 0 ? (deviationAbsolute / budget.valor_planejado) * 100 : 0;
+    const deviationPercent = budget.valor_planejado > 0
+      ? (deviationAbsolute / budget.valor_planejado) * 100
+      : actual > 0 ? 100 : 0;
     
     let status: "ok" | "warning" | "exceeded" = "ok";
     if (deviationPercent > 10) status = "exceeded";
@@ -262,7 +273,7 @@ function calculateBudgetDeviation(budgets: BudgetRaw[], transactions: Transactio
   const totalDeviationPercent = totalPlanned > 0 ? (totalDeviationAbsolute / totalPlanned) * 100 : 0;
 
   let overallStatus: "ok" | "warning" | "exceeded" = "ok";
-  if (totalDeviationPercent > 5) overallStatus = "exceeded";
+  if (totalDeviationPercent > 10) overallStatus = "exceeded";
   else if (totalDeviationPercent > 0) overallStatus = "warning";
 
   return {
@@ -307,7 +318,7 @@ function calculateCashflowForecast(input: any) {
       projectedBalance: round2(currentBalance + totalInflows - totalOutflows),
       totalInflows: round2(totalInflows),
       totalOutflows: round2(totalOutflows),
-      confidenceLevel: h.days <= 30 ? "alta" : "media"
+      confidenceLevel: h.days <= 7 ? "alta" : h.days <= 30 ? "media" : "baixa"
     };
   });
 
@@ -324,8 +335,8 @@ function calculateGoalProgress(goals: GoalRaw[], contributions: GoalContribution
   return goals.map(goal => {
     const goalContributions = contributions.filter(c => c.goal_id === goal.id);
     const totalContributed = goalContributions.reduce((s, c) => s + Number(c.valor), 0);
-    const currentVal = (Number(goal.valor_atual) || 0) + totalContributed;
-    const progressPercent = goal.valor_alvo > 0 ? (currentVal / goal.valor_alvo) * 100 : 0;
+    const currentVal = Math.max(Number(goal.valor_atual) || 0, totalContributed);
+    const progressPercent = Math.min(100, goal.valor_alvo > 0 ? (currentVal / goal.valor_alvo) * 100 : 0);
     const remainingAmount = Math.max(0, goal.valor_alvo - currentVal);
     
     const projectedCompletionDate = null;
@@ -353,18 +364,25 @@ function calculateGoalProgress(goals: GoalRaw[], contributions: GoalContribution
 }
 
 /** Loan Indicators Calculation */
-function calculateLoanIndicators(loans: LoanRaw[], installments: InstallmentRaw[]) {
-  const results = loans.map(loan => {
+function calculateLoanIndicators(loans: LoanRaw[], installments: InstallmentRaw[], extraAmortizations: ExtraAmortizationRaw[] = []) {
+  const results = loans.filter(l => l.ativo !== false).map(loan => {
     const loanInstallments = installments.filter(i => i.emprestimo_id === loan.id);
+    const loanExtras = extraAmortizations.filter(e => e.emprestimo_id === loan.id);
     const paidInstallments = loanInstallments.filter(i => i.status === "pago" || i.data_pagamento);
     const pendingInstallments = loanInstallments.filter(i => i.status !== "pago" && !i.data_pagamento);
-    
-    const totalJaPago = paidInstallments.reduce((s, i) => s + Number(i.valor), 0);
-    const saldoAtual = Math.max(0, Number(loan.valor_original) - totalJaPago);
+
+    const totalPaidFromInstallments = paidInstallments.reduce((s, i) => s + Number(i.valor), 0);
+    const totalExtraAmortized = loanExtras.reduce((s, e) => s + Number(e.valor), 0);
+    const totalJaPago = totalPaidFromInstallments + totalExtraAmortized;
+
+    const saldoAtual = loan.saldo_devedor != null
+      ? Number(loan.saldo_devedor)
+      : Math.max(0, Number(loan.valor_original) - totalJaPago);
+
     const parcelasRestantes = Number(loan.parcelas_restantes) || pendingInstallments.length;
     const valorParcela = Number(loan.valor_parcela) || (pendingInstallments[0] ? Number(pendingInstallments[0].valor) : 0);
     const custoEstimadoRestante = round2(parcelasRestantes * valorParcela);
-    
+
     const taxaMensal = Number(loan.taxa_juros_mensal) || 0;
     const impactoAmortizacaoExtra = taxaMensal > 0 && parcelasRestantes > 0
       ? round2(saldoAtual * (taxaMensal / 100) * parcelasRestantes * 0.5)
@@ -480,7 +498,7 @@ serve(async (req) => {
         result = calculateGoalProgress(data.goals, data.contributions);
         break;
       case "calculate-loan-indicators":
-        result = calculateLoanIndicators(data.loans, data.installments);
+        result = calculateLoanIndicators(data.loans, data.installments, data.extraAmortizations ?? []);
         break;
       case "calculate-monthly-summary":
         result = calculateMonthlySummary(data.transactions);
