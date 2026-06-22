@@ -375,6 +375,18 @@ export default function SmartCapture() {
     }, MIRROR_HESITATION_THRESHOLD_MS);
   };
 
+  // Refs para valores estáveis lidos dentro dos efeitos de voz/OCR.
+  // Permitem que os efeitos leiam valores atuais sem precisar declará-los como deps
+  // (o que causaria reprocessamento de resultados antigos ao trocar escopo/usuário).
+  const currentScopeRef = useRef(currentScope);
+  currentScopeRef.current = currentScope;
+  const userRef = useRef(user);
+  userRef.current = user;
+  const profileNomeRef = useRef(profile?.nome);
+  profileNomeRef.current = profile?.nome;
+  const applyParsedResultRef = useRef(applyParsedResult);
+  applyParsedResultRef.current = applyParsedResult;
+
   const handleFieldFocus = (field: string) => {
     const sinceOpened = mirrorStartRef.current !== null
       ? Date.now() - mirrorStartRef.current
@@ -407,18 +419,18 @@ export default function SmartCapture() {
       setTextInput(voiceResult.text);
 
       try {
-        const { contextBlock: voiceCtx } = await getCaptureContext(currentScope, user!.id);
+        const { contextBlock: voiceCtx } = await getCaptureContext(currentScopeRef.current, userRef.current!.id);
         const interpreted = await InterpretAdapter.interpret({
           text: voiceResult.text,
           sourceKind: "voice_transcript",
-          userName: profile?.nome ?? undefined,
+          userName: profileNomeRef.current ?? undefined,
           userContext: voiceCtx || undefined,
         });
 
         if (!active) return;
 
         const result = mapStructuredInterpretToParsed(interpreted);
-        applyParsedResult(result, "voice", "Voz");
+        applyParsedResultRef.current(result, "voice", "Voz");
 
         toast.success("Dados extraídos com IA", {
           description: "Revise no Modo Espelho abaixo.",
@@ -431,7 +443,7 @@ export default function SmartCapture() {
           error instanceof Error ? error.message : undefined
         );
 
-        applyParsedResult(fallback, "voice", "Voz");
+        applyParsedResultRef.current(fallback, "voice", "Voz");
 
         const msg =
           error instanceof Error ? error.message : "Erro na interpretação da transcrição";
@@ -463,16 +475,16 @@ export default function SmartCapture() {
     try {
       if (!ocrText) {
         const mapped = mapStructuredOcrToParsed(ocrResult);
-        applyParsedResult(mapped, "photo_ocr", "OCR/Foto");
+        applyParsedResultRef.current(mapped, "photo_ocr", "OCR/Foto");
         toast.warning("OCR não conseguiu extrair texto legível.");
         return;
       }
 
-      const { contextBlock: ocrCtx } = await getCaptureContext(currentScope, user!.id);
+      const { contextBlock: ocrCtx } = await getCaptureContext(currentScopeRef.current, userRef.current!.id);
       const interpreted = await InterpretAdapter.interpret({
         text: ocrText,
         sourceKind: "ocr_text",
-        userName: profile?.nome ?? undefined,
+        userName: profileNomeRef.current ?? undefined,
         userContext: ocrCtx || undefined,
       });
 
@@ -489,7 +501,7 @@ export default function SmartCapture() {
       };
 
       const result = mapStructuredInterpretToParsed(mergedInterpreted);
-      applyParsedResult(result, "photo_ocr", "OCR/Foto");
+      applyParsedResultRef.current(result, "photo_ocr", "OCR/Foto");
 
       toast.success("Dados extraídos com IA (OCR + Interpretação)", {
         description:
@@ -505,7 +517,7 @@ export default function SmartCapture() {
         error instanceof Error ? error.message : undefined
       );
 
-      applyParsedResult(fallback, "photo_ocr", "OCR/Foto");
+      applyParsedResultRef.current(fallback, "photo_ocr", "OCR/Foto");
 
       toast.warning("OCR concluído com fallback local", {
         description: "A interpretação estruturada falhou. Revise no Modo Espelho.",

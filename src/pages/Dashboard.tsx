@@ -82,7 +82,8 @@ export default function Dashboard() {
         // falha silenciosa — toast ainda exibe; próxima abertura tentará novamente
       }
     })();
-  }, [currentToast?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentToast?.id]); // rastreado por ID — evita re-marcar se a referência do objeto mudar
 
   const { data: rawTransactions } = useQuery({
     queryKey: ["dashboard-transactions", user?.id, currentScope],

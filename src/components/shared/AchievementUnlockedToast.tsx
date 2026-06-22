@@ -35,7 +35,8 @@ export function AchievementUnlockedToast({ achievement, onDone }: Props) {
     }, 2816);
 
     return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); };
-  }, [achievement?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [achievement?.id]); // rastreado por ID — evita re-animar se outras props mudarem
 
   if (phase === "hidden" || !achievement) return null;
 

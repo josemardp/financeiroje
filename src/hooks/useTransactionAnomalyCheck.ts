@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface AnomalyResult {
@@ -15,19 +15,18 @@ export function useTransactionAnomalyCheck(
   value: number,
   type: string = 'expense'
 ): AnomalyResult {
-  const [stats, setStats] = useState({ 
-    p50: 0, p90: 0, n: 0, isLoading: false, lastFetchedCategory: "" 
-  });
+  const [stats, setStats] = useState({ p50: 0, p90: 0, n: 0, isLoading: false });
+  const lastFetchedCategoryRef = useRef("");
 
   useEffect(() => {
     async function fetchHistory() {
       if (!userId || !categoryId || value <= 0 || type !== 'expense') {
-        if (stats.n !== 0) setStats({ p50: 0, p90: 0, n: 0, isLoading: false, lastFetchedCategory: "" });
+        lastFetchedCategoryRef.current = "";
+        setStats({ p50: 0, p90: 0, n: 0, isLoading: false });
         return;
       }
 
-      // Evita múltiplas queries se a categoria não mudou. 
-      if (categoryId === stats.lastFetchedCategory) return;
+      if (categoryId === lastFetchedCategoryRef.current) return;
 
       setStats(prev => ({ ...prev, isLoading: true }));
       try {
@@ -47,9 +46,11 @@ export function useTransactionAnomalyCheck(
           const n = values.length;
           const p50 = values[Math.floor(n * 0.5)];
           const p90 = values[Math.ceil(n * 0.9) - 1];
-          setStats({ p50, p90, n, isLoading: false, lastFetchedCategory: categoryId });
+          lastFetchedCategoryRef.current = categoryId;
+          setStats({ p50, p90, n, isLoading: false });
         } else {
-          setStats({ p50: 0, p90: 0, n: 0, isLoading: false, lastFetchedCategory: categoryId });
+          lastFetchedCategoryRef.current = categoryId;
+          setStats({ p50: 0, p90: 0, n: 0, isLoading: false });
         }
       } catch (err) {
         console.error("Erro na detecção de anomalia:", err);
