@@ -71,11 +71,18 @@ FinanceiroJe — Ecossistema de Planos
 │   ├── public/manual/index.html                      ✅ Em produção (02/Mai/2026)
 │   ├── manual_30_dias_progresso (tabela)             ✅ Migration aplicada
 │   ├── manual_30_dias_decisoes (tabela)              ✅ Migration aplicada
-│   └── PLANO_PAINEL_ESDRA.md (v2.0)                  📋 6 sprints aguardando execução
-│       ├── Sprints 1-4: sistema operacional
+│   └── PLANO_PAINEL_ESDRA.md (v2.0)                  🔄 Sprint 1 concluído (22/06/2026)
+│       ├── Sprint 1: ✅ estrutura base + 83 compromissos + rota /painel-esdra/hoje
+│       ├── Sprints 2-4: sistema operacional (aguardando)
 │       └── Sprints 5-6: PIL Esdra + AI Conselheiro
 │
-└── 🏗️ Eixo Evolução do Projeto (este documento)    📋 22 + 4 planos em 8 categorias
+├── 📱 Eixo FinanceiroJe Sync (novo — Jun/2026)
+│   ├── docs/sync/PRD_MVP_FinanceiroJe_Sync_v2.0.md  📋 PRD aprovado
+│   ├── docs/sync/PROMPT_Sprint_Minus1_Spike_Android.md
+│   ├── docs/sync/ROTEIRO_SPIKE.md                   ⏳ aguardando testes físicos
+│   └── financeiroje-sync-spike/ (repo separado)     ⏳ Sprint -1 pendente
+│
+└── 🏗️ Eixo Evolução do Projeto (este documento)    📋 22 + 4 + 1 planos em 9 categorias
     ├── A. Plataforma e operação (4 planos)
     ├── B. Segurança e conformidade (3 planos)
     ├── C. Qualidade de código (4 planos)
@@ -83,7 +90,8 @@ FinanceiroJe — Ecossistema de Planos
     ├── E. Uso profissional (3 planos)
     ├── F. Colaboração familiar (3 planos)
     ├── G. Inteligência deferida (3 planos — vindos do plano complementar)
-    └── H. Esdra Cosméticos como Sistema (4 planos — adicionada Mai/2026)
+    ├── H. Esdra Cosméticos como Sistema (4 planos — adicionada Mai/2026)
+    └── I. FinanceiroJe Sync (1 plano — adicionada Jun/2026)
 ```
 
 ---
@@ -460,6 +468,33 @@ FinanceiroJe — Ecossistema de Planos
 
 ---
 
+## 11-bis. Categoria I — FinanceiroJe Sync (Captura automática)
+
+*Adicionada em Junho/2026. Módulo companion Android que captura notificações bancárias e as transforma em lançamentos estruturados automaticamente — eliminando a digitação manual, causa número 1 de abandono de apps de finanças pessoais.*
+
+*Documentação completa: `docs/sync/PRD_MVP_FinanceiroJe_Sync_v2.0.md` (v2.0, 23/06/2026). O spike de viabilidade (Sprint -1) acontece em repositório separado (`financeiroje-sync-spike/`).*
+
+### I.1 — FinanceiroJe Sync MVP 🔴
+
+**Descrição:** App companion Android (Kotlin + Jetpack Compose) com `NotificationListenerService` que captura notificações bancárias, persiste localmente via Room (offline-first, idempotência por `event_key`), envia ao backend Supabase via Edge Function `/ingest` idempotente, e um pipeline de parsing de 7 etapas (regex determinístico → alias do usuário → fallback IA validada por schema → deduplicação em 3 camadas) converte em transações estruturadas no PWA. Compliance mínimo: RLS em todas as tabelas, consentimento granular (`consents`), exclusão de dados (LGPD + Google Play), `raw_extras` por allowlist.
+
+**Motivação:** Os bancos brasileiros já emitem notificações padronizadas por templates. Interceptar esse fluxo que já existe transforma o FinanceiroJe no que deveria ser desde o início: o usuário abre o app e o dinheiro já está contado, sem digitar nada.
+
+**Cronograma (PRD §24):**
+- Sprint -1 (2–3 dias): spike de viabilidade Android — gate binário antes de qualquer comprometimento
+- Sprint 0–6 (8–12 semanas): parser → companion → ingestão → processo → PWA → compliance → beta fechado (10 usuários, 30 dias)
+
+**Gate de produção (PRD §23.2):** parsing > 80% **e** duplicação real < 5% **e** falso positivo de dedup ~0% **e** zero perda verificável **e** ≥ 10 betas a 30 dias.
+
+**Esforço:** Grande (8–12 semanas)
+**Pré-requisitos:** Spike de viabilidade Android (Sprint -1) com go/no-go positivo
+**Prioridade de execução:** Alta — iniciada em 23/06/2026, paralela a H.1
+**Documentação completa:** `docs/sync/PRD_MVP_FinanceiroJe_Sync_v2.0.md`
+**Prompt do Sprint -1:** `docs/sync/PROMPT_Sprint_Minus1_Spike_Android.md`
+**Roteiro de testes:** `docs/sync/ROTEIRO_SPIKE.md`
+
+---
+
 ## Diagnóstico técnico — Junho/2026 (snapshot)
 
 > Esta seção e as duas seguintes (Categoria S + Roteiro de Saneamento) incorporam
@@ -729,7 +764,9 @@ ao código. Só então retomar com folga as Fases 2+ (Painel Esdra etc.).
 | G.2 | Drift Detection | Inteligência deferida | 🟢 | Médio | A.1 |
 | G.3 | Laboratório Experimental | Inteligência deferida | 🟢 | Grande | G.2 |
 
-**Total:** 22 planos originais + 4 da Categoria H + 3 deferidos + **6 de Saneamento (Categoria S)** = **35 entradas de backlog**.
+| **I.1** | **FinanceiroJe Sync MVP** | **Sync** | 🔴 | **Grande** | **Spike Sprint -1 aprovado** |
+
+**Total:** 22 planos originais + 4 da Categoria H + 1 da Categoria I + 3 deferidos + **6 de Saneamento (Categoria S)** = **36 entradas de backlog**.
 
 ---
 
@@ -765,10 +802,11 @@ Após Sprints 8-10 do plano complementar (já concluídos em Abril/2026):
 
 Concluído o Saneamento (S1–S6 `[x]`), retomar a Fase 2.
 
-### Fase 2 — Esdra Cosméticos Operacional (Junho-Julho/2026, ~6-8 semanas)
+### Fase 2 — Esdra Cosméticos Operacional + FinanceiroJe Sync (Junho-Julho/2026, ~6-8 semanas)
 
-5. **H.1 — Painel Empreendedor (Sprints 1-4)** — Sistema operacional completo. Inicia após mínimo 30 dias de uso do Manual HTML **e após o Saneamento (Fase 1.5)**.
-6. **D.2 — Importação de Dados Externos** — Multiplica o volume de dados para todas as camadas de inteligência (paralelo a H.1 se houver banda).
+5. **H.1 — Painel Empreendedor (Sprints 1-4)** — Sistema operacional completo. Sprint 1 ✅ concluído (22/06/2026). Sprints 2-4 em andamento.
+6. **I.1 — FinanceiroJe Sync MVP** — Paralelo a H.1. Sprint -1 (spike Android) primeiro; go/no-go antes de comprometer as 8 semanas. Ver `docs/sync/PRD_MVP_FinanceiroJe_Sync_v2.0.md`.
+7. **D.2 — Importação de Dados Externos** — Multiplica o volume de dados para todas as camadas de inteligência (paralelo a H.1 se houver banda).
 
 ### Fase 3 — Inteligência Esdra + Crescimento (Agosto-Setembro/2026, ~8 semanas)
 
@@ -847,6 +885,16 @@ usuário. I.1 e I.3 são as mais alinhadas ao princípio de integridade de dados
 ---
 
 ## 13. Histórico de versões
+
+### v1.3 — 23 de Junho de 2026
+
+**Adições:**
+- Nova **Categoria I — FinanceiroJe Sync** (1 plano: I.1) na matriz (§11) — total de backlog sobe de 35 para **36 entradas**.
+- Mapa do ecossistema atualizado com o novo eixo FinanceiroJe Sync.
+- Fase 2 da sequência atualizada para incluir I.1 (paralelo a H.1).
+- Status de H.1 atualizado: Sprint 1 ✅ concluído (22/06/2026).
+
+**Origem:** PRD v2.0 (`docs/sync/PRD_MVP_FinanceiroJe_Sync_v2.0.md`) aprovado em 23/06/2026 após errata técnica v1.0→v2.0 (C01–C20). Spike de viabilidade Android (Sprint -1) pendente de execução em aparelhos físicos.
 
 ### v1.2 — 20 de Junho de 2026
 

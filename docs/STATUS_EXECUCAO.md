@@ -842,6 +842,25 @@ Próximo sprint a definir.
   - `src/modules/painel-esdra/components/PainelHoje.tsx`: navegação de datas, barras MV/Ideal, blocos por operador, Fechar Dia
   - `src/pages/PainelEsdraHoje.tsx` + rota lazy em `App.tsx`
 
+### FinanceiroJe Sync — Nova Iniciativa (23/06/2026)
+
+**Decisão:** Iniciar o módulo companion Android para captura automática de notificações bancárias — eliminando a digitação manual que é a causa número 1 de abandono de apps de finanças pessoais.
+
+- PRD v2.0 aprovado e versionado: `docs/sync/PRD_MVP_FinanceiroJe_Sync_v2.0.md`
+- Pasta do spike criada: `financeiroje-sync-spike/` (projeto Android descartável, separado deste repo)
+- Prompt do Sprint -1: `docs/sync/PROMPT_Sprint_Minus1_Spike_Android.md`
+- Roteiro de testes: `docs/sync/ROTEIRO_SPIKE.md` (preencher com resultados reais nos aparelhos)
+- **Status:** aguardando Sprint -1 (spike de viabilidade Android — 2–3 dias em aparelhos físicos)
+
+**Próximos passos do Sync:**
+1. Abrir sessão Claude Code em `financeiroje-sync-spike/` com o prompt do Sprint -1
+2. Executar roteiro de cenários 1–5 em ≥ 2 aparelhos físicos (Samsung P0 + Xiaomi P0)
+3. Preencher `ROTEIRO_SPIKE.md` com os resultados reais
+4. Avaliar go/no-go (critérios: PRD §23.2 + `ROTEIRO_SPIKE.md`)
+5. Go → Sprint 0 (parser determinístico + golden files); No-Go → reavaliar abordagem
+
+---
+
 ### Roteiro de Saneamento — checklist de alto nível
 - [x] **S1** — ✅ Correção dos números (20/06/2026): saldo do Dashboard, `recommendations`
   no Score, anomalia com amostra mínima, datas em fuso de SP, parcelamento por competência
