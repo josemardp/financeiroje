@@ -244,11 +244,13 @@ FinanceiroJe — Ecossistema de Planos
 
 **Descrição:** Suporte nativo a: (1) importação de extrato OFX (formato padrão dos bancos brasileiros); (2) importação de CSV estruturado dos principais bancos (Nubank, Itaú, Caixa, C6, Inter, PagSeguro, PicPay); (3) integração com Pluggy ou Belvo para Open Finance — sincronização automática de contas via API oficial do Banco Central. Categorização automática via `user_patterns` já existentes (Sprint 2 do plano original).
 
-**Motivação:** Hoje o sistema vive de digitação manual + OCR. Isso limita adoção massiva e limita também o volume de dados para inteligência pessoal aprender. Open Finance via Pluggy transformaria o FinanceiroJe em ferramenta séria.
+**Nota de escopo (04/07/2026 — elaboração conjunta com o plano D.6):** este plano tem **dois blocos com custo muito diferente** e não devem ser tratados como um só. **Bloco A — OFX/CSV** (itens 1 e 2): grátis, sem dependência de terceiro, cabe no orçamento pessoal — é a base contábil autoritativa (histórico + conciliação + volume de dados para a IA). **Bloco B — API Open Finance paga (Pluggy/Belvo, item 3):** modelo B2B, custo estimado ~R$2.500/mês **não confirmado** na tabela vigente do provedor — tratar como deferimento permanente até essa premissa ser confirmada e caber no orçamento. Elaboração técnica futura deste plano deve separar os dois blocos em sprints distintos, priorizando o Bloco A.
 
-**Esforço:** Grande (8-12 dias)
-**Pré-requisitos:** Nenhum
-**Prioridade de execução:** Alta estratégica — destrava D.1 e aumenta volume de dados para todos os outros recursos
+**Motivação:** Hoje o sistema vive de digitação manual + OCR. Isso limita adoção massiva e limita também o volume de dados para inteligência pessoal aprender. O Bloco A (OFX/CSV) já resolve a maior parte disso sem custo recorrente.
+
+**Esforço:** Grande (8-12 dias) — Bloco A sozinho é Médio (4-6 dias); Bloco B soma o restante e só se justifica se o custo do provedor for viável
+**Pré-requisitos:** Nenhum para o Bloco A; confirmação de custo/orçamento para o Bloco B
+**Prioridade de execução:** Alta estratégica para o Bloco A — destrava D.1 e aumenta volume de dados para todos os outros recursos. Bloco B fica atrás de D.6 Fase 0-2 na prática, dado o custo.
 
 ---
 
@@ -285,6 +287,22 @@ FinanceiroJe — Ecossistema de Planos
 **Esforço:** Pequeno-Médio (3-4 dias)
 **Pré-requisitos:** Nenhum
 **Prioridade de execução:** Baixa — implementar só se necessidade real surgir
+
+---
+
+### D.6 — Captura Automática de Transações (Notificações + Importação) 🟢
+
+**Descrição:** Reduzir o atrito de captura manual em duas frentes complementares: (1) modo "colar notificação/SMS bancário" na Captura Inteligente + PWA Share Target (compartilhar texto direto de outro app para o FinanceiroJe), usando `source_kind: "bank_notification"` já suportado por `smart-capture-interpret`; (2) se o piloto provar valor, automação via MacroDroid/Tasker capturando notificações de apps bancários e enviando a uma edge function de ingestão, com tabela de staging (`external_capture_events`) para dedup e revisão — nunca lançamento automático confirmado. Companion Android nativo (Capacitor + `NotificationListenerService`, sideload) é a última fase, só se o piloto vencer por limitação do MacroDroid/Tasker, não por falta de valor.
+
+**Elaboração técnica completa:** `docs/PLANO_CAPTURA_NOTIFICACOES.md` — 5 fases com gates de decisão e critério de morte objetivo (30-60 dias) para a fase de automação.
+
+**Motivação:** Capturar transações de cartão/banco sem digitar nem fotografar. Groundwork parcial já existe: enum `source_type='sms'` reservado desde o débito D6 (Sprint 6) nunca foi usado.
+
+**Restrição técnica:** automação de notificação é Android-only (iOS não expõe API pública equivalente); a Fase 0 (colar/Share Target) funciona em qualquer plataforma e é a única parte deste plano sem risco de fragilidade de background.
+
+**Esforço:** Pequeno (Fase 0, poucos dias) até Grande (se chegar à Fase 4 — companion nativo)
+**Pré-requisitos:** Nenhum para a Fase 0. Fases 3-4 dependem do gate de valor da Fase 0-2.
+**Prioridade de execução:** Fase 0 pode entrar em paralelo a qualquer frente. Fases 3-4 ficam atrás do Bloco A de D.2 (OFX/CSV), que entrega mais valor por menos esforço.
 
 ---
 
@@ -721,6 +739,7 @@ ao código. Só então retomar com folga as Fases 2+ (Painel Esdra etc.).
 | C.4 | Documentação Viva | Qualidade | 🟢 | Médio | — |
 | D.4 | Acessibilidade WCAG | Produto | 🟢 | Médio | — |
 | D.5 | Internacionalização | Produto | 🟢 | Pequeno | — |
+| D.6 | Captura via Notificações/Importação | Produto | 🟢 | Pequeno–Grande | — (Fase 0); gate próprio |
 | E.3 | Separação Fiscal PF/MEI | Business | 🟢 | Pequeno | E.1 |
 | F.2 | Educação filha | Família | 🟢 | Médio | idade apropriada |
 | F.3 | Conselheiro Espiritual Família | Família | 🟢 | Médio | Sprint 10 + F.1 |
@@ -729,7 +748,7 @@ ao código. Só então retomar com folga as Fases 2+ (Painel Esdra etc.).
 | G.2 | Drift Detection | Inteligência deferida | 🟢 | Médio | A.1 |
 | G.3 | Laboratório Experimental | Inteligência deferida | 🟢 | Grande | G.2 |
 
-**Total:** 22 planos originais + 4 da Categoria H + 3 deferidos + **6 de Saneamento (Categoria S)** = **35 entradas de backlog**.
+**Total:** 23 planos originais (D.6 adicionado em 04/07/2026) + 4 da Categoria H + 3 deferidos + **6 de Saneamento (Categoria S)** = **36 entradas de backlog**.
 
 ---
 
@@ -798,6 +817,7 @@ Concluído o Saneamento (S1–S6 `[x]`), retomar a Fase 2.
 21. **F.2 — Educação filha** — Quando a idade permitir.
 22. **D.5 — Internacionalização** — Se surgir necessidade real.
 23. **H.4 — Multi-marca / Multi-negócio** — Apenas se sinal real de diversificação aparecer.
+24. **D.6 — Captura via Notificações (Fases 3-4)** — A Fase 0 (colar/Share Target) pode entrar bem antes, em paralelo; só a automação (MacroDroid/companion nativo) fica aqui, atrás do Bloco A de D.2.
 
 ---
 
@@ -847,6 +867,18 @@ usuário. I.1 e I.3 são as mais alinhadas ao princípio de integridade de dados
 ---
 
 ## 13. Histórico de versões
+
+### v1.3 — 04 de Julho de 2026
+
+**Adições:**
+- Nova **D.6 — Captura Automática de Transações (Notificações + Importação)** na Categoria D. Elaborada em sessão dedicada (colar/Share Target → staging/dedup → piloto MacroDroid/Tasker com critério de morte → companion nativo só se necessário). Elaboração técnica completa em novo documento `docs/PLANO_CAPTURA_NOTIFICACOES.md`.
+- Total de backlog sobe de 35 para **36 entradas**.
+
+**Modificações:**
+- **D.2 — Importação de Dados Externos** reescopado em dois blocos de custo distinto: Bloco A (OFX/CSV, grátis, alta prioridade) e Bloco B (API Open Finance paga, custo não confirmado, deferimento até validar orçamento). Elaboração técnica futura de D.2 deve tratar os blocos como sprints separados.
+- Matriz (§11) e recomendação de sequência (§12, Fase 6) atualizadas com D.6.
+
+**Origem:** consolidação de três rodadas de análise (proposta interna, relatório externo recebido pelo usuário, e segunda opinião solicitada a um modelo mais capaz) sobre como automatizar a captura de transações bancárias sem violar os princípios de zero-alucinação e sem push de engajamento do projeto.
 
 ### v1.2 — 20 de Junho de 2026
 

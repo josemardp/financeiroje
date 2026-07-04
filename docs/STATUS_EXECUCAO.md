@@ -1,5 +1,29 @@
 # STATUS_EXECUCAO — FinanceiroJe
 
+## Planejamento — 4 de Julho de 2026: Captura Automática de Transações (D.6)
+
+**Resumo:** sessão dedicada de planejamento (sem implementação) para desenhar como automatizar a
+captura de transações bancárias via SMS/notificações + importação, sem violar zero-alucinação nem
+o princípio de "sem push de engajamento". Três rodadas de análise consolidadas: proposta interna,
+relatório externo, e segunda opinião de um modelo mais capaz que arbitrou entre as duas.
+
+**Decisões registradas:**
+- Novo plano **D.6 — Captura Automática de Transações (Notificações + Importação)** adicionado ao
+  backlog (`docs/PLANOS_DE_EVOLUCAO.md`), com elaboração técnica completa em
+  `docs/PLANO_CAPTURA_NOTIFICACOES.md` — 5 fases (colar/Share Target → staging → OFX/CSV → piloto
+  MacroDroid com critério de morte de 30-60 dias → companion nativo só se necessário).
+- **D.2 — Importação de Dados Externos** reescopado em dois blocos: OFX/CSV (grátis, prioridade
+  alta) e API Open Finance paga (custo ~R$2.500/mês não confirmado, deferimento até validar
+  orçamento).
+- Nenhum código implementado nesta sessão — próximo passo é executar a Fase 0 do
+  `PLANO_CAPTURA_NOTIFICACOES.md` quando decidido.
+
+**Próxima ação esperada:** retomar com a Fase 0 (modo "colar notificação" + PWA Share Target na
+Captura Inteligente) ou seguir com H.1 Sprint 2 (Painel Empreendedor), conforme prioridade do
+usuário.
+
+---
+
 ## Marco — 2 de Maio de 2026: Sistema Operacional Esdra Cosméticos lançado
 
 **Resumo:** Antes de iniciar o Painel Empreendedor (H.1) propriamente dito, foi construído e deployado um **MVP descartável intencional** em forma de HTML standalone, para destravar a execução comercial sem aguardar 4 sprints de programação.
