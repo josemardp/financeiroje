@@ -1,5 +1,33 @@
 # STATUS_EXECUCAO — FinanceiroJe
 
+## Implementação — 9 de Julho de 2026: D.6 Fase 0 — Captura por Notificação/SMS
+
+**Resumo:** concluída a implementação local da primeira fase de D.6, sem automação de
+background, sem migration e sem alteração no Android. A Captura Inteligente passa a aceitar texto
+de notificação/SMS bancário colado manualmente ou compartilhado pelo PWA.
+
+**Entregas validadas localmente:**
+- ✅ Novo modo **Notificação / SMS** em `SmartCapture.tsx`, enviado ao interpretador com
+  `source_kind: "bank_notification"` e rastreado como `source_type: "sms"`.
+- ✅ `share_target` GET no `manifest.webmanifest`: compartilhar texto no Android abre
+  `/captura`, pré-preenche o campo e exige interpretação e confirmação explícita.
+- ✅ Proteção zero-alucinação no servidor: o valor somente é aceito quando há exatamente um valor
+  monetário literal no texto. Ausência ou múltiplos valores removem o valor estruturado e exigem
+  revisão no Modo Espelho.
+- ✅ 10 testes Vitest para formatos de notificações brasileiras; suite total em **152 testes**.
+- ✅ `npx tsc --noEmit` sem erros.
+
+**Estado de publicação:** frontend será publicado pelo push em `main`; o deploy da Edge Function
+`smart-capture-interpret` está pendente de autenticação no painel Supabase desta sessão. O teste
+Deno específico foi incluído, mas não executado localmente porque o runtime Deno não está
+instalado nesta máquina.
+
+**Próximo gate:** usar a Fase 0 por algumas semanas com notificações reais. Se o atrito já cair o
+suficiente, encerrar o trilho de notificação; caso contrário, iniciar D.2 Bloco A (OFX/CSV), antes
+de considerar automação Android.
+
+---
+
 ## Planejamento — 4 de Julho de 2026: Captura Automática de Transações (D.6)
 
 **Resumo:** sessão dedicada de planejamento (sem implementação) para desenhar como automatizar a

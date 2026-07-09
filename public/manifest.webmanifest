@@ -11,6 +11,13 @@
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "categories": ["finance", "productivity"],
+  "share_target": {
+    "action": "/captura",
+    "method": "GET",
+    "params": {
+      "text": "texto"
+    }
+  },
   "icons": [
     {
       "src": "/icons/icon-192.png",

@@ -10,7 +10,8 @@ export type InterpretSourceKind =
   | "voice_transcript"
   | "pdf_text"
   | "docx_text"
-  | "ocr_text";
+  | "ocr_text"
+  | "bank_notification";
 
 export interface InterpretRequest {
   text: string;

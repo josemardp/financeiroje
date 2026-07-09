@@ -60,11 +60,14 @@ import {
   Sparkles,
   Paperclip,
   Clipboard,
+  Bell,
 } from "lucide-react";
 
 import { useScreenTracking, useBehaviorTracking, type EngagementEventType } from "@/services/telemetry/useBehaviorTracking";
+import { checkBankNotificationAmounts } from "@/services/smartCapture/bankNotification";
+import { useSearchParams } from "react-router-dom";
 
-type CaptureMode = "text" | "voice" | "file";
+type CaptureMode = "text" | "voice" | "file" | "notification";
 
 function mapOcrConfidence(
   metadata?: { confidence?: "alta" | "media" | "baixa" },
@@ -286,9 +289,28 @@ export default function SmartCapture() {
   const hesitationFiredRef = useRef<boolean>(false);
   const mirrorHesitationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isInterpreting, setIsInterpreting] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sharedTextHandledRef = useRef<string | null>(null);
   const [isExtractingFile, setIsExtractingFile] = useState(false);
   const [sourceLabel, setSourceLabel] = useState("Texto Livre");
   const [phoneBillData, setPhoneBillData] = useState<PhoneBillData | null>(null);
+
+  useEffect(() => {
+    const sharedText = searchParams.get("texto")?.trim();
+    if (!sharedText || sharedTextHandledRef.current === sharedText) return;
+
+    sharedTextHandledRef.current = sharedText;
+    setMode("notification");
+    setTextInput(sharedText);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("texto");
+      return next;
+    }, { replace: true });
+    toast.info("Notificação recebida", {
+      description: "Revise o texto e interprete antes de confirmar qualquer transação.",
+    });
+  }, [searchParams, setSearchParams]);
 
   const [editForm, setEditForm] = useState({
     valor: "",
@@ -316,6 +338,8 @@ export default function SmartCapture() {
       label ||
         (source === "free_text"
           ? "Texto Livre"
+          : source === "sms"
+            ? "Notificação / SMS"
           : source === "voice"
             ? "Voz"
             : "OCR/Foto")
@@ -542,6 +566,15 @@ export default function SmartCapture() {
   ) => {
     const textToParse = (input || textInput).trim();
     if (!textToParse) return;
+
+    if (sourceKind === "bank_notification") {
+      const { hasExactlyOneAmount } = checkBankNotificationAmounts(textToParse);
+      if (!hasExactlyOneAmount) {
+        toast.warning("Valor precisa de revisão", {
+          description: "A notificação não tem um único valor explícito. Nada será confirmado automaticamente.",
+        });
+      }
+    }
 
     // Cancel any in-flight interpret request before starting a new one
     interpretAbortRef.current?.abort();
@@ -922,6 +955,15 @@ export default function SmartCapture() {
         </Button>
 
         <Button
+          variant={mode === "notification" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setMode("notification")}
+          className="flex-1 justify-center transition-all sm:flex-none"
+        >
+          <Bell className="mr-2 h-4 w-4" /> Notificação / SMS
+        </Button>
+
+        <Button
           variant={mode === "voice" ? "default" : "outline"}
           size="sm"
           onClick={() => setMode("voice")}
@@ -947,9 +989,11 @@ export default function SmartCapture() {
               <Sparkles className="h-4 w-4 text-primary" />
               {mode === "text"
                 ? "O que aconteceu?"
-                : mode === "voice"
-                  ? "Fale para capturar"
-                  : "Envie uma foto ou documento"}
+                : mode === "notification"
+                  ? "Cole o texto da notificação ou SMS bancário"
+                  : mode === "voice"
+                    ? "Fale para capturar"
+                    : "Envie uma foto ou documento"}
             </CardTitle>
           </CardHeader>
 
@@ -979,6 +1023,36 @@ export default function SmartCapture() {
                   {isInterpreting
                     ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Interpretando...</>
                     : <><Send className="mr-2 h-4 w-4" /> Interpretar com IA</>
+                  }
+                </Button>
+              </div>
+            )}
+
+            {mode === "notification" && (
+              <div className="space-y-4">
+                <Textarea
+                  placeholder='Ex: "Nubank: Compra de R$ 47,90 no Mercado Pago aprovada" ou cole o texto de um SMS/notificação aqui'
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  rows={4}
+                  className="resize-none text-base sm:text-lg"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleParse("", "sms", "bank_notification", "Notificação / SMS");
+                    }
+                  }}
+                  onPaste={handleTextareaPaste}
+                />
+
+                <Button
+                  onClick={() => void handleParse("", "sms", "bank_notification", "Notificação / SMS")}
+                  disabled={!textInput.trim() || isInterpreting}
+                  className="w-full sm:w-auto"
+                >
+                  {isInterpreting
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Interpretando...</>
+                    : <><Send className="mr-2 h-4 w-4" /> Interpretar Notificação</>
                   }
                 </Button>
               </div>

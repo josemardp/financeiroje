@@ -1,6 +1,6 @@
 # PLANO TÉCNICO — CAPTURA AUTOMÁTICA DE TRANSAÇÕES (D.6)
 
-**Versão:** 1.0
+**Versão:** 1.1
 **Projeto:** FinanceiroJe (extensão do módulo Captura Inteligente)
 **Stack:** React + TypeScript + Vite + Supabase (Deno Edge Functions) + PWA
 **Repo:** `josemardp/financeiroje`
@@ -85,18 +85,24 @@ não depende de contrato com o provedor.
 
 ### Fase 0 — Agora (custo zero)
 
+**Status em 09/07/2026:** implementação concluída localmente e validada com 152 testes Vitest e
+`tsc --noEmit`. A publicação da Edge Function `smart-capture-interpret` depende de autenticação
+no painel Supabase; o frontend será publicado pelo push em `main`.
+
 **Objetivo:** modo "colar notificação/SMS" na Captura Inteligente + PWA Share Target.
 
-- Novo modo de captura em `SmartCapture.tsx`, reusando o pipeline de texto livre já existente.
-- Chamada a `smart-capture-interpret` com `source_kind: "bank_notification"`.
-- Resultado grava `source_type: "sms"` (valor já existente no enum) e **sempre**
-  `data_status: "suggested"` ou `"incomplete"` — nunca `"confirmed"` automaticamente.
-- Regra de extração: o valor precisa aparecer **literal** no texto — o LLM não infere número. Se
-  houver mais de um valor candidato no texto, marca `"inconsistent"`.
-- PWA Share Target: adicionar bloco `share_target` em `public/manifest.webmanifest`
+- [x] Novo modo de captura em `SmartCapture.tsx`, reusando o pipeline de texto livre já existente.
+- [x] Chamada a `smart-capture-interpret` com `source_kind: "bank_notification"`.
+- [x] Resultado usa `source_type: "sms"` (valor já existente no enum) e abre o Modo Espelho;
+  nenhuma transação é gravada antes da confirmação explícita do usuário.
+- [x] Regra de extração: o valor precisa aparecer **literal** no texto — o LLM não infere número.
+  Se houver zero ou mais de um valor candidato, o valor estruturado é removido e exige revisão.
+- [x] PWA Share Target: bloco `share_target` em `public/manifest.webmanifest`
   (`method: "GET"`, ação apontando para uma rota tipo `/captura?texto=`), permitindo compartilhar
   o texto de uma notificação/SMS direto de outro app Android para o FinanceiroJe sem copiar/colar
   manualmente. Não exige mudança no `sw.js`.
+- [x] Testes de notificações: compra, PIX recebido, crédito em conta, estorno/ambiguidade e ausência
+  de valor. O teste Deno da função também foi incluído para a validação de valores literais.
 
 **Objetivo duplo:** alívio de atrito imediato + coleta de amostras reais (Nubank, Itaú, Pix,
 estorno, fatura) para calibrar o parser antes de qualquer automação.

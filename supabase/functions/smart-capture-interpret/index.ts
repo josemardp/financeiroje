@@ -30,7 +30,7 @@ interface StructuredInterpretPayload {
   installment_text: string | null;
 }
 
-function parseLocalizedAmount(value: unknown) {
+export function parseLocalizedAmount(value: unknown) {
   if (typeof value === "number") {
     return Number.isFinite(value) && value > 0 && value <= 1_000_000 ? value : null;
   }
@@ -49,6 +49,50 @@ function parseLocalizedAmount(value: unknown) {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) && parsed > 0 && parsed <= 1_000_000 ? parsed : null;
+}
+
+export function extractLiteralNotificationAmounts(text: string): number[] {
+  const amounts: number[] = [];
+  const matches = text.matchAll(/(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}|\d+\.\d{2})/gi);
+
+  for (const match of matches) {
+    const amount = parseLocalizedAmount(match[1]);
+    if (amount !== null) amounts.push(amount);
+  }
+
+  return amounts;
+}
+
+function constrainBankNotificationAmount(
+  parsed: StructuredInterpretPayload,
+  text: string,
+): StructuredInterpretPayload {
+  const literalAmounts = extractLiteralNotificationAmounts(text);
+  if (literalAmounts.length === 1) {
+    return {
+      ...parsed,
+      amount: literalAmounts[0],
+      evidence: [
+        ...parsed.evidence,
+        ...(parsed.amount !== literalAmounts[0]
+          ? ["Valor validado literalmente no texto da notificação."]
+          : []),
+      ],
+    };
+  }
+
+  return {
+    ...parsed,
+    amount: null,
+    confidence: "baixa",
+    evidence: [
+      ...parsed.evidence,
+      literalAmounts.length === 0
+        ? "Nenhum valor monetário literal encontrado na notificação."
+        : "Mais de um valor monetário encontrado; valor principal é ambíguo.",
+    ],
+    missing_fields: Array.from(new Set([...parsed.missing_fields, "valor"])),
+  };
 }
 
 function normalizeTransactionType(value: unknown): StructuredTransactionType {
@@ -246,7 +290,7 @@ serve(async (req) => {
           {
             role: "system",
             content:
-              "Você é um extrator estruturado de transações financeiras para o FinanceAI. Responda somente com JSON válido.\n\nREGRAS DE VALOR: amount é o valor total da transação, nunca o valor unitário da parcela quando houver total explícito. Ex: 'R$ 365,67' + '12x de R$ 30,47' → amount=365.67. Se houver APENAS parcela sem total (ex: '12x de 30,47'), amount=null e missing_fields inclui 'valor'. installment_text captura o texto de parcelamento (ex: '12x de R$ 30,47', '3x sem juros').\n\nREGRAS DE DATA: date em ISO YYYY-MM-DD. Entenda '28 Mar, 2026', '28/03/2026', '28 março 2026'. Para 'hoje'/'ontem'/'semana passada' use o campo 'hoje' informado pelo usuário.\n\nREGRAS DE TIPO E DIREÇÃO: O campo 'usuario_do_app' indica o nome real do usuário logado no app. Use-o para identificar a direção da transação no comprovante. Se o usuario_do_app aparece como Origem/Pagador/De/Remetente/Solicitante → ele pagou → transaction_type='expense', counterparty=Destino/Beneficiário/Para/Recebedor/Destinatário. Se o usuário aparece como Destino/Beneficiário/Recebedor/Destinatário → ele recebeu → transaction_type='income', counterparty=Origem/Pagador/Remetente/Solicitante. Sinais fortes de RECEITA: 'Dados de quem recebeu', 'Nome do destinatário', 'recebedor', 'beneficiário', 'PIX recebido', 'transferência recebida', 'depósito recebido', 'crédito em conta'. Sinais de DESPESA: comprovantes de venda, link de pagamento, cartão débito/crédito, PIX enviado (usuário é remetente/solicitante), boleto pago. REGRA CRÍTICA — COMPROVANTES COM DESTINATÁRIO EXPLÍCITO: Sempre que o comprovante contiver o campo 'Nome do destinatário' ou 'Dados de quem recebeu', assuma que quem enviou o comprovante É o destinatário/recebedor → transaction_type='income', counterparty=Solicitante/Pagador/Remetente. Isso se aplica mesmo que o título diga 'Comprovante de Pagamento Pix' — esse título refere-se ao pagamento feito PELA outra parte, não pelo usuário. EXEMPLO SICREDI: 'Solicitante: Maria' + 'Nome do destinatário: João' → João recebeu → income, counterparty='Maria'. EXEMPLO NUBANK: 'Dados de quem recebeu: João' + 'Dados de quem fez a transação: Maria' → João recebeu → income, counterparty='Maria'.\n\nREGRAS DE DESCRIÇÃO E CONTRAPARTE: counterparty = nome da PESSOA (não banco/instituição) da outra parte. Para RECEITA PIX: counterparty = campo 'Solicitante' ou 'Nome do pagador' ou 'Remetente' (quem enviou o dinheiro); merchant_name = null. Para DESPESA PIX: counterparty = campo 'Nome do destinatário' ou 'Beneficiário' (quem recebeu); merchant_name = nome do estabelecimento se for comércio. NUNCA use nome de banco/instituição (ex: 'BCO SANTANDER', 'NU PAGAMENTOS', 'BANCO SICREDI') como counterparty ou merchant_name quando houver nome de pessoa disponível. description = frase curta e humana: para receita PIX use 'PIX recebido de [nome do Solicitante/pagador]'; para despesa PIX use 'PIX enviado para [nome do destinatário]'; para outros: 'Compra no Mercado X', 'Boleto Claro'. Nunca deixe description null se houver counterparty.\n\nUSO DO PERFIL DO USUÁRIO (quando fornecido):\n- Use top_categorias como prior: se o estabelecimento ou descrição se parece com categoria que o usuário usa frequentemente, prefira essa categoria.\n- Use faixa_despesa_tipica: se o valor extraído está fora do range (>3x mediana ou <0.3x P10), marque confidence='baixa' e adicione 'valor_atipico' em evidence.\n- Use beneficiarios_frequentes: se counterparty extraído tem fuzzy match com algum nome da lista, normalize para o nome canônico da lista.\n- Se arquetipo='lutador', seja extra cauteloso com confidence — usuário em pressão financeira precisa de revisão antes de auto-confirmar.\n\nRetorne JSON com: transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, missing_fields, installment_text.",
+              "Você é um extrator estruturado de transações financeiras para o FinanceAI. Responda somente com JSON válido.\n\nREGRAS DE VALOR: amount é o valor total da transação, nunca o valor unitário da parcela quando houver total explícito. Ex: 'R$ 365,67' + '12x de R$ 30,47' → amount=365.67. Se houver APENAS parcela sem total (ex: '12x de 30,47'), amount=null e missing_fields inclui 'valor'. installment_text captura o texto de parcelamento (ex: '12x de R$ 30,47', '3x sem juros').\n\nREGRAS DE DATA: date em ISO YYYY-MM-DD. Entenda '28 Mar, 2026', '28/03/2026', '28 março 2026'. Para 'hoje'/'ontem'/'semana passada' use o campo 'hoje' informado pelo usuário.\n\nREGRAS DE TIPO E DIREÇÃO: O campo 'usuario_do_app' indica o nome real do usuário logado no app. Use-o para identificar a direção da transação no comprovante. Se o usuario_do_app aparece como Origem/Pagador/De/Remetente/Solicitante → ele pagou → transaction_type='expense', counterparty=Destino/Beneficiário/Para/Recebedor/Destinatário. Se o usuário aparece como Destino/Beneficiário/Recebedor/Destinatário → ele recebeu → transaction_type='income', counterparty=Origem/Pagador/Remetente/Solicitante. Sinais fortes de RECEITA: 'Dados de quem recebeu', 'Nome do destinatário', 'recebedor', 'beneficiário', 'PIX recebido', 'transferência recebida', 'depósito recebido', 'crédito em conta'. Sinais de DESPESA: comprovantes de venda, link de pagamento, cartão débito/crédito, PIX enviado (usuário é remetente/solicitante), boleto pago. REGRA CRÍTICA — COMPROVANTES COM DESTINATÁRIO EXPLÍCITO: Sempre que o comprovante contiver o campo 'Nome do destinatário' ou 'Dados de quem recebeu', assuma que quem enviou o comprovante É o destinatário/recebedor → transaction_type='income', counterparty=Solicitante/Pagador/Remetente. Isso se aplica mesmo que o título diga 'Comprovante de Pagamento Pix' — esse título refere-se ao pagamento feito PELA outra parte, não pelo usuário. EXEMPLO SICREDI: 'Solicitante: Maria' + 'Nome do destinatário: João' → João recebeu → income, counterparty='Maria'. EXEMPLO NUBANK: 'Dados de quem recebeu: João' + 'Dados de quem fez a transação: Maria' → João recebeu → income, counterparty='Maria'.\n\nREGRAS DE DESCRIÇÃO E CONTRAPARTE: counterparty = nome da PESSOA (não banco/instituição) da outra parte. Para RECEITA PIX: counterparty = campo 'Solicitante' ou 'Nome do pagador' ou 'Remetente' (quem enviou o dinheiro); merchant_name = null. Para DESPESA PIX: counterparty = campo 'Nome do destinatário' ou 'Beneficiário' (quem recebeu); merchant_name = nome do estabelecimento se for comércio. NUNCA use nome de banco/instituição (ex: 'BCO SANTANDER', 'NU PAGAMENTOS', 'BANCO SICREDI') como counterparty ou merchant_name quando houver nome de pessoa disponível. description = frase curta e humana: para receita PIX use 'PIX recebido de [nome do Solicitante/pagador]'; para despesa PIX use 'PIX enviado para [nome do destinatário]'; para outros: 'Compra no Mercado X', 'Boleto Claro'. Nunca deixe description null se houver counterparty.\n\nREGRAS DE NOTIFICAÇÃO BANCÁRIA: Se source_kind for 'bank_notification', o texto é uma notificação curta de celular (SMS ou push). Essas mensagens são muito concisas (ex: 'Nubank: Compra de R$ 47,90 no Mercado Pago aprovada'). Identifique o banco como origem e o estabelecimento comercial como merchant_name. Compras no cartão (crédito/débito) são sempre 'expense'. Pix recebido ou depósitos na conta são 'income'. Se não houver data explícita na mensagem, assuma a data de 'hoje'.\n\nUSO DO PERFIL DO USUÁRIO (quando fornecido):\n- Use top_categorias como prior: se o estabelecimento ou descrição se parece com categoria que o usuário usa frequentemente, prefira essa categoria.\n- Use faixa_despesa_tipica: se o valor extraído está fora do range (>3x mediana ou <0.3x P10), marque confidence='baixa' e adicione 'valor_atipico' em evidence.\n- Use beneficiarios_frequentes: se counterparty extraído tem fuzzy match com algum nome da lista, normalize para o nome canônico da lista.\n- Se arquetipo='lutador', seja extra cauteloso com confidence — usuário em pressão financeira precisa de revisão antes de auto-confirmar.\n\nRetorne JSON com: transaction_type, amount, date, description, merchant_name, counterparty, scope, category_hint, confidence, evidence, missing_fields, installment_text.",
           },
           {
             role: "user",
@@ -269,14 +313,18 @@ serve(async (req) => {
 
     const openAiData = await openAiRes.json();
     const content = extractMessageContent(openAiData);
-    const structured = parseStructuredPayload(content);
+    const parsedPayload = parseStructuredPayload(content);
 
-    if (!structured) {
+    if (!parsedPayload) {
       return new Response(
         JSON.stringify({ error: "A IA não retornou estrutura utilizável para este texto." }),
         { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const structured = sourceKind === "bank_notification"
+      ? constrainBankNotificationAmount(parsedPayload, text)
+      : parsedPayload;
 
     const missingFields = buildMissingFields(structured);
 
