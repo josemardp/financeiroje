@@ -86,8 +86,9 @@ não depende de contrato com o provedor.
 ### Fase 0 — Agora (custo zero)
 
 **Status em 09/07/2026:** implementação concluída localmente e validada com 152 testes Vitest e
-`tsc --noEmit`. O frontend foi publicado e o manifest em produção expõe o Share Target. A
-publicação da Edge Function `smart-capture-interpret` depende de autenticação no painel Supabase.
+`tsc --noEmit`. O frontend foi publicado e o manifest em produção expõe o Share Target. O login
+no Supabase foi concluído, mas a publicação da Edge Function `smart-capture-interpret` aguarda o
+fim de incidente ativo no painel (`Deploy status unavailable`, 09/07/2026).
 
 **Objetivo:** modo "colar notificação/SMS" na Captura Inteligente + PWA Share Target.
 

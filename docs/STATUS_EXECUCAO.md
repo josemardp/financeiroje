@@ -18,8 +18,9 @@ de notificação/SMS bancário colado manualmente ou compartilhado pelo PWA.
 - ✅ `npx tsc --noEmit` sem erros.
 
 **Estado de publicação:** frontend publicado e verificado em produção após o push `b1db6ba`; o
-manifest público expõe o `share_target`. O deploy da Edge Function `smart-capture-interpret` está
-pendente de autenticação no painel Supabase desta sessão. O teste Deno específico foi incluído,
+manifest público expõe o `share_target`. A autenticação no painel Supabase foi concluída, mas o
+deploy da Edge Function `smart-capture-interpret` está bloqueado por incidente ativo da plataforma
+em 09/07/2026 (painel informa `Deploy status unavailable`). O teste Deno específico foi incluído,
 mas não executado localmente porque o runtime Deno não está instalado nesta máquina.
 
 **Próximo gate:** usar a Fase 0 por algumas semanas com notificações reais. Se o atrito já cair o

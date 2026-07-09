@@ -293,9 +293,10 @@ FinanceiroJe — Ecossistema de Planos
 ### D.6 — Captura Automática de Transações (Notificações + Importação) 🟢
 
 **Status (09/07/2026):** **Fase 0 implementada e frontend publicado** — modo Notificação/SMS,
-Share Target PWA, origem `sms` e validação server-side de valor literal único. Publicação da Edge
-Function `smart-capture-interpret` pendente de autenticação no painel Supabase. Próximo passo
-após uso real: D.2 Bloco A (OFX/CSV); automação Android permanece atrás do gate de valor.
+Share Target PWA, origem `sms` e validação server-side de valor literal único. A publicação da
+Edge Function `smart-capture-interpret` aguarda a normalização de incidente ativo no Supabase
+(`Deploy status unavailable`, 09/07/2026). Próximo passo após uso real: D.2 Bloco A (OFX/CSV);
+automação Android permanece atrás do gate de valor.
 
 **Descrição:** Reduzir o atrito de captura manual em duas frentes complementares: (1) modo "colar notificação/SMS bancário" na Captura Inteligente + PWA Share Target (compartilhar texto direto de outro app para o FinanceiroJe), usando `source_kind: "bank_notification"` já suportado por `smart-capture-interpret`; (2) se o piloto provar valor, automação via MacroDroid/Tasker capturando notificações de apps bancários e enviando a uma edge function de ingestão, com tabela de staging (`external_capture_events`) para dedup e revisão — nunca lançamento automático confirmado. Companion Android nativo (Capacitor + `NotificationListenerService`, sideload) é a última fase, só se o piloto vencer por limitação do MacroDroid/Tasker, não por falta de valor.
 
