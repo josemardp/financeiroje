@@ -17,10 +17,10 @@ de notificação/SMS bancário colado manualmente ou compartilhado pelo PWA.
 - ✅ 10 testes Vitest para formatos de notificações brasileiras; suite total em **152 testes**.
 - ✅ `npx tsc --noEmit` sem erros.
 
-**Estado de publicação:** frontend será publicado pelo push em `main`; o deploy da Edge Function
-`smart-capture-interpret` está pendente de autenticação no painel Supabase desta sessão. O teste
-Deno específico foi incluído, mas não executado localmente porque o runtime Deno não está
-instalado nesta máquina.
+**Estado de publicação:** frontend publicado e verificado em produção após o push `b1db6ba`; o
+manifest público expõe o `share_target`. O deploy da Edge Function `smart-capture-interpret` está
+pendente de autenticação no painel Supabase desta sessão. O teste Deno específico foi incluído,
+mas não executado localmente porque o runtime Deno não está instalado nesta máquina.
 
 **Próximo gate:** usar a Fase 0 por algumas semanas com notificações reais. Se o atrito já cair o
 suficiente, encerrar o trilho de notificação; caso contrário, iniciar D.2 Bloco A (OFX/CSV), antes
