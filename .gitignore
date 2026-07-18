@@ -33,6 +33,12 @@ dist-ssr
 .claude/worktrees/
 supabase/.temp/
 
+# Android/Capacitor generated local artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+
 # Config local do script de backup (contém service_role_key)
 scripts/backup-config.local.json
 # Log gerado pelo setup da tarefa agendada

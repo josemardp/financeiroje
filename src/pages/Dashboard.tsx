@@ -307,10 +307,12 @@ export default function Dashboard() {
       </div>
 
       {summary && summary.suggestedCount > 0 && (
-        <div className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-[11px] leading-4 text-muted-foreground sm:items-center sm:text-xs">
-          <DataStatusBadge status="suggested" showLabel={false} />
-          <span>{summary.suggestedCount} transações sugerida(s) pendente(s) — não incluídas nos KPIs.</span>
-        </div>
+        <Link to="/transacoes?status=suggested" className="block hover:opacity-85 transition-opacity">
+          <div className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-[11px] leading-4 text-muted-foreground sm:items-center sm:text-xs">
+            <DataStatusBadge status="suggested" showLabel={false} />
+            <span>{summary.suggestedCount} transação(ões) sugerida(s) pendente(s) — clique para revisar.</span>
+          </div>
+        </Link>
       )}
 
       <div className="grid gap-3 lg:grid-cols-3 lg:gap-6">

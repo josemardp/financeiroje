@@ -1353,6 +1353,7 @@ export type Database = {
         | "sms"
         | "ai_suggestion"
         | "system_generated"
+        | "notification"
       subscription_status: "active" | "cancelled" | "paused"
       transaction_type: "income" | "expense"
     }
@@ -1525,6 +1526,7 @@ export const Constants = {
         "sms",
         "ai_suggestion",
         "system_generated",
+        "notification",
       ],
       subscription_status: ["active", "cancelled", "paused"],
       transaction_type: ["income", "expense"],

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FinanceiroJe</string>
+    <string name="title_activity_main">FinanceiroJe</string>
+    <string name="package_name">com.financeiroje.app</string>
+    <string name="custom_url_scheme">com.financeiroje.app</string>
+</resources>

@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -25,6 +27,25 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const nativeAuthTokenKey = "supabase.auth.token";
+const nativeSupabaseUrlKey = "supabase.url";
+
+async function syncNativeAuthSession(nextSession: Session | null) {
+  if (!Capacitor.isNativePlatform()) return;
+
+  if (nextSession?.access_token) {
+    await Promise.all([
+      Preferences.set({ key: nativeAuthTokenKey, value: nextSession.access_token }),
+      Preferences.set({ key: nativeSupabaseUrlKey, value: import.meta.env.VITE_SUPABASE_URL }),
+    ]);
+    return;
+  }
+
+  await Promise.all([
+    Preferences.remove({ key: nativeAuthTokenKey }),
+    Preferences.remove({ key: nativeSupabaseUrlKey }),
+  ]);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -38,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    void syncNativeAuthSession(null);
   };
 
   const fetchProfile = async (userId: string) => {
@@ -71,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
+      void syncNativeAuthSession(nextSession);
 
       if (nextSession?.user) {
         void fetchProfile(nextSession.user.id);

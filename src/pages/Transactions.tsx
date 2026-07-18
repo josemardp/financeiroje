@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useScope } from "@/contexts/ScopeContext";
@@ -29,10 +30,11 @@ export default function Transactions() {
   const { currentScope, scopeLabel } = useScope();
   useScreenTracking('Transactions');
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>(searchParams.get("status") || "all");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: categories } = useQuery({
