@@ -1,13 +1,10 @@
 # CLAUDE.md — Contexto do Projeto FinanceiroJe
 
-## Quem sou eu
+## Contexto que afeta o produto
 
-**Josemar** — Capitão da PMESP (Polícia Militar do Estado de São Paulo).
-Dono e único desenvolvedor do FinanceiroJe.
-Casado (sócia da Esdra Cosméticos — MEI).
-Filha: filha.
-Contexto religioso: comunidade (Congregação Cristã no Brasil) — dízimo e doações são recorrentes.
-Perfil pessoal: INFJ, alta sensibilidade, traços neurodivergentes (TDAH/giftedness provável), perfeccionismo.
+Uso familiar, não SaaS. Três escopos de dados: `private` (Josemar), `family`, `business` (Esdra Cosméticos, MEI da esposa). **Doações recorrentes são lançamentos fixos** — categorização precisa prever isso.
+
+(Perfil pessoal do dono já está no `CLAUDE.md` global — não duplicar aqui.)
 
 ---
 
@@ -124,9 +121,9 @@ Sprints:
 - **NÃO executar `npm run build`** sem pedido explícito — demora muito.
 - **ANTES de editar qualquer arquivo**: mostrar o plano/diff e aguardar validação.
 - **Uma tarefa por vez** — não fazer tudo em cascata sem aprovação de cada etapa.
-- **Linguagem**: português brasileiro sempre.
-- **Tom**: direto, sem floreio, sem longas desculpas.
 - **Quando propor mudança**: mostrar diff visual antes de aplicar.
+
+(Idioma e tom já estão no `CLAUDE.md` global — não repetir aqui.)
 
 ---
 
@@ -143,14 +140,6 @@ Sprints:
 
 ---
 
-## Estado atual (Junho/2026)
+## Estado atual
 
-- Pipeline de Captura estável (OCR, voz, texto, PDF, Excel, Word).
-- IA Conselheira com perfil comportamental rico (`contextCollector` 1124 linhas).
-- Sprints 1–10 de inteligência pessoal concluídos; Saneamento S1–S6 concluídos.
-- Schema `transactions` tem `confidence`, `source_type`, `validation_notes`, `data_status`.
-- TypeScript strict ligado; zero `as any`; 142 testes verdes; rate-limit via Deno KV.
-- Histórico mensal do Advisor agregado no servidor via RPC `get_monthly_history`.
-- Deploy de edge functions via MCP do Supabase (ferramenta `deploy_edge_function`).
-- **H.1 Sprint 1 concluído (22/06/2026):** 5 tabelas `esdra_*`, seed 83 compromissos, rota `/painel-esdra/hoje`.
-- **Próximo:** H.1 Sprint 2 — Tela Métricas + Integração Financeira.
+Fonte única: [`docs/STATUS_EXECUCAO.md`](docs/STATUS_EXECUCAO.md) — não duplicar aqui, desatualiza.
