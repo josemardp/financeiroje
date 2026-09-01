@@ -1,6 +1,6 @@
 # backup-supabase.ps1
-# Exporta tabelas críticas do Supabase para o Google Drive local.
-# Requer: scripts\backup-config.local.json (não versionado — contém service_role_key)
+# Exporta tabelas criticas do Supabase para o Google Drive local.
+# Requer: scripts\backup-config.local.json (nao versionado - contem service_role_key)
 # Agendar via Windows Task Scheduler para rodar diariamente.
 
 param(
@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 
 # --- Config ---
 if (-not (Test-Path $ConfigPath)) {
-    Write-Error "Config não encontrado: $ConfigPath`nCopie backup-config.local.json.example e preencha."
+    Write-Error "Config nao encontrado: $ConfigPath`nCopie backup-config.local.json.example e preencha."
     exit 1
 }
 $cfg = Get-Content $ConfigPath -Raw | ConvertFrom-Json
@@ -61,23 +61,25 @@ $headers = @{
 $timestamp  = Get-Date -Format "yyyy-MM-dd_HH-mm"
 $backupFile = Join-Path $BACKUP_DIR "backup_$timestamp.json"
 
-Write-Host "[$timestamp] Iniciando backup — $($TABLES.Count) tabelas..."
+Write-Host "[$timestamp] Iniciando backup - $($TABLES.Count) tabelas..."
 
 $backup = [ordered]@{
     exported_at   = (Get-Date -Format "o")
     supabase_url  = $SUPABASE_URL
     tables        = [ordered]@{}
 }
+$failedTables = @()
 
 foreach ($table in $TABLES) {
     try {
-        $uri  = "$SUPABASE_URL/rest/v1/${table}?select=*&limit=100000"
+        $uri  = '{0}/rest/v1/{1}?select=*&limit=100000' -f $SUPABASE_URL, $table
         $rows = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
         $backup.tables[$table] = $rows
-        Write-Host "  ✓ $table ($($rows.Count) linhas)"
+        Write-Host "  OK $table ($($rows.Count) linhas)"
     } catch {
-        Write-Warning "  ✗ $table — $_"
+        Write-Warning "  FALHA $table - $_"
         $backup.tables[$table] = $null
+        $failedTables += $table
     }
 }
 
@@ -96,4 +98,10 @@ Get-ChildItem $BACKUP_DIR -Filter "backup_*.json" |
     ForEach-Object { Remove-Item $_.FullName; $removed++ }
 
 if ($removed -gt 0) { Write-Host "Removidos $removed backup(s) com mais de $RETENTION_DAYS dias." }
-Write-Host "Concluído."
+if ($failedTables.Count -gt 0) {
+    Write-Warning "Backup concluido com falha em $($failedTables.Count) tabela(s): $($failedTables -join ', ')"
+    exit 1
+}
+
+Write-Host "Concluido."
+exit 0
