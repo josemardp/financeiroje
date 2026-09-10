@@ -1,5 +1,7 @@
 # FinanceiroJe
 
+> **Organização Esdra — 09/09/2026:** este app continua compartilhado entre pessoal, família e MEI, em `C:\projetos\financeiroje`. Entrada empresarial: [Central Esdra](../esdra/central-ec/README.md). A expansão paralela de rotina empresarial no Painel Esdra está suspensa conforme [EC-003](../esdra/central-ec/DECISOES.md); funções, dados e manutenção existentes são preservados.
+
 Aplicativo de finanças pessoais com IA para uso familiar e do MEI da Esdra Cosméticos.
 Uso pessoal/familiar — não é um produto SaaS.
 
@@ -56,7 +58,7 @@ O Supabase **não** está conectado ao GitHub. Push no repo não aplica migratio
 | `docs/PLANO_PAINEL_ESDRA.md` | Painel Empreendedor Esdra Cosméticos (H.1–H.2) |
 | `CLAUDE.md` | Contexto do projeto para agentes de IA |
 
-## Artefatos Esdra Cosméticos / PMESP
+## Artefatos operacionais Esdra Cosméticos
 
 Os itens abaixo são artefatos operacionais hospedados junto ao app, mas fora do escopo
 da aplicação React principal:
@@ -65,6 +67,6 @@ da aplicação React principal:
 |---------|-----------|
 | `public/manual/` | Manual 30 Dias HTML — trilho operacional da Esdra (em produção desde 02/05/2026) |
 | `public/checklist-diadasmaes/` | Checklist Dia das Mães — artefato pontual de campanha |
-| `Rotina de trabalho/` | Arquivos de gestão da rotina PMESP (não são código da aplicação) |
+| `Rotina de trabalho/` | Fontes do Manual 30 Dias Esdra, instalação e migration (preservadas junto à implementação) |
 
 Rotas configuradas em `vercel.json`: `/manual` e `/checklist-diadasmaes` apontam para seus respectivos `index.html`.

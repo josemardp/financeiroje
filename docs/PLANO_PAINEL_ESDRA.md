@@ -1,5 +1,7 @@
 # PLANO TÉCNICO — PAINEL EMPREENDEDOR (MÓDULO ESDRA COSMÉTICOS)
 
+> **Decisão de 09/09/2026 — EC-003:** este plano passa a referência histórica/catálogo de capacidades. Não iniciar novos sprints de rotina/gestão empresarial aqui; o núcleo operacional é o agendaEC. Preservar dados, rotas, manual, uso atual e correções necessárias. Reaproveitamento ou retirada exige revisão específica. [Decisão completa](../../esdra/central-ec/DECISOES.md).
+
 **Versão:** 2.0
 **Projeto:** FinanceiroJe (extensão modular)
 **Stack:** React + TypeScript + Vite + Supabase + Vercel

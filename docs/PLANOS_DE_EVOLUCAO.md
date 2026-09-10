@@ -1,5 +1,8 @@
 # 🗺️ Planos de Evolução — FinanceiroJe
 
+> **Decisão de 09/09/2026:** expansão de rotina/gestão empresarial no Painel Esdra suspensa; o agendaEC concentra essa evolução. H.1/H.2 permanecem como referência de capacidades, com implementação e dados existentes preservados. [EC-003](../../esdra/central-ec/DECISOES.md). Demais frentes financeiras mantêm seu escopo.
+
+
 > **Objetivo deste documento:** servir como backlog estratégico do projeto além da camada de inteligência pessoal. Lista os 22 planos de evolução identificados em auditoria de Abril/2026 + 4 planos da nova **Categoria H — Esdra Cosméticos como Sistema** adicionada em Maio/2026, organizados por categoria, com descrição sucinta, prioridade, esforço estimado e pré-requisitos.
 >
 > **Autor:** sessão Claude com Josemar — Abril/2026 (v1.0–1.1); integração do diagnóstico técnico — Junho/2026 (v1.2)

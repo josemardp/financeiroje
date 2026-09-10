@@ -1,5 +1,12 @@
 # STATUS_EXECUCAO — FinanceiroJe
 
+## Organização Esdra — 09/09/2026
+
+Aplicada a organização documental aprovada por Josemar. O FinanceiroJe permanece compartilhado e no mesmo caminho. Novas rotinas empresariais ficam no agendaEC; a expansão paralela do Painel Esdra está suspensa, preservando sua implementação, tabelas, histórico, manual e manutenção. O plano H.1/H.2 foi marcado como referência histórica. Corrigida no README a classificação da pasta `Rotina de trabalho` como material Esdra, não PMESP. Sem alterações de código, banco ou publicação. [Decisão EC-003](../../esdra/central-ec/DECISOES.md).
+
+Os registros de implementação abaixo conservam suas datas e resultados históricos.
+
+
 ## Implementação — 9 de Julho de 2026: D.6 Fase 0 — Captura por Notificação/SMS
 
 **Resumo:** concluída a implementação local da primeira fase de D.6, sem automação de

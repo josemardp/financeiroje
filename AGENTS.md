@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> **Atualização de 09/09/2026:** consultar a decisão empresarial em [CLAUDE.md](CLAUDE.md) e o [STATUS de execução](docs/STATUS_EXECUCAO.md). O registro pré-CAO abaixo é histórico, não substitui esses documentos.
+
 > Contexto do projeto para agentes de IA — ver **[CLAUDE.md](CLAUDE.md)** (fonte única).
 
 ## Estado em 12/08/2026 (registro pré-CAO)

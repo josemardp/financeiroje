@@ -1,5 +1,8 @@
 # CLAUDE.md — Contexto do Projeto FinanceiroJe
 
+> **Decisão empresarial vigente (09/09/2026):** [EC-003 — Central Esdra](../esdra/central-ec/DECISOES.md). Não expandir a rotina/gestão paralela do Painel Esdra; o agendaEC é o núcleo operacional. Preservar manutenção, funções e dados existentes. O escopo financeiro pessoal/familiar/MEI continua neste app.
+
+
 ## Contexto que afeta o produto
 
 Uso familiar, não SaaS. Três escopos de dados: `private` (Josemar), `family`, `business` (Esdra Cosméticos, MEI da esposa). **Doações recorrentes são lançamentos fixos** — categorização precisa prever isso.
