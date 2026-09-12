@@ -1,3 +1,9 @@
+-- AVISO (12/09/2026): esta migration tinha a service_role_key escrita em texto
+-- puro no corpo da funcao. A chave foi removida do historico do git e o valor
+-- abaixo e um placeholder. A versao correta, que le o segredo do Vault, esta em
+-- 20260912000001_trigger_secret_via_vault.sql e substitui esta funcao.
+-- Mantida aqui porque migration aplicada nao se edita: se supersede.
+--
 -- Fix: recria notify_pattern_learning_on_correction() com URL e service_role_key
 -- hardcoded, pois ALTER DATABASE SET app.* é bloqueado pelo Supabase managed postgres.
 -- Substitui a versão anterior que usava current_setting('app.supabase_url').
