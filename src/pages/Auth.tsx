@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,11 +8,57 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2, Brain, CloudOff } from "lucide-react";
+
+/**
+ * O app é um cliente do Supabase: sem backend no ar, nenhuma tela funciona.
+ * Antes desta checagem, com o projeto pausado, clicar em "Entrar" não produzia
+ * efeito nenhum — nem erro, nem carregando — porque o supabase-js fica em
+ * retry de rede e só devolve o erro muito depois. Quem abria o link concluía,
+ * com razão, que o app estava quebrado.
+ *
+ * O ping é no /auth/v1/health, que responde sem credencial. `no-cors` deixa a
+ * resposta opaca: o que interessa é se a requisição sai ou estoura, e é por
+ * isso que não se lê o status aqui.
+ */
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+
+async function backendResponde(): Promise<boolean> {
+  if (!SUPABASE_URL) return false;
+  try {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 6000);
+    await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+      mode: "no-cors",
+      signal: abort.signal,
+    });
+    clearTimeout(timer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function erroDeRede(error: Error | null): boolean {
+  if (!error) return false;
+  const m = `${error.name} ${error.message}`.toLowerCase();
+  return m.includes("fetch") || m.includes("network") || m.includes("failed to");
+}
 
 export default function Auth() {
   const { user, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [backendFora, setBackendFora] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    backendResponde().then((ok) => {
+      if (vivo) setBackendFora(!ok);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -36,6 +82,23 @@ export default function Auth() {
           </div>
           <p className="text-muted-foreground">Assistente Financeiro Familiar com IA</p>
         </div>
+
+        {backendFora && (
+          <div
+            role="status"
+            className="flex gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-left text-sm"
+          >
+            <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Backend indisponível</p>
+              <p className="text-muted-foreground">
+                Esta demonstração pública está sem banco de dados no ar, então entrar e criar
+                conta não vão funcionar agora. O código completo, com as migrations e as
+                instruções para rodar o projeto na sua máquina, está no repositório.
+              </p>
+            </div>
+          </div>
+        )}
 
         <Card>
           <Tabs defaultValue="login">
@@ -75,11 +138,26 @@ function LoginForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean; s
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const { error } = await signIn(email, password);
-    if (error) {
-      toast.error("Erro ao entrar", { description: error.message });
+    try {
+      const { error } = await signIn(email, password);
+      if (erroDeRede(error)) {
+        toast.error("Servidor fora do ar", {
+          description:
+            "Não foi possível falar com o backend. Se você abriu pelo link de demonstração, o banco está pausado; veja o README para rodar local.",
+        });
+      } else if (error) {
+        toast.error("Erro ao entrar", { description: error.message });
+      }
+    } catch (err) {
+      // signInWithPassword pode rejeitar em vez de devolver erro quando a rede
+      // falha antes da primeira resposta. Sem este catch o clique fica mudo.
+      toast.error("Servidor fora do ar", {
+        description:
+          "Não foi possível falar com o backend. Se você abriu pelo link de demonstração, o banco está pausado; veja o README para rodar local.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -157,13 +235,26 @@ function RegisterForm({ isSubmitting, setIsSubmitting }: { isSubmitting: boolean
       return;
     }
     setIsSubmitting(true);
-    const { error } = await signUp(email, password, nome);
-    if (error) {
-      toast.error("Erro ao criar conta", { description: error.message });
-    } else {
-      toast.success("Conta criada!", { description: "Verifique seu email para confirmar." });
+    try {
+      const { error } = await signUp(email, password, nome);
+      if (erroDeRede(error)) {
+        toast.error("Servidor fora do ar", {
+          description:
+            "Não foi possível falar com o backend. Se você abriu pelo link de demonstração, o banco está pausado; veja o README para rodar local.",
+        });
+      } else if (error) {
+        toast.error("Erro ao criar conta", { description: error.message });
+      } else {
+        toast.success("Conta criada!", { description: "Verifique seu email para confirmar." });
+      }
+    } catch (err) {
+      toast.error("Servidor fora do ar", {
+        description:
+          "Não foi possível falar com o backend. Se você abriu pelo link de demonstração, o banco está pausado; veja o README para rodar local.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
