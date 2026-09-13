@@ -231,7 +231,7 @@ Se não tiver, **não é problema** — anote o que falta para resolver no resto
 
 **Mínimo Viável (1h):**
 - Subir as 20 SKUs no site (catálogo). Foto + título + descrição + preço.
-- Configurar link direto "Comprar pelo WhatsApp" em cada produto (link com mensagem pré-definida: `https://wa.me/5518991063272?text=Olá Esdra, tenho interesse no [PRODUTO]`).
+- Configurar link direto "Comprar pelo WhatsApp" em cada produto (link com mensagem pré-definida: `https://wa.me/5511999999999?text=Olá, tenho interesse no [PRODUTO]`).
 
 **Ideal (+1h):**
 - Testar o fluxo completo: cliente entra no site → vê produto → clica WhatsApp → mensagem chega na Esdra. Validar que funciona.

@@ -9,7 +9,7 @@
 Pasta no Google Drive (sincronizada localmente):
 
 ```
-G:\Meu Drive\Arquivos Josemar\projetos nao vercionados\financeiroje\
+C:\backups\financeiroje\
 ```
 
 Arquivos: `backup_YYYY-MM-DD_HH-mm.json`
@@ -22,7 +22,7 @@ Retenção: 30 dias. Escolha o backup mais recente antes do incidente.
 Abrir o JSON e confirmar que a tabela afetada tem dados:
 
 ```powershell
-$b = Get-Content "G:\Meu Drive\Arquivos Josemar\projetos nao vercionados\financeiroje\backup_YYYY-MM-DD_HH-mm.json" | ConvertFrom-Json
+$b = Get-Content "C:\backups\financeiroje\backup_YYYY-MM-DD_HH-mm.json" | ConvertFrom-Json
 $b.tables.transactions.Count   # substitua pelo nome da tabela
 $b.tables.transactions[0]      # ver primeiro registro
 ```

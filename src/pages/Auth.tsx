@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Brain, CloudOff } from "lucide-react";
+import { Loader2, Brain, CloudOff, Sparkles } from "lucide-react";
 
 /**
  * O app é um cliente do Supabase: sem backend no ar, nenhuma tela funciona.
@@ -46,19 +46,23 @@ function erroDeRede(error: Error | null): boolean {
 }
 
 export default function Auth() {
-  const { user, loading } = useAuth();
+  const { user, loading, enterDemoMode } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendFora, setBackendFora] = useState(false);
 
   useEffect(() => {
     let vivo = true;
+    if (window.location.search.includes("demo=true") || window.location.hash.includes("demo")) {
+      enterDemoMode();
+      return;
+    }
     backendResponde().then((ok) => {
       if (vivo) setBackendFora(!ok);
     });
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [enterDemoMode]);
 
   if (loading) {
     return (
@@ -86,17 +90,26 @@ export default function Auth() {
         {backendFora && (
           <div
             role="status"
-            className="flex gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-left text-sm"
+            className="flex flex-col gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-left text-sm"
           >
-            <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">Backend indisponível</p>
-              <p className="text-muted-foreground">
-                Esta demonstração pública está sem banco de dados no ar, então entrar e criar
-                conta não vão funcionar agora. O código completo, com as migrations e as
-                instruções para rodar o projeto na sua máquina, está no repositório.
-              </p>
+            <div className="flex gap-3">
+              <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">Backend em repouso preventivo</p>
+                <p className="text-muted-foreground text-xs">
+                  O banco pessoal está pausado para não gerar custos. Você pode avaliar todas as
+                  telas, relatórios e automações pelo Modo Demonstração com dados fictícios.
+                </p>
+              </div>
             </div>
+            <Button
+              type="button"
+              onClick={enterDemoMode}
+              className="w-full mt-1 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2 text-xs flex items-center justify-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              Acessar Modo Demonstração Agora
+            </Button>
           </div>
         )}
 
@@ -119,8 +132,27 @@ export default function Auth() {
           </Tabs>
         </Card>
 
+        <div className="relative my-2 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border" />
+          </div>
+          <span className="relative bg-background px-3 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+            Avaliadores & Recrutadores
+          </span>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={enterDemoMode}
+          className="w-full py-5 text-sm font-semibold border-emerald-600/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-foreground flex items-center justify-center gap-2 shadow-sm"
+        >
+          <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          Acessar Modo Demonstração (Dados Fictícios)
+        </Button>
+
         <p className="text-center text-xs text-muted-foreground">
-          Seus dados são protegidos com criptografia e isolamento por usuário.
+          Demonstração segura com isolamento estrito de dados e RLS.
         </p>
       </div>
     </div>

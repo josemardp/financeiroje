@@ -635,11 +635,18 @@
     // ===========================================================
     // CONFIG
     // ===========================================================
-    const SUPABASE_URL = 'https://hhedxktueawursnzqixg.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoZWR4a3R1ZWF3dXJzbnpxaXhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjI4NTEsImV4cCI6MjA5MDczODg1MX0.iuu7JERWiyKqHAE-Lvgfk1kWy0UK4QbMKvZGMqCNUYQ';
+    const SUPABASE_URL = window.ENV?.SUPABASE_URL || '';
+    const SUPABASE_ANON_KEY = window.ENV?.SUPABASE_ANON_KEY || '';
     const TABLE = 'checklist_esdra';
 
-    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let sb = null;
+    if (SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && !SUPABASE_URL.includes('placeholder')) {
+      try {
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } catch (e) {
+        console.warn('Supabase offline/demo mode:', e);
+      }
+    }
 
     // ===========================================================
     // AGENDA DATA
@@ -936,6 +943,12 @@
     // ===========================================================
     async function loadFromSupabase() {
       try {
+        const local = localStorage.getItem('checklist_esdra_tasks');
+        if (local) checkedTasks = JSON.parse(local);
+      } catch (e) {}
+
+      if (!sb) return;
+      try {
         const { data, error } = await sb
           .from(TABLE)
           .select('task_id, done')
@@ -954,6 +967,14 @@
 
     async function saveToSupabase(taskId, done) {
       try {
+        localStorage.setItem('checklist_esdra_tasks', JSON.stringify(checkedTasks));
+      } catch (e) {}
+
+      if (!sb) {
+        showSync('salvo localmente');
+        return;
+      }
+      try {
         showSync('salvando...');
         const { error } = await sb
           .from(TABLE)
@@ -963,7 +984,7 @@
         showSync('salvo');
       } catch (e) {
         console.warn('Erro ao salvar:', e);
-        showSync('erro ao salvar', true);
+        showSync('salvo localmente');
       }
     }
 

@@ -639,8 +639,8 @@ documentar a fronteira de escopo (artefatos Esdra/PMESP no repo). Materializa **
 
 - [x] **S3.1** — ✅ (21/06/2026) Script `scripts/backup-supabase.ps1`: exporta 26 tabelas
   via Supabase REST API (service_role) e salva JSON timestampado em
-  `G:\Meu Drive\Arquivos Josemar\projetos nao vercionados\financeiroje` (Google Drive
-  Desktop sincroniza automaticamente). Retenção 30 dias. Testado: 26/26 tabelas, 1.94 MB.
+  `C:\backups\financeiroje` (ou diretório configurado via `scripts/backup-config.local.json`).
+  Retenção 30 dias. Testado: 26/26 tabelas, 1.94 MB.
   Agendar via Windows Task Scheduler (comando no histórico da sessão).
 - [x] **S3.2** — ✅ (21/06/2026) Runbook em `docs/RUNBOOK_RESTORE.md`: localizar backup,
   inspecionar JSON, restaurar via merge seguro (ON CONFLICT DO NOTHING) ou TRUNCATE+INSERT,

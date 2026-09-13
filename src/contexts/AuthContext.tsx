@@ -3,6 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { isDemoMode, activateDemoMode, exitDemoMode, DEMO_USER_ID } from "@/services/demoMode/demoData";
 
 interface Profile {
   id: string;
@@ -20,10 +21,12 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  isDemo: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  enterDemoMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(isDemoMode());
   const profileRequestRef = useRef(0);
 
   const clearLocalAuthState = () => {
@@ -85,8 +89,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) await fetchProfile(user.id);
   };
 
+  const enterDemoMode = () => {
+    activateDemoMode();
+    setIsDemo(true);
+    const demoUser = {
+      id: DEMO_USER_ID,
+      email: "recrutador@demo.local",
+      app_metadata: {},
+      user_metadata: { nome: "Avaliador Portfólio" },
+      aud: "authenticated",
+      created_at: new Date().toISOString(),
+    } as unknown as User;
+    const demoSession = {
+      access_token: "demo-token",
+      refresh_token: "demo-refresh",
+      expires_in: 3600,
+      token_type: "bearer",
+      user: demoUser,
+    } as unknown as Session;
+    setUser(demoUser);
+    setSession(demoSession);
+    setProfile({
+      id: DEMO_USER_ID,
+      user_id: DEMO_USER_ID,
+      nome: "Avaliador Portfólio",
+      email: "recrutador@demo.local",
+      perfil: "admin",
+      familia_id: null,
+      avatar_url: null,
+      preferences: {},
+    });
+    setLoading(false);
+  };
+
   useEffect(() => {
     let isActive = true;
+
+    if (isDemoMode()) {
+      enterDemoMode();
+      return;
+    }
 
     const applySession = (nextSession: Session | null) => {
       if (!isActive) return;
@@ -147,6 +189,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    if (isDemoMode()) {
+      exitDemoMode();
+      setIsDemo(false);
+    }
     clearLocalAuthState();
 
     try {
@@ -157,7 +203,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ user, session, profile, loading, isDemo, signIn, signUp, signOut, refreshProfile, enterDemoMode }}
+    >
       {children}
     </AuthContext.Provider>
   );
