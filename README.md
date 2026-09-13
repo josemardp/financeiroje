@@ -5,6 +5,12 @@
 Aplicativo de finanças pessoais com IA para uso familiar e do MEI da Esdra Cosméticos.
 Uso pessoal/familiar — não é um produto SaaS.
 
+> **Estado em 13/09/2026: backend pausado.** O projeto Supabase deste app está pausado
+> (limite de projetos ativos do plano gratuito). O frontend publicado na Vercel abre, mas
+> login e dados não funcionam até o projeto ser reativado. Para avaliar o código, rode
+> localmente com um projeto Supabase próprio (seção "Como rodar localmente") e aplique as
+> migrations de `supabase/migrations/`.
+
 ## Stack
 
 | Camada | Tecnologia |
