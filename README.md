@@ -103,6 +103,8 @@ Para permitir a exploração completa das funcionalidades do sistema sem depende
 
 > [!NOTE]
 > **Status de Homologação em Nuvem:**
+> **Conferido em 14/09/2026:** o frontend em `financeiroje-w2wh.vercel.app` responde 200, mas o domínio do Supabase não resolve (NXDOMAIN) e a restauração do projeto foi recusada por limite de projetos gratuitos. Uso com dados reais depende de restabelecer o backend; reinstalar o projeto na máquina não resolve. O repositório é privado desde a limpeza de segurança de 11 a 14/09/2026.
+>
 > O projeto Supabase hospedado na nuvem encontra-se temporariamente pausado por política de inatividade do plano gratuito. O aplicativo conta com o **Modo Demonstração nativo** para avaliação imediata em qualquer ambiente, podendo ter seu backend reativado a qualquer momento via console Supabase.
 
 ---
