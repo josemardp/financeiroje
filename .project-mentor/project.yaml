@@ -15,8 +15,8 @@ status:
   lifecycle: evolving
   health: unknown
   phase: Modo Demo ativo / Backend pausado
-  priority: null
-  updated_at: 2026-09-16T09:14:52-03:00
+  priority: 2
+  updated_at: 2026-09-16T09:40:04-03:00
   last_session_at: 2026-09-16T09:14:48-03:00
   confidence: inferred
 focus:
