@@ -1,0 +1,36 @@
+# Gerado pelo Mentor de Projetos. Não edite à mão: use `mentor update|action|blocker|stage|close`.
+schema_version: 1
+project:
+  id: a1be8e4c-5567-4eed-8740-1a67dc9101c8
+  slug: financeiroje
+  name: FinanceiroJE — Sistema de Gestão Financeira & Inteligência Orçamentária
+  summary: "> Plataforma integrada de gestão financeira pessoal e microempresarial (MEI) com conciliação automatizada de extratos bancários, categorização assistida por IA, OCR de comprovantes e conselheiro finan"
+  category: pessoal
+  sensitivity: normal
+  repo_url: https://github.com/josemardp/financeiroje.git
+  status_docs:
+    - README.md
+    - docs/
+status:
+  lifecycle: evolving
+  health: unknown
+  phase: null
+  priority: null
+  updated_at: 2026-09-16T06:54:04-03:00
+  last_session_at: null
+  confidence: inferred
+focus:
+  objective: null
+  current: null
+  last_completed: null
+  recommended_next_action: null
+next_actions: []
+blockers: []
+decisions_recent: []
+milestones: []
+review:
+  stale_after_days: null
+  snooze_until: null
+integration:
+  managed_by: mentor-de-projetos
+  protocol_version: 1
