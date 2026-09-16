@@ -13,21 +13,21 @@ project:
     - docs/
 status:
   lifecycle: evolving
-  health: attention
+  health: unknown
   phase: Modo Demo ativo / Backend pausado
   priority: null
-  updated_at: 2026-09-16T08:14:56-03:00
-  last_session_at: 2026-09-16T08:14:56-03:00
+  updated_at: 2026-09-16T09:14:52-03:00
+  last_session_at: 2026-09-16T09:14:48-03:00
   confidence: inferred
 focus:
   objective: Plataforma integrada de gestao financeira pessoal e microempresarial
-  current: Decidir sobre reativacao do backend Supabase ou manutencao apenas local
-  last_completed: Mapeamento de estado, foco e próximas ações
-  recommended_next_action: act-002
+  current: Último commit (14/09/2026) registrou o estado real do backend e das rotinas de conciliação após sanitização de segurança e implementação do modo demo em 13/09.
+  last_completed: Conferência do estado real do backend e sanitização de artefatos públicos em 14/09/2026.
+  recommended_next_action: act-003
 next_actions:
   - id: act-001
     title: Avaliar migracao ou reativacao do banco de dados para rotina real
-    status: pending
+    status: dropped
     impact: null
     urgency: null
     effort: null
@@ -39,7 +39,7 @@ next_actions:
     note: null
   - id: act-002
     title: Decidir sobre reativacao do backend Supabase ou manutencao apenas local
-    status: pending
+    status: dropped
     impact: null
     urgency: null
     effort: null
@@ -49,10 +49,24 @@ next_actions:
     created_at: 2026-09-16T08:14:56-03:00
     done_at: null
     note: null
+  - id: act-003
+    title: Revisar com o usuário o próximo passo do backend e conciliação
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-16T09:14:47-03:00
+    done_at: null
+    note: null
 blockers: []
 decisions_recent:
   - date: 2026-09-16
     text: Estado preenchido com base em README.md e histórico de commits de setembro/2026
+  - date: 2026-09-16
+    text: 'Alinhar focus.current e próxima ação com evidência real: Commits 13/09 e 14/09/2026 ("docs: registra o estado real do backend...")'
 milestones: []
 review:
   stale_after_days: null
