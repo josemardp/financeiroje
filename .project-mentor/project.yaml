@@ -13,20 +13,46 @@ project:
     - docs/
 status:
   lifecycle: evolving
-  health: unknown
-  phase: null
+  health: attention
+  phase: Modo Demo ativo / Backend pausado
   priority: null
-  updated_at: 2026-09-16T06:54:04-03:00
-  last_session_at: null
+  updated_at: 2026-09-16T08:14:56-03:00
+  last_session_at: 2026-09-16T08:14:56-03:00
   confidence: inferred
 focus:
-  objective: null
-  current: null
-  last_completed: null
-  recommended_next_action: null
-next_actions: []
+  objective: Plataforma integrada de gestao financeira pessoal e microempresarial
+  current: Decidir sobre reativacao do backend Supabase ou manutencao apenas local
+  last_completed: Mapeamento de estado, foco e próximas ações
+  recommended_next_action: act-002
+next_actions:
+  - id: act-001
+    title: Avaliar migracao ou reativacao do banco de dados para rotina real
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-16T08:14:55-03:00
+    done_at: null
+    note: null
+  - id: act-002
+    title: Decidir sobre reativacao do backend Supabase ou manutencao apenas local
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-16T08:14:56-03:00
+    done_at: null
+    note: null
 blockers: []
-decisions_recent: []
+decisions_recent:
+  - date: 2026-09-16
+    text: Estado preenchido com base em README.md e histórico de commits de setembro/2026
 milestones: []
 review:
   stale_after_days: null
