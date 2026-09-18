@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Bell, Check, AlertTriangle, Info, Sparkles, Loader2, RefreshCw, ExternalLink, ShieldCheck, TrendingUp, Target, Wallet, Landmark } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ALERT_LEVEL_LABELS } from "@/lib/constants";
+import { isDemoMode } from "@/services/demoMode/demoData";
 
 export default function Alerts() {
   const { user } = useAuth();
@@ -219,7 +220,14 @@ export default function Alerts() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Centro de Alertas" description="Alertas inteligentes baseados nos seus dados reais" />
+      <PageHeader
+        title="Centro de Alertas"
+        description={
+          isDemoMode()
+            ? "Alertas inteligentes baseados em dados de demonstração"
+            : "Alertas inteligentes baseados nos seus dados reais"
+        }
+      />
 
       {/* Generated alerts (real-time from engine) */}
       {generatedAlerts.length > 0 && (

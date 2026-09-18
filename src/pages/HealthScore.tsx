@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, BarChart3, Info, AlertTriangle, CheckCircle } from "lucide-react";
+import { isDemoMode } from "@/services/demoMode/demoData";
 
 export default function HealthScore() {
   const { user } = useAuth();
@@ -103,7 +104,14 @@ export default function HealthScore() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Score de Saúde Financeira" description="Nota calculada deterministicamente — apenas dados reais" />
+      <PageHeader
+        title="Score de Saúde Financeira"
+        description={
+          isDemoMode()
+            ? "Nota calculada deterministicamente — dados de demonstração"
+            : "Nota calculada deterministicamente — apenas dados reais"
+        }
+      />
 
       {/* Overall score */}
       <Card>
@@ -117,7 +125,8 @@ export default function HealthScore() {
               </p>
               <p className="text-sm text-muted-foreground">de 100 pontos</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Baseado em {score.availableComponents} de {score.totalComponents} componentes com dados reais
+                Baseado em {score.availableComponents} de {score.totalComponents} componentes com{" "}
+                {isDemoMode() ? "dados de demonstração" : "dados reais"}
               </p>
             </>
           ) : (

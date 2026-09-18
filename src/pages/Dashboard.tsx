@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { calculateMonthlySummary } from "@/services/financeEngine/monthlySummary";
+import { isDemoMode } from "@/services/demoMode/demoData";
 import { filterOfficialTransactions } from "@/services/financeEngine";
 import type { TransactionRaw, MonthlySummary } from "@/services/financeEngine/types";
 import {
@@ -257,7 +258,9 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold font-mono">{formatCurrency(totalAccountBalance)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{(accounts || []).length} conta(s) ativa(s) — dado real</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {(accounts || []).length} conta(s) ativa(s) — {isDemoMode() ? "dados de demonstração" : "dado real"}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -385,7 +388,11 @@ export default function Dashboard() {
 
       {summaryConfirmed && summaryConfirmed.expenseByCategory.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Despesas por Categoria (dados oficiais)</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Despesas por Categoria ({isDemoMode() ? "dados de demonstração" : "dados confirmados"})
+            </CardTitle>
+          </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {summaryConfirmed.expenseByCategory.slice(0, 6).map((cat) => (
