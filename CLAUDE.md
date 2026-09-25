@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexto do Projeto FinanceiroJe
 
-> **Decisão empresarial vigente (09/09/2026):** [EC-003 — Central Esdra](../esdra/central-ec/DECISOES.md). Não expandir a rotina/gestão paralela do Painel Esdra; o agendaEC é o núcleo operacional. Preservar manutenção, funções e dados existentes. O escopo financeiro pessoal/familiar/MEI continua neste app.
+> **Decisão empresarial vigente (25/09/2026):** a gestão empresarial da Esdra Cosméticos saiu do FinanceiroJe (Painel Esdra, Manual 30 dias, rotinas, KPIs, clientes e estoque). A gestão da loja vive no agendaEC. Aqui fica só o dinheiro: pessoal, família e escopo business/MEI. As tabelas `esdra_*` e `manual_30_dias_*` ainda existem no banco e aguardam exportação e remoção (ver `docs/STATUS_EXECUCAO.md`).
 
 
 ## Contexto que afeta o produto

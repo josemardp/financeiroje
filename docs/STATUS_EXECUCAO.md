@@ -1,5 +1,15 @@
 # STATUS_EXECUCAO — FinanceiroJe
 
+## Remoção do Painel Esdra (25/09/2026)
+
+Decisão de Josemar: o agendaEC é o único sistema de gestão da Esdra Cosméticos; o FinanceiroJe fica só com o dinheiro (pessoal, família e escopo business/MEI). Substitui a organização de 09/09 abaixo.
+
+- Código removido: rota `/painel-esdra/hoje`, `src/pages/PainelEsdraHoje.tsx`, `src/modules/painel-esdra/`, bloco `esdra_compromissos_diarios` do `types.ts`, `scripts/seed-manual-esdra.ts`, rewrites mortos de `/manual` e `/checklist-diadasmaes` no `vercel.json`, pasta `Rotina de trabalho/` e `docs/PLANO_PAINEL_ESDRA.md`.
+- Cópia de todos esses arquivos: `G:\Meu Drive\30_ESDRA\_RESTRITO\02_ESDRA_COSMETICOS\Manual 30 dias (retirado do financeiroje 2026-09-25)`.
+- Testes: 152 para 137 (saíram os 15 do painel).
+- **Pendente (banco, ato final):** quando o Supabase voltar, exportar para o Drive restrito e só então remover `esdra_compromissos_diarios`, `esdra_kpis_semanais`, `esdra_decisoes`, `esdra_clientes`, `esdra_estoque`, `manual_30_dias_progresso`, `manual_30_dias_decisoes` (e `checklist_esdra`, se existir) com uma migração NOVA. **Não** apagar a migração `20260622000002_esdra_painel_init.sql` nem a função `set_updated_at()`: ela é usada por `notification_capture_events`.
+- Seções H.1 a H.4, I.7 e as partes de estoque/margem por produto/curva ABC de E.1 e E.2 em `PLANOS_DE_EVOLUCAO.md` deixaram de valer; o lado dinheiro de E.1/E.2 continua.
+
 ## Organização Esdra — 09/09/2026
 
 Aplicada a organização documental aprovada por Josemar. O FinanceiroJe permanece compartilhado e no mesmo caminho. Novas rotinas empresariais ficam no agendaEC; a expansão paralela do Painel Esdra está suspensa, preservando sua implementação, tabelas, histórico, manual e manutenção. O plano H.1/H.2 foi marcado como referência histórica. Corrigida no README a classificação da pasta `Rotina de trabalho` como material Esdra, não PMESP. Sem alterações de código, banco ou publicação. [Decisão EC-003](../../esdra/central-ec/DECISOES.md).

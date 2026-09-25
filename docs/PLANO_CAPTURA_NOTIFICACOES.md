@@ -5,7 +5,7 @@
 **Stack:** React + TypeScript + Vite + Supabase (Deno Edge Functions) + PWA
 **Repo:** `josemardp/financeiroje`
 **Data:** 04 de Julho de 2026
-**Padrão:** seguir convenções do `PLANO_PAINEL_ESDRA.md` v2.0
+**Padrão:** seguir as convenções do `CLAUDE.md`
 
 **Origem:** consolidação de três rodadas de análise sobre como reduzir o atrito de captura de
 transações bancárias sem violar os princípios de zero-alucinação e "sem push de engajamento" do
