@@ -79,6 +79,7 @@ usuário.
   - `INSTALACAO.md` (guia de setup)
   - `migration.sql` (DDL aplicado)
   - `manual_30_dias_FINAL.html` (HTML source)
+  - **25/09/2026:** `MANUAL_30_DIAS_ESDRA.md` e `manual_30_dias_FINAL.html` saíram do repositório (público) por conterem números do negócio. Originais em `G:\Meu Drive\30_ESDRA\_RESTRITO\02_ESDRA_COSMETICOS\Manual 30 dias (retirado do financeiroje 2026-09-25)`.
 - ✅ `PLANO_PAINEL_ESDRA.md` v2.0 commitado em `docs/`
 
 **Função estratégica:** estes ativos não são descartáveis no sentido pejorativo. As tabelas Supabase são **permanentes** e serão consumidas pelo Painel Empreendedor (H.1 Sprint 1) e pela PIL Esdra (H.2 Sprint 5). Os dados acumulados durante 30+ dias de uso real do HTML viram base de aprendizado do Conselheiro Esdra (H.2 Sprint 6).
